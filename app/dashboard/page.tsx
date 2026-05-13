@@ -2,150 +2,176 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { getDynamicImage } from '@/lib/mediaEngine';
 
-// DATASET INTEGRALE E SEMANTICO - 32 EVENTI
+// DATASET COMPLETO IBIZA 2026
 const IBIZA_SCHEDULE = [
-  // 2 GIUGNO - GRUPPO INIZIALE
-  { id: '1', date: '2026-06-02', time: '06:10', title: 'Decollo', location: 'Milano Malpensa', group: 'initial', img: 'photo-1436491865332-7a61a109c0f3' },
-  { id: '2', date: '2026-06-02', time: '08:30', title: 'Atterraggio', location: 'Aeroporto Ibiza', group: 'initial', img: 'photo-1542296332-2e4473faf563' },
-  { id: '3', date: '2026-06-02', time: '10:00', title: 'Spesa cena e Weed', location: 'Ibiza', group: 'initial', img: 'photo-1542838132-92c53300491e' },
-  { id: '4', date: '2026-06-02', time: '11:30', title: 'Aperitivo/Pranzo', location: 'Cala Jondal', group: 'initial', img: 'photo-1517248135467-4c7edcad34c4' },
-  { id: '5', date: '2026-06-02', time: '14:00', title: 'Imbarco Formentera', location: 'Cala Jondal', group: 'initial', img: 'photo-1534447677768-be436bb09401' },
-  { id: '6', date: '2026-06-02', time: '15:30', title: 'Giro spiagge', location: 'Formentera', group: 'initial', img: 'photo-1507525428034-b723cf961d3e' },
-  { id: '7', date: '2026-06-02', time: '20:00', title: 'Cena in Barca', location: 'Costa Nord Formentera', group: 'initial', img: 'photo-1567620905732-2d1ec7bb7445' },
-  { id: '8', date: '2026-06-02', time: '23:00', title: 'Sbarco e locali', location: 'Formentera', group: 'initial', img: 'photo-1470225620780-dba8ba36b745' },
-
+  // 2 GIUGNO
+  { id: '1', date: '2026-06-02', time: '06:10', title: 'Decollo', location: 'Milano Malpensa', group: 'initial' },
+  { id: '2', date: '2026-06-02', time: '08:30', title: 'Atterraggio', location: 'Aeroporto Ibiza', group: 'initial' },
+  { id: '3', date: '2026-06-02', time: '10:00', title: 'Spesa cena e Weed', location: 'Indifferente', group: 'initial' },
+  { id: '4', date: '2026-06-02', time: '11:30', title: 'Aperitivo/Pranzo', location: 'Cala Jondal', group: 'initial' },
+  { id: '5', date: '2026-06-02', time: '14:00', title: 'Imbarco verso Formentera', location: 'Cala Jondal', group: 'initial' },
+  { id: '6', date: '2026-06-02', time: '15:30', title: 'Arrivo e giro spiagge', location: 'Formentera', group: 'initial' },
+  { id: '7', date: '2026-06-02', time: '20:00', title: 'Cena in Barca', location: 'Costa Nord Formentera', group: 'initial' },
+  { id: '8', date: '2026-06-02', time: '23:00', title: 'Sbarco e giro locali', location: 'Formentera', group: 'initial' },
   // 3 GIUGNO
-  { id: '9', date: '2026-06-03', time: '03:00', title: 'Rientro in barca', location: 'El Beso', group: 'initial', img: 'photo-1516939884455-1445c8652f83' },
-  { id: '10', date: '2026-06-03', time: '07:00', title: 'Decollo 2° Gruppo', location: 'Milano Malpensa', group: 'second', img: 'photo-1436491865332-7a61a109c0f3' },
-  { id: '11', date: '2026-06-03', time: '09:30', title: 'Atterraggio 2° Gruppo', location: 'Aeroporto Ibiza', group: 'second', img: 'photo-1464037862646-647f1c34224c' },
-  { id: '12', date: '2026-06-03', time: '09:30', title: 'Partenza verso Ibiza', location: 'Spiaggia El Beso', group: 'initial', img: 'photo-1500375592092-40eb2168fd21' },
-  { id: '13', date: '2026-06-03', time: '11:00', title: 'Arrivo a Ibiza', location: 'Cala Jondal', group: 'initial', img: 'photo-1515238152791-8216bfdf89a7' },
-  { id: '14', date: '2026-06-03', time: '13:00', title: 'Check-in Villa', location: 'Zona Cala d\'Hort', group: 'second', img: 'photo-1512917774080-9991f1c4c750' },
-  { id: '15', date: '2026-06-03', time: '13:00', title: 'Partenza verso Villa', location: 'Cala Jondal', group: 'initial', img: 'photo-1533473359331-0135ef1b58bf' },
-  { id: '16', date: '2026-06-03', time: '13:30', title: 'Arrivo in Villa', location: 'Zona Cala d\'Hort', group: 'initial', img: 'photo-1613490493576-7fde63acd811' },
-  { id: '17', date: '2026-06-03', time: '14:00', title: 'REUNION E PRANZO', location: 'Cala d\'Hort', group: 'all', img: 'photo-1467003909585-2f8a72700288' },
-  { id: '18', date: '2026-06-03', time: '17:00', title: 'Spesa per Grigliata', location: 'Zona Cala d\'Hort', group: 'all', img: 'photo-1555939594-58d7cb561ad1' },
-  { id: '19', date: '2026-06-03', time: '18:00', title: 'Rientro e Doccia', location: 'Zona Cala d\'Hort', group: 'all', img: 'photo-1552346154-21d32810aba3' },
-  { id: '20', date: '2026-06-03', time: '20:00', title: 'Aperitivo + Cena Leuci', location: 'Playa d\'en Bossa', group: 'all', img: 'photo-1559339352-11d035aa65de' },
-
+  { id: '9', date: '2026-06-03', time: '03:00', title: 'Rientro in barca e sbraco', location: 'El Beso', group: 'initial' },
+  { id: '10', date: '2026-06-03', time: '07:00', title: 'Decollo Secondo Gruppo', location: 'Milano Malpensa', group: 'second' },
+  { id: '11', date: '2026-06-03', time: '09:30', title: 'Atterraggio Secondo Gruppo', location: 'Aeroporto Ibiza', group: 'second' },
+  { id: '12', date: '2026-06-03', time: '09:30', title: 'Partenza verso Ibiza', location: 'Spiaggia El Beso', group: 'initial' },
+  { id: '13', date: '2026-06-03', time: '11:00', title: 'Arrivo a Ibiza', location: 'Cala Jondal', group: 'initial' },
+  { id: '14', date: '2026-06-03', time: '13:00', title: 'Check-in Villa', location: 'Zona Cala d\'Hort', group: 'second' },
+  { id: '15', date: '2026-06-03', time: '13:00', title: 'Partenza verso Villa', location: 'Cala Jondal', group: 'initial' },
+  { id: '16', date: '2026-06-03', time: '13:30', title: 'Arrivo in Villa', location: 'Zona Cala d\'Hort', group: 'initial' },
+  { id: '17', date: '2026-06-03', time: '14:00', title: 'REUNION E PRANZO', location: 'Cala d\'Hort', group: 'all' },
+  { id: '18', date: '2026-06-03', time: '17:00', title: 'Spesa per Grigliata', location: 'Zona Cala d\'Hort', group: 'all' },
+  { id: '19', date: '2026-06-03', time: '18:00', title: 'Rientro Villa e Doccia', location: 'Zona Cala d\'Hort', group: 'all' },
+  { id: '20', date: '2026-06-03', time: '20:00', title: 'Aperitivo + Cena Leuci', location: 'Playa d\'en Bossa', group: 'all' },
   // 4 GIUGNO
-  { id: '21', date: '2026-06-04', time: '00:00', title: 'SERATA DC10', location: 'DC 10', group: 'all', img: 'photo-1516450360452-9312f5e86fc7' },
-  { id: '22', date: '2026-06-04', time: '04:00', title: 'Rientro e Sbraco', location: 'Zona Cala d\'Hort', group: 'all', img: 'photo-1519681393784-d120267933ba' },
-  { id: '23', date: '2026-06-04', time: '15:00', title: 'Grigliata e Piscina', location: 'Villa', group: 'all', img: 'photo-1533777857889-4be7c70b33f7' },
-  { id: '24', date: '2026-06-04', time: '20:00', title: 'Preserata', location: 'Villa', group: 'all', img: 'photo-1510414842594-a61c69b5ae57' },
-  { id: '25', date: '2026-06-04', time: '23:00', title: 'Da Decidersi', location: 'Ibiza', group: 'all', img: 'photo-1514525253361-bee8718a74a2' },
-
+  { id: '21', date: '2026-06-04', time: '00:00', title: 'SERATA DC10', location: 'DC 10', group: 'all' },
+  { id: '22', date: '2026-06-04', time: '04:00', title: 'Rientro Villa e Sbraco', location: 'Zona Cala d\'Hort', group: 'all' },
+  { id: '23', date: '2026-06-04', time: '15:00', title: 'Grigliata Lunga e Piscina', location: 'Villa', group: 'all' },
+  { id: '24', date: '2026-06-04', time: '20:00', title: 'Preserata', location: 'Villa', group: 'all' },
+  { id: '25', date: '2026-06-04', time: '23:00', title: 'Da Decidersi', location: 'Ibiza', group: 'all' },
   // 5 GIUGNO
-  { id: '26', date: '2026-06-05', time: '03:00', title: 'Rientro e Sbraco', location: 'Zona Cala d\'Hort', group: 'all', img: 'photo-1519681393784-d120267933ba' },
-  { id: '27', date: '2026-06-05', time: '12:00', title: 'Colazione Hangover', location: 'Villa', group: 'all', img: 'photo-1533089860892-a7c6f0a88666' },
-  { id: '28', date: '2026-06-05', time: '15:00', title: 'Spiaggia e Mare', location: 'Cala Tarida', group: 'all', img: 'photo-1507525428034-b723cf961d3e' },
-  { id: '29', date: '2026-06-05', time: '17:00', title: 'Aperitivo Finale', location: 'Cala Tarida', group: 'all', img: 'photo-1510626176961-4b57d4fbad03' },
-  { id: '30', date: '2026-06-05', time: '20:30', title: 'Partenza Aeroporto', location: 'Cala Tarida', group: 'all', img: 'photo-1503376780353-7e6692767b70' },
-  { id: '31', date: '2026-06-05', time: '21:15', title: 'Arrivo Aeroporto', location: 'Ibiza', group: 'all', img: 'photo-1464037862646-647f1c34224c' },
-  { id: '32', date: '2026-06-05', time: '22:55', title: 'Decollo Rientro', location: 'Aeroporto Ibiza', group: 'all', img: 'photo-1436491865332-7a61a109c0f3' },
+  { id: '26', date: '2026-06-05', time: '03:00', title: 'Rientro Villa e Sbraco', location: 'Zona Cala d\'Hort', group: 'all' },
+  { id: '27', date: '2026-06-05', time: '12:00', title: 'Colazione Hangover', location: 'Villa', group: 'all' },
+  { id: '28', date: '2026-06-05', time: '15:00', title: 'Spiaggia e Mare', location: 'Cala Tarida', group: 'all' },
+  { id: '29', date: '2026-06-05', time: '17:00', title: 'Aperitivo Finale', location: 'Cala Tarida', group: 'all' },
+  { id: '30', date: '2026-06-05', time: '20:30', title: 'Partenza Aeroporto', location: 'Cala Tarida', group: 'all' },
+  { id: '31', date: '2026-06-05', time: '21:15', title: 'Arrivo Aeroporto', location: 'Ibiza', group: 'all' },
+  { id: '32', date: '2026-06-05', time: '22:55', title: 'Decollo', location: 'Aeroporto Ibiza', group: 'all' },
 ];
+
+const GROUP_1 = ["Fabri", "Alessandro", "Teo", "Edo", "Cimmi", "Lori"];
+const GROUP_2 = ["Chri", "Maicol", "Nello", "Bibi", "Fiore", "Corra"];
+const ALL_PARTICIPANTS = [...GROUP_1, ...GROUP_2];
 
 export default function Dashboard() {
   const [user, setUser] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState('2026-06-02');
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState('calendar');
   const [now, setNow] = useState(new Date());
   const router = useRouter();
 
   useEffect(() => {
     const savedUser = localStorage.getItem('ibiza_user');
-    if (!savedUser) router.push('/'); else setUser(savedUser);
+    if (!savedUser) router.push('/');
+    else setUser(savedUser);
+
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, [router]);
 
   if (!user) return <div className="bg-slate-950 min-h-screen" />;
 
-  const isInitialMember = ["Fabri", "Alessandro", "Teo", "Edo", "Lori", "Cimmi"].includes(user);
+  const isGroup1 = GROUP_1.includes(user);
+  const isAle = user === 'Alessandro';
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white pb-24">
-      <header className="p-6 border-b border-slate-800 bg-slate-900/80 sticky top-0 backdrop-blur-xl z-50 flex flex-col gap-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.4em]">Ibiza Hub</h2>
-            <p className="text-lg font-bold italic">{user}</p>
-          </div>
-          <select 
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs font-bold outline-none text-yellow-500"
-          >
-            <option value="2026-06-02">2 Giugno</option>
-            <option value="2026-06-03">3 Giugno</option>
-            <option value="2026-06-04">4 Giugno</option>
-            <option value="2026-06-05">5 Giugno</option>
-          </select>
+    <main className="min-h-screen bg-slate-950 text-white pb-24 font-sans">
+      <header className="p-6 border-b border-slate-800 bg-slate-900/80 sticky top-0 backdrop-blur-xl z-50 flex justify-between items-center">
+        <div>
+          <h2 className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.3em]">Operazione Ibiza</h2>
+          <p className="text-lg font-bold tracking-tight">Accesso: {user}</p>
+        </div>
+        <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-black">
+          {user[0]}
         </div>
       </header>
 
-      <div className="p-4 space-y-3">
-        {IBIZA_SCHEDULE.filter(e => e.date === selectedDate).map((event) => {
-          if (event.group === 'initial' && !isInitialMember) return null;
+      <div className="p-4 space-y-6">
+        
+        {/* VIEW: CALENDARIO */}
+        {activeTab === 'calendar' && IBIZA_SCHEDULE.map((event) => {
+          // Logica di Segregazione Flussi
+          if (event.group === 'initial' && !isGroup1) return null;
+          if (event.group === 'second' && isGroup1 && !isAle) return null; 
           
+          // Logica Black Box (Alessandro)
           const eventDateTime = new Date(`${event.date}T${event.time}:00`);
-          const isHidden = user === 'Alessandro' && now < new Date(eventDateTime.getTime() + 3600000);
+          const unlockTime = new Date(eventDateTime.getTime() + (60 * 60 * 1000));
+          const isHidden = isAle && now < unlockTime;
+          
+          const imageUrl = getDynamicImage(event.title);
 
           return (
-            <div 
-              key={event.id} 
-              onClick={() => setSelectedEvent(event)}
-              className="group relative overflow-hidden bg-slate-900 border border-slate-800 rounded-xl flex items-center h-20 cursor-pointer active:scale-95 transition-transform"
-            >
-              <div className="flex-1 p-4 z-10 bg-slate-900/40 backdrop-blur-sm h-full flex flex-col justify-center">
-                <span className="text-[10px] font-black text-yellow-500/70">{event.time}</span>
-                <h3 className="text-sm font-black uppercase tracking-tight leading-tight">
-                  {isHidden ? '???' : event.title}
-                </h3>
+            <div key={event.id} className={`overflow-hidden rounded-2xl border transition-all ${isHidden ? 'border-slate-800 bg-slate-900/40' : 'border-slate-800 bg-slate-900 shadow-xl'}`}>
+              <div className="h-32 w-full bg-slate-800 relative">
+                {isHidden ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-slate-950">
+                    <span className="text-slate-700 font-mono text-4xl font-black">(???)</span>
+                  </div>
+                ) : (
+                  <img src={imageUrl} alt={event.title} className="w-full h-full object-cover opacity-60" />
+                )}
+                <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-md border border-white/10">
+                  <span className="text-yellow-500 font-mono font-bold text-xs">{event.time}</span>
+                </div>
               </div>
 
-              <div className="w-24 h-full overflow-hidden relative">
-                {!isHidden && (
-                  <img 
-                    src={`https://images.unsplash.com/${event.img}?auto=format&fit=crop&w=300&q=80`} 
-                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
-                    alt={event.title}
-                  />
+              <div className="p-5">
+                <h3 className={`text-xl font-black uppercase tracking-tight ${isHidden ? 'text-slate-600' : 'text-white'}`}>
+                  {isHidden ? 'Dati Oscurati' : event.title}
+                </h3>
+                <p className="text-sm text-slate-400 mt-1 font-medium">
+                  📍 {isHidden ? '(???)' : event.location}
+                </p>
+
+                {isHidden && (
+                  <div className="mt-4 bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-lg flex justify-between items-center">
+                    <span className="text-xs uppercase font-bold text-yellow-600">Sblocco dati tra:</span>
+                    <span className="font-mono font-black text-yellow-500">
+                      {Math.max(0, Math.ceil((unlockTime.getTime() - now.getTime()) / 60000))} min
+                    </span>
+                  </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-r from-slate-900 to-transparent" />
               </div>
             </div>
           );
         })}
+
+        {/* VIEW: COMPARI */}
+        {activeTab === 'compari' && (
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h3 className="text-2xl font-black uppercase tracking-tighter italic text-slate-300 mb-6">Directory Compari</h3>
+            {ALL_PARTICIPANTS.map(p => (
+              <div key={p} className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-between shadow-lg">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-slate-800 border-2 border-slate-700 rounded-full flex items-center justify-center text-xl font-black text-slate-400">
+                    {p[0]}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-lg">{p}</h4>
+                    <p className="text-[10px] uppercase tracking-wider text-slate-500">Recensioni Totali: 0</p>
+                  </div>
+                </div>
+                <button 
+                  disabled={user === p}
+                  className="bg-slate-800 disabled:opacity-30 border border-slate-700 hover:border-yellow-500 hover:text-yellow-500 text-slate-400 text-[10px] font-bold py-2 px-3 rounded-lg uppercase transition-all"
+                >
+                  Vota
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {selectedEvent && (
-        <div className="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-xl p-6 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300">
-          <div className="w-full max-w-sm bg-slate-900 border border-yellow-500/30 rounded-3xl overflow-hidden shadow-2xl">
-            <div className="h-56 relative">
-               <img 
-                src={`https://images.unsplash.com/${selectedEvent.img}?auto=format&fit=crop&w=600&q=80`} 
-                className="w-full h-full object-cover" 
-                alt="detail" 
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent" />
-            </div>
-
-            <div className="p-8 -mt-10 relative z-10 text-center">
-              <span className="text-yellow-500 font-black tracking-widest uppercase text-xs">{selectedEvent.time}</span>
-              <h4 className="text-2xl font-black uppercase italic mt-2">
-                {user === 'Alessandro' && now < new Date(new Date(`${selectedEvent.date}T${selectedEvent.time}:00`).getTime() + 3600000) ? '???' : selectedEvent.title}
-              </h4>
-              <p className="text-slate-400 mt-2 text-sm">📍 {selectedEvent.location}</p>
-              <button 
-                onClick={() => setSelectedEvent(null)}
-                className="mt-8 px-8 bg-yellow-500 text-black font-black py-3 rounded-full uppercase text-[10px] tracking-widest"
-              >Chiudi</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <nav className="fixed bottom-0 left-0 right-0 bg-slate-950/90 backdrop-blur-xl border-t border-slate-800 p-4 flex justify-around items-center z-50">
+        {[
+          { id: 'calendar', label: 'Missione' },
+          { id: 'compari', label: 'Compari' }
+        ].map((tab) => (
+          <button 
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`text-[10px] uppercase font-black tracking-widest transition-all px-4 py-2 rounded-full ${activeTab === tab.id ? 'bg-yellow-500 text-black scale-105' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
     </main>
   );
 }
