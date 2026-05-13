@@ -53,13 +53,14 @@ export default function Dashboard() {
   const [activeCommentEvent, setActiveCommentEvent] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
-  
-  // Nuovo stato per archiviare le recensioni caricate dal DB
   const [allComments, setAllComments] = useState<any[]>([]);
+
+  // Nuovi stati per la modalità modifica
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentText, setEditCommentText] = useState('');
 
   const router = useRouter();
 
-  // Funzione di lettura dal database
   const fetchComments = async () => {
     const { data, error } = await supabase.from('event_comments').select('*').order('created_at', { ascending: true });
     if (!error && data) {
@@ -72,7 +73,7 @@ export default function Dashboard() {
     if (!savedUser) router.push('/');
     else setUser(savedUser);
 
-    fetchComments(); // Carica i commenti all'avvio
+    fetchComments();
 
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
@@ -83,7 +84,6 @@ export default function Dashboard() {
   const isGroup1 = GROUP_1.includes(user);
   const isAle = user === 'Alessandro';
 
-  // Funzione di scrittura nel database
   const handlePostComment = async (eventId: string) => {
     if (!commentText.trim() || !user) return;
 
@@ -102,7 +102,34 @@ export default function Dashboard() {
 
     setCommentText('');
     setActiveCommentEvent(null);
-    fetchComments(); // Aggiorna la lista immediatamente
+    fetchComments();
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    const { error } = await supabase.from('event_comments').delete().eq('id', commentId);
+    if (error) {
+      alert("Impossibile eliminare la recensione.");
+      return;
+    }
+    fetchComments();
+  };
+
+  const handleUpdateComment = async (commentId: string) => {
+    if (!editCommentText.trim()) return;
+    
+    const { error } = await supabase
+      .from('event_comments')
+      .update({ content: editCommentText })
+      .eq('id', commentId);
+
+    if (error) {
+      alert("Impossibile aggiornare la recensione.");
+      return;
+    }
+    
+    setEditingCommentId(null);
+    setEditCommentText('');
+    fetchComments();
   };
 
   return (
@@ -129,7 +156,6 @@ export default function Dashboard() {
           const isHidden = isAle && now < unlockTime;
           const imageUrl = getDynamicImage(event.title);
           
-          // Filtra i commenti specifici per questo evento
           const eventComments = allComments.filter(c => c.event_id === event.id);
 
           return (
@@ -160,7 +186,6 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                {/* MODULO RECENSIONI INTERATTIVO E CONDIVISO */}
                 {!isHidden && (
                   <div className="mt-5 pt-4 border-t border-slate-800/50">
                     <div className="flex justify-between items-center mb-3">
@@ -173,15 +198,41 @@ export default function Dashboard() {
                       </button>
                     </div>
 
-                    {/* Stampa a schermo le recensioni caricate dal database */}
                     {eventComments.length > 0 ? (
                       <div className="mb-4 space-y-2">
-                        {eventComments.map(c => (
-                          <div key={c.id} className="bg-slate-950 p-3 rounded-lg border border-slate-800">
-                            <span className="text-[10px] text-yellow-500 uppercase font-bold tracking-wider">{c.author_name}</span>
-                            <p className="text-sm text-slate-300 mt-1">{c.content}</p>
-                          </div>
-                        ))}
+                        {eventComments.map(c => {
+                          const isMyComment = c.author_name === user;
+                          const isEditing = editingCommentId === c.id;
+
+                          return (
+                            <div key={c.id} className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-[10px] text-yellow-500 uppercase font-bold tracking-wider">{c.author_name}</span>
+                                {isMyComment && !isEditing && (
+                                  <div className="flex gap-2">
+                                    <button onClick={() => { setEditingCommentId(c.id); setEditCommentText(c.content); }} className="text-[9px] text-slate-400 hover:text-yellow-500 uppercase font-bold">Modifica</button>
+                                    <button onClick={() => handleDeleteComment(c.id)} className="text-[9px] text-slate-400 hover:text-red-500 uppercase font-bold">Elimina</button>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {isEditing ? (
+                                <div className="flex gap-2 mt-2">
+                                  <input 
+                                    type="text" 
+                                    value={editCommentText}
+                                    onChange={(e) => setEditCommentText(e.target.value)}
+                                    className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white focus:border-yellow-500 outline-none"
+                                  />
+                                  <button onClick={() => handleUpdateComment(c.id)} className="bg-yellow-500 text-black px-2 py-1 rounded font-bold text-[10px] uppercase">Salva</button>
+                                  <button onClick={() => setEditingCommentId(null)} className="bg-slate-800 text-white px-2 py-1 rounded font-bold text-[10px] uppercase">Annulla</button>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-slate-300 mt-1">{c.content}</p>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="text-xs text-slate-600 italic mb-4">Nessuna recensione registrata per questo evento.</div>
@@ -206,7 +257,7 @@ export default function Dashboard() {
           );
         })}
 
-        {/* VIEW: COMPARI (Rimasta invariata per stabilità) */}
+        {/* VIEW: COMPARI */}
         {activeTab === 'compari' && (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <h3 className="text-2xl font-black uppercase tracking-tighter italic text-slate-300 mb-6">Directory Compari</h3>
