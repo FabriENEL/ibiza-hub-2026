@@ -55,7 +55,6 @@ export default function Dashboard() {
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [allComments, setAllComments] = useState<any[]>([]);
 
-  // Nuovi stati per la modalità modifica
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
 
@@ -132,6 +131,9 @@ export default function Dashboard() {
     fetchComments();
   };
 
+  // Vettore per generare dinamicamente i blocchi giornalieri
+  const ibizaDays = ['2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05'];
+
   return (
     <main className="min-h-screen bg-slate-950 text-white pb-24 font-sans">
       <header className="p-6 border-b border-slate-800 bg-slate-900/80 sticky top-0 backdrop-blur-xl z-50 flex justify-between items-center">
@@ -147,115 +149,145 @@ export default function Dashboard() {
       <div className="p-4 space-y-6">
         
         {/* VIEW: CALENDARIO */}
-        {activeTab === 'calendar' && IBIZA_SCHEDULE.map((event) => {
-          if (event.group === 'initial' && !isGroup1) return null;
-          if (event.group === 'second' && isGroup1 && !isAle) return null; 
-          
-          const eventDateTime = new Date(`${event.date}T${event.time}:00`);
-          const unlockTime = new Date(eventDateTime.getTime() + (60 * 60 * 1000));
-          const isHidden = isAle && now < unlockTime;
-          const imageUrl = getDynamicImage(event.title);
-          
-          const eventComments = allComments.filter(c => c.event_id === event.id);
+        {activeTab === 'calendar' && (
+          <div className="space-y-8">
+            {ibizaDays.map((dateString) => {
+              // Estrazione e filtraggio eventi per singola data
+              const dayEvents = IBIZA_SCHEDULE.filter(e => e.date === dateString);
+              const visibleEventsForDay = dayEvents.filter(event => {
+                if (event.group === 'initial' && !isGroup1) return false;
+                if (event.group === 'second' && isGroup1 && !isAle) return false; 
+                return true;
+              });
 
-          return (
-            <div key={event.id} className={`overflow-hidden rounded-2xl border transition-all ${isHidden ? 'border-slate-800 bg-slate-900/40' : 'border-slate-800 bg-slate-900 shadow-xl'}`}>
-              <div className="h-32 w-full bg-slate-800 relative">
-                {isHidden ? (
-                  <div className="absolute inset-0 flex items-center justify-center bg-slate-950">
-                    <span className="text-slate-700 font-mono text-4xl font-black">(???)</span>
+              // Se il gruppo non ha eventi visibili in questa data, non mostra l'intestazione
+              if (visibleEventsForDay.length === 0) return null;
+
+              const dayLabel = `${dateString.split('-')[2]} GIUGNO`;
+
+              return (
+                <div key={dateString} className="space-y-4">
+                  
+                  {/* INTESTAZIONE GIORNALIERA RIPRISTINATA */}
+                  <div className="pb-2 border-b border-slate-800 mt-2">
+                    <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">
+                      {dayLabel}
+                    </h3>
                   </div>
-                ) : (
-                  <img src={imageUrl} alt={event.title} className="w-full h-full object-cover opacity-60" />
-                )}
-                <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-md border border-white/10">
-                  <span className="text-yellow-500 font-mono font-bold text-xs">{event.time}</span>
-                </div>
-              </div>
 
-              <div className="p-5">
-                <h3 className={`text-xl font-black uppercase tracking-tight ${isHidden ? 'text-slate-600' : 'text-white'}`}>
-                  {isHidden ? 'Dati Oscurati' : event.title}
-                </h3>
-                <p className="text-sm text-slate-400 mt-1 font-medium">📍 {isHidden ? '(???)' : event.location}</p>
+                  <div className="space-y-6">
+                    {visibleEventsForDay.map((event) => {
+                      const eventDateTime = new Date(`${event.date}T${event.time}:00`);
+                      const unlockTime = new Date(eventDateTime.getTime() + (60 * 60 * 1000));
+                      const isHidden = isAle && now < unlockTime;
+                      const imageUrl = getDynamicImage(event.title);
+                      
+                      const eventComments = allComments.filter(c => c.event_id === event.id);
 
-                {isHidden && (
-                  <div className="mt-4 bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-lg flex justify-between items-center">
-                    <span className="text-xs uppercase font-bold text-yellow-600">Sblocco dati tra:</span>
-                    <span className="font-mono font-black text-yellow-500">{Math.max(0, Math.ceil((unlockTime.getTime() - now.getTime()) / 60000))} min</span>
-                  </div>
-                )}
+                      return (
+                        <div key={event.id} className={`overflow-hidden rounded-2xl border transition-all ${isHidden ? 'border-slate-800 bg-slate-900/40' : 'border-slate-800 bg-slate-900 shadow-xl'}`}>
+                          <div className="h-32 w-full bg-slate-800 relative">
+                            {isHidden ? (
+                              <div className="absolute inset-0 flex items-center justify-center bg-slate-950">
+                                <span className="text-slate-700 font-mono text-4xl font-black">(???)</span>
+                              </div>
+                            ) : (
+                              <img src={imageUrl} alt={event.title} className="w-full h-full object-cover opacity-60" />
+                            )}
+                            <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-md border border-white/10">
+                              <span className="text-yellow-500 font-mono font-bold text-xs">{event.time}</span>
+                            </div>
+                          </div>
 
-                {!isHidden && (
-                  <div className="mt-5 pt-4 border-t border-slate-800/50">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Recensioni Evento</span>
-                      <button 
-                        onClick={() => setActiveCommentEvent(activeCommentEvent === event.id ? null : event.id)}
-                        className="text-[10px] bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-md text-white transition-colors"
-                      >
-                        {activeCommentEvent === event.id ? 'Annulla' : '+ Aggiungi'}
-                      </button>
-                    </div>
+                          <div className="p-5">
+                            <h3 className={`text-xl font-black uppercase tracking-tight ${isHidden ? 'text-slate-600' : 'text-white'}`}>
+                              {isHidden ? 'Dati Oscurati' : event.title}
+                            </h3>
+                            <p className="text-sm text-slate-400 mt-1 font-medium">📍 {isHidden ? '(???)' : event.location}</p>
 
-                    {eventComments.length > 0 ? (
-                      <div className="mb-4 space-y-2">
-                        {eventComments.map(c => {
-                          const isMyComment = c.author_name === user;
-                          const isEditing = editingCommentId === c.id;
+                            {isHidden && (
+                              <div className="mt-4 bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-lg flex justify-between items-center">
+                                <span className="text-xs uppercase font-bold text-yellow-600">Sblocco dati tra:</span>
+                                <span className="font-mono font-black text-yellow-500">{Math.max(0, Math.ceil((unlockTime.getTime() - now.getTime()) / 60000))} min</span>
+                              </div>
+                            )}
 
-                          return (
-                            <div key={c.id} className="bg-slate-950 p-3 rounded-lg border border-slate-800">
-                              <div className="flex justify-between items-center mb-1">
-                                <span className="text-[10px] text-yellow-500 uppercase font-bold tracking-wider">{c.author_name}</span>
-                                {isMyComment && !isEditing && (
-                                  <div className="flex gap-2">
-                                    <button onClick={() => { setEditingCommentId(c.id); setEditCommentText(c.content); }} className="text-[9px] text-slate-400 hover:text-yellow-500 uppercase font-bold">Modifica</button>
-                                    <button onClick={() => handleDeleteComment(c.id)} className="text-[9px] text-slate-400 hover:text-red-500 uppercase font-bold">Elimina</button>
+                            {!isHidden && (
+                              <div className="mt-5 pt-4 border-t border-slate-800/50">
+                                <div className="flex justify-between items-center mb-3">
+                                  <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Recensioni Evento</span>
+                                  <button 
+                                    onClick={() => setActiveCommentEvent(activeCommentEvent === event.id ? null : event.id)}
+                                    className="text-[10px] bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-md text-white transition-colors"
+                                  >
+                                    {activeCommentEvent === event.id ? 'Annulla' : '+ Aggiungi'}
+                                  </button>
+                                </div>
+
+                                {eventComments.length > 0 ? (
+                                  <div className="mb-4 space-y-2">
+                                    {eventComments.map(c => {
+                                      const isMyComment = c.author_name === user;
+                                      const isEditing = editingCommentId === c.id;
+
+                                      return (
+                                        <div key={c.id} className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                          <div className="flex justify-between items-center mb-1">
+                                            <span className="text-[10px] text-yellow-500 uppercase font-bold tracking-wider">{c.author_name}</span>
+                                            {isMyComment && !isEditing && (
+                                              <div className="flex gap-2">
+                                                <button onClick={() => { setEditingCommentId(c.id); setEditCommentText(c.content); }} className="text-[9px] text-slate-400 hover:text-yellow-500 uppercase font-bold">Modifica</button>
+                                                <button onClick={() => handleDeleteComment(c.id)} className="text-[9px] text-slate-400 hover:text-red-500 uppercase font-bold">Elimina</button>
+                                              </div>
+                                            )}
+                                          </div>
+                                          
+                                          {isEditing ? (
+                                            <div className="flex gap-2 mt-2">
+                                              <input 
+                                                type="text" 
+                                                value={editCommentText}
+                                                onChange={(e) => setEditCommentText(e.target.value)}
+                                                className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white focus:border-yellow-500 outline-none"
+                                              />
+                                              <button onClick={() => handleUpdateComment(c.id)} className="bg-yellow-500 text-black px-2 py-1 rounded font-bold text-[10px] uppercase">Salva</button>
+                                              <button onClick={() => setEditingCommentId(null)} className="bg-slate-800 text-white px-2 py-1 rounded font-bold text-[10px] uppercase">Annulla</button>
+                                            </div>
+                                          ) : (
+                                            <p className="text-sm text-slate-300 mt-1">{c.content}</p>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-slate-600 italic mb-4">Nessuna recensione registrata per questo evento.</div>
+                                )}
+
+                                {activeCommentEvent === event.id && (
+                                  <div className="flex gap-2 animate-in fade-in">
+                                    <input 
+                                      type="text" 
+                                      value={commentText}
+                                      onChange={(e) => setCommentText(e.target.value)}
+                                      placeholder="Scrivi una recensione..." 
+                                      className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-yellow-500 outline-none"
+                                    />
+                                    <button onClick={() => handlePostComment(event.id)} className="bg-yellow-500 text-black px-4 rounded-lg font-bold text-xs uppercase">Invia</button>
                                   </div>
                                 )}
                               </div>
-                              
-                              {isEditing ? (
-                                <div className="flex gap-2 mt-2">
-                                  <input 
-                                    type="text" 
-                                    value={editCommentText}
-                                    onChange={(e) => setEditCommentText(e.target.value)}
-                                    className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white focus:border-yellow-500 outline-none"
-                                  />
-                                  <button onClick={() => handleUpdateComment(c.id)} className="bg-yellow-500 text-black px-2 py-1 rounded font-bold text-[10px] uppercase">Salva</button>
-                                  <button onClick={() => setEditingCommentId(null)} className="bg-slate-800 text-white px-2 py-1 rounded font-bold text-[10px] uppercase">Annulla</button>
-                                </div>
-                              ) : (
-                                <p className="text-sm text-slate-300 mt-1">{c.content}</p>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-slate-600 italic mb-4">Nessuna recensione registrata per questo evento.</div>
-                    )}
-
-                    {activeCommentEvent === event.id && (
-                      <div className="flex gap-2 animate-in fade-in">
-                        <input 
-                          type="text" 
-                          value={commentText}
-                          onChange={(e) => setCommentText(e.target.value)}
-                          placeholder="Scrivi una recensione..." 
-                          className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-yellow-500 outline-none"
-                        />
-                        <button onClick={() => handlePostComment(event.id)} className="bg-yellow-500 text-black px-4 rounded-lg font-bold text-xs uppercase">Invia</button>
-                      </div>
-                    )}
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* VIEW: COMPARI */}
         {activeTab === 'compari' && (
