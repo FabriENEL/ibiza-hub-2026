@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getDynamicImage } from '@/lib/mediaEngine';
+import { supabase } from '@/lib/supabase';
 
 // DATASET COMPLETO IBIZA 2026
 const IBIZA_SCHEDULE = [
@@ -70,9 +71,25 @@ export default function Dashboard() {
   const isGroup1 = GROUP_1.includes(user);
   const isAle = user === 'Alessandro';
 
-  const handlePostComment = (eventId: string) => {
-    if (!commentText.trim()) return;
-    alert(`Azione registrata: Commento inviato per l'evento ID ${eventId}. (Il collegamento al database avverrà nel prossimo step)`);
+  const handlePostComment = async (eventId: string) => {
+    if (!commentText.trim() || !user) return;
+
+    // Trasmissione dei dati al database Supabase
+    const { error } = await supabase
+      .from('event_comments')
+      .insert([{ 
+        event_id: eventId, 
+        author_name: user, 
+        content: commentText 
+      }]);
+
+    if (error) {
+      alert("Errore di trasmissione al database. Verifica i permessi della tabella.");
+      console.error(error);
+      return;
+    }
+
+    alert("Commento registrato con successo negli archivi della missione.");
     setCommentText('');
     setActiveCommentEvent(null);
   };
