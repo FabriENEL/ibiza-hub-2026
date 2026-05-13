@@ -1,0 +1,21 @@
+{
+  "name": "Ibiza Hub 2026",
+  "short_name": "IbizaHub",
+  "description": "Centro Operativo Addio al Celibato Alessandro",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#eab308",
+  "icons": [
+    {
+      "src": "https://images.unsplash.com/photo-1542296332-2e4473faf563?w=192&h=192&fit=crop",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1542296332-2e4473faf563?w=512&h=512&fit=crop",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
