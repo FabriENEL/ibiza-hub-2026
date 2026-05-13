@@ -50,17 +50,29 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('calendar');
   const [now, setNow] = useState(new Date());
   
-  // Stati di interazione UI
   const [activeCommentEvent, setActiveCommentEvent] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  
+  // Nuovo stato per archiviare le recensioni caricate dal DB
+  const [allComments, setAllComments] = useState<any[]>([]);
 
   const router = useRouter();
+
+  // Funzione di lettura dal database
+  const fetchComments = async () => {
+    const { data, error } = await supabase.from('event_comments').select('*').order('created_at', { ascending: true });
+    if (!error && data) {
+      setAllComments(data);
+    }
+  };
 
   useEffect(() => {
     const savedUser = localStorage.getItem('ibiza_user');
     if (!savedUser) router.push('/');
     else setUser(savedUser);
+
+    fetchComments(); // Carica i commenti all'avvio
 
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
@@ -71,27 +83,26 @@ export default function Dashboard() {
   const isGroup1 = GROUP_1.includes(user);
   const isAle = user === 'Alessandro';
 
+  // Funzione di scrittura nel database
   const handlePostComment = async (eventId: string) => {
     if (!commentText.trim() || !user) return;
 
-    // Trasmissione dei dati al database Supabase
     const { error } = await supabase
       .from('event_comments')
-      .insert([{ 
-        event_id: eventId, 
-        author_name: user, 
-        content: commentText 
-      }]);
+      .insert([{ event_id: eventId, author_name: user, content: commentText }]);
 
     if (error) {
-      alert("Errore di trasmissione al database. Verifica i permessi della tabella.");
-      console.error(error);
+      if (error.code === '23505') {
+        alert("Violazione protocollo: Hai già inserito una recensione per questo evento.");
+      } else {
+        alert("Errore di comunicazione con il database.");
+      }
       return;
     }
 
-    alert("Commento registrato con successo negli archivi della missione.");
     setCommentText('');
     setActiveCommentEvent(null);
+    fetchComments(); // Aggiorna la lista immediatamente
   };
 
   return (
@@ -117,6 +128,9 @@ export default function Dashboard() {
           const unlockTime = new Date(eventDateTime.getTime() + (60 * 60 * 1000));
           const isHidden = isAle && now < unlockTime;
           const imageUrl = getDynamicImage(event.title);
+          
+          // Filtra i commenti specifici per questo evento
+          const eventComments = allComments.filter(c => c.event_id === event.id);
 
           return (
             <div key={event.id} className={`overflow-hidden rounded-2xl border transition-all ${isHidden ? 'border-slate-800 bg-slate-900/40' : 'border-slate-800 bg-slate-900 shadow-xl'}`}>
@@ -146,7 +160,7 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                {/* MODULO RECENSIONI INTERATTIVO */}
+                {/* MODULO RECENSIONI INTERATTIVO E CONDIVISO */}
                 {!isHidden && (
                   <div className="mt-5 pt-4 border-t border-slate-800/50">
                     <div className="flex justify-between items-center mb-3">
@@ -159,13 +173,27 @@ export default function Dashboard() {
                       </button>
                     </div>
 
+                    {/* Stampa a schermo le recensioni caricate dal database */}
+                    {eventComments.length > 0 ? (
+                      <div className="mb-4 space-y-2">
+                        {eventComments.map(c => (
+                          <div key={c.id} className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                            <span className="text-[10px] text-yellow-500 uppercase font-bold tracking-wider">{c.author_name}</span>
+                            <p className="text-sm text-slate-300 mt-1">{c.content}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-slate-600 italic mb-4">Nessuna recensione registrata per questo evento.</div>
+                    )}
+
                     {activeCommentEvent === event.id && (
-                      <div className="mt-3 flex gap-2 animate-in fade-in">
+                      <div className="flex gap-2 animate-in fade-in">
                         <input 
                           type="text" 
                           value={commentText}
                           onChange={(e) => setCommentText(e.target.value)}
-                          placeholder="Scrivi un commento..." 
+                          placeholder="Scrivi una recensione..." 
                           className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-yellow-500 outline-none"
                         />
                         <button onClick={() => handlePostComment(event.id)} className="bg-yellow-500 text-black px-4 rounded-lg font-bold text-xs uppercase">Invia</button>
@@ -178,7 +206,7 @@ export default function Dashboard() {
           );
         })}
 
-        {/* VIEW: COMPARI */}
+        {/* VIEW: COMPARI (Rimasta invariata per stabilità) */}
         {activeTab === 'compari' && (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <h3 className="text-2xl font-black uppercase tracking-tighter italic text-slate-300 mb-6">Directory Compari</h3>
@@ -193,7 +221,6 @@ export default function Dashboard() {
                     className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/50"
                   >
                     <div className="flex items-center gap-4">
-                      {/* Avatar */}
                       <div className="w-14 h-14 bg-slate-800 border-2 border-slate-700 rounded-full flex items-center justify-center text-xl font-black text-slate-400 relative overflow-hidden group">
                         {p[0]}
                       </div>
@@ -209,13 +236,12 @@ export default function Dashboard() {
                     <div className="text-slate-600 font-mono text-xl">{isExpanded ? '-' : '+'}</div>
                   </div>
 
-                  {/* Dettagli Espansi */}
                   {isExpanded && (
                     <div className="p-4 bg-slate-950/50 border-t border-slate-800 animate-in fade-in">
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="bg-slate-900 p-3 rounded-lg border border-slate-800">
                           <p className="text-[10px] text-slate-500 uppercase">Recensioni</p>
-                          <p className="text-xl font-black">0</p>
+                          <p className="text-xl font-black">{allComments.filter(c => c.author_name === p).length}</p>
                         </div>
                         <div className="bg-slate-900 p-3 rounded-lg border border-slate-800">
                           <p className="text-[10px] text-slate-500 uppercase">Voti Sballato</p>
@@ -223,7 +249,6 @@ export default function Dashboard() {
                         </div>
                       </div>
 
-                      {/* Logica Caricamento Foto Profilo (Solo per il proprio utente) */}
                       {isMe ? (
                         <label className="flex items-center justify-center w-full p-3 border border-dashed border-slate-700 rounded-xl cursor-pointer hover:border-yellow-500 hover:text-yellow-500 transition-colors">
                           <span className="text-xs uppercase font-bold tracking-widest text-slate-400">Carica Nuova Foto Profilo</span>
