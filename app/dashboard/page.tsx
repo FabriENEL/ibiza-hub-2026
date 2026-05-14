@@ -60,28 +60,29 @@ export default function Dashboard() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
 
-  // Nuovi stati per la logica Sballato del Giorno
   const [todayVotes, setTodayVotes] = useState<any[]>([]);
   const [hasVotedToday, setHasVotedToday] = useState(false);
   const [votedCandidate, setVotedCandidate] = useState<string | null>(null);
 
+  // Nuovi stati per la gestione Avatar
+  const [avatars, setAvatars] = useState<Record<string, string>>({});
+  const [isUploading, setIsUploading] = useState(false);
+
   const router = useRouter();
 
   const fetchData = async () => {
-    // Recupero Recensioni
+    // 1. Recupero Recensioni
     const { data: comments } = await supabase.from('event_comments').select('*').order('created_at', { ascending: true });
     if (comments) setAllComments(comments);
 
-    // Recupero Voti Odierni
+    // 2. Recupero Voti Odierni
     const todayISO = new Date().toISOString().split('T')[0];
     const { data: votes } = await supabase.from('daily_sballato_votes').select('*').eq('vote_date', todayISO);
     
     if (votes) {
       setTodayVotes(votes);
-      
       const userLogged = localStorage.getItem('ibiza_user');
       const userVote = votes.find(v => v.voter_name === userLogged);
-      
       if (userVote) {
         setHasVotedToday(true);
         setVotedCandidate(userVote.candidate_name);
@@ -89,6 +90,16 @@ export default function Dashboard() {
         setHasVotedToday(false);
         setVotedCandidate(null);
       }
+    }
+
+    // 3. Recupero Avatar
+    const { data: avatarsData } = await supabase.from('user_avatars').select('*');
+    if (avatarsData) {
+      const avatarMap: Record<string, string> = {};
+      avatarsData.forEach(av => {
+        avatarMap[av.username] = av.avatar_url;
+      });
+      setAvatars(avatarMap);
     }
   };
 
@@ -133,23 +144,43 @@ export default function Dashboard() {
   const handleVoteSballato = async (candidateName: string) => {
     if (!user || hasVotedToday) return;
     const todayISO = new Date().toISOString().split('T')[0];
-    const { error } = await supabase
-      .from('daily_sballato_votes')
-      .insert([{ voter_name: user, candidate_name: candidateName, vote_date: todayISO }]);
-
+    const { error } = await supabase.from('daily_sballato_votes').insert([{ voter_name: user, candidate_name: candidateName, vote_date: todayISO }]);
     if (!error) fetchData();
   };
 
-  // Funzione di rimozione voto (Reset)
   const handleRemoveVote = async () => {
     if (!user) return;
     const todayISO = new Date().toISOString().split('T')[0];
-    const { error } = await supabase
-      .from('daily_sballato_votes')
-      .delete()
-      .match({ voter_name: user, vote_date: todayISO });
-
+    const { error } = await supabase.from('daily_sballato_votes').delete().match({ voter_name: user, vote_date: todayISO });
     if (!error) fetchData();
+  };
+
+  // Funzione Upload Avatar
+  const handleUploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!event.target.files || event.target.files.length === 0 || !user) return;
+      setIsUploading(true);
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user}-${Math.random()}.${fileExt}`;
+      
+      // Upload nello Storage Supabase
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      // Recupero URL Pubblico
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+
+      // Inserimento o Aggiornamento in Tabella
+      const { error: dbError } = await supabase.from('user_avatars').upsert({ username: user, avatar_url: publicUrl });
+      if (dbError) throw dbError;
+
+      fetchData();
+    } catch (error) {
+      alert("Errore durante il caricamento dell'immagine. Verificare la connessione e i formati supportati.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const ibizaDays = ['2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05'];
@@ -172,8 +203,12 @@ export default function Dashboard() {
           <h2 className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.3em]">Operazione Ibiza</h2>
           <p className="text-lg font-bold tracking-tight">Accesso: {user}</p>
         </div>
-        <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-black">
-          {user[0]}
+        <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-black overflow-hidden">
+          {avatars[user] ? (
+            <img src={avatars[user]} alt="Tu" className="w-full h-full object-cover" />
+          ) : (
+            <span>{user[0]}</span>
+          )}
         </div>
       </header>
 
@@ -334,6 +369,7 @@ export default function Dashboard() {
               const isExpanded = expandedUser === p;
               const votesReceivedToday = todayVotes.filter(v => v.candidate_name === p).length;
               const isMyVotedCandidate = votedCandidate === p;
+              const profileAvatar = avatars[p];
 
               return (
                 <div key={p} className="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg overflow-hidden transition-all">
@@ -343,7 +379,11 @@ export default function Dashboard() {
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 bg-slate-800 border-2 border-slate-700 rounded-full flex items-center justify-center text-xl font-black text-slate-400 relative overflow-hidden group">
-                        {p[0]}
+                        {profileAvatar ? (
+                          <img src={profileAvatar} alt={p} className="w-full h-full object-cover" />
+                        ) : (
+                          <span>{p[0]}</span>
+                        )}
                       </div>
                       <div>
                         <h4 className="font-bold text-lg flex items-center gap-2">
@@ -371,9 +411,13 @@ export default function Dashboard() {
                       </div>
 
                       {isMe ? (
-                        <label className="flex items-center justify-center w-full p-3 border border-dashed border-slate-700 rounded-xl cursor-pointer hover:border-yellow-500 hover:text-yellow-500 transition-colors">
-                          <span className="text-xs uppercase font-bold tracking-widest text-slate-400">Carica Nuova Foto Profilo</span>
-                          <input type="file" className="hidden" accept="image/*" onChange={(e) => alert('Interfaccia upload pronta. Preparazione bucket Cloudinary in corso.')} />
+                        <label className="flex items-center justify-center w-full p-3 border border-dashed border-slate-700 rounded-xl cursor-pointer hover:border-yellow-500 hover:text-yellow-500 transition-colors relative overflow-hidden">
+                          {isUploading ? (
+                            <span className="text-xs uppercase font-bold text-yellow-500 animate-pulse">Caricamento in corso...</span>
+                          ) : (
+                            <span className="text-xs uppercase font-bold tracking-widest text-slate-400">Carica Nuova Foto Profilo</span>
+                          )}
+                          <input type="file" className="hidden" accept="image/*" disabled={isUploading} onChange={handleUploadAvatar} />
                         </label>
                       ) : (
                         <div className="flex gap-2">
@@ -385,7 +429,6 @@ export default function Dashboard() {
                             {hasVotedToday ? 'Voto Espresso' : 'Vota come Sballato'}
                           </button>
                           
-                          {/* Pulsante Reset Voto: visibile solo se l'utente ha votato questo specifico candidato */}
                           {isMyVotedCandidate && (
                             <button 
                               onClick={handleRemoveVote}
