@@ -198,27 +198,18 @@ export default function Dashboard() {
     }
   };
 
-  // Funzione per l'eliminazione del media
   const handleDeleteMedia = async (mediaId: string, mediaUrl: string) => {
     if (!user) return;
-    
-    // Conferma di sicurezza base per evitare cancellazioni accidentali
     const confirmDelete = window.confirm("Conferma l'eliminazione definitiva di questo file?");
     if (!confirmDelete) return;
 
     try {
-      // 1. Estrazione del nome file dall'URL pubblico di Supabase
       const fileName = mediaUrl.split('/').pop();
-      
-      // 2. Cancellazione fisica dallo Storage
       if (fileName) {
         await supabase.storage.from('gallery').remove([fileName]);
       }
-
-      // 3. Cancellazione del record logico dal Database
       const { error } = await supabase.from('gallery_media').delete().eq('id', mediaId);
       if (error) throw error;
-
       fetchData();
     } catch (error) {
       alert("Errore durante l'eliminazione del file.");
@@ -249,12 +240,25 @@ export default function Dashboard() {
           <h2 className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.3em]">Operazione Ibiza</h2>
           <p className="text-lg font-bold tracking-tight">Accesso: {user}</p>
         </div>
-        <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-black overflow-hidden">
-          {avatars[user] ? (
-            <img src={avatars[user]} alt="Tu" className="w-full h-full object-cover" />
-          ) : (
-            <span>{user[0]}</span>
-          )}
+        <div className="flex items-center gap-4">
+          {/* Pulsante Chiamata Taxi/Uber */}
+          <a 
+            href="https://www.google.com/maps/dir/?api=1&destination=8,+Carrer+del+Cap,+Ibiza,+Islas+Baleares" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center justify-center w-10 h-10 bg-slate-800 hover:bg-yellow-500 hover:text-black text-xl rounded-full border border-slate-700 shadow-lg transition-all"
+            title="Naviga verso la Villa"
+          >
+            🚕
+          </a>
+          
+          <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-black overflow-hidden">
+            {avatars[user] ? (
+              <img src={avatars[user]} alt="Tu" className="w-full h-full object-cover" />
+            ) : (
+              <span>{user[0]}</span>
+            )}
+          </div>
         </div>
       </header>
 
@@ -482,7 +486,6 @@ export default function Dashboard() {
                           </a>
                         </div>
 
-                        {/* Modulo Eliminazione: Visibile solo se l'utente è il proprietario */}
                         {galleryFilter === 'mine' && (
                           <button 
                             onClick={() => handleDeleteMedia(media.id, media.media_url)}
