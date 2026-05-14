@@ -101,7 +101,7 @@ const RECOMMENDED_RESTAURANTS = [
 
 export default function Dashboard() {
   const [user, setUser] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('calendar');
+  const [activeTab, setActiveTab] = useState('calendar'); // 'calendar', 'news', 'gallery', 'compari'
   const [now, setNow] = useState(new Date());
   
   // Stati Missione
@@ -111,13 +111,19 @@ export default function Dashboard() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
 
-  // Stati Compari
+  // Stati Compari & Sottomenu
+  const [compariSubTab, setCompariSubTab] = useState<'directory' | 'cassa'>('directory');
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [todayVotes, setTodayVotes] = useState<any[]>([]);
   const [hasVotedToday, setHasVotedToday] = useState(false);
   const [votedCandidate, setVotedCandidate] = useState<string | null>(null);
   const [avatars, setAvatars] = useState<Record<string, string>>({});
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  // Stati Cassa Comune
+  const [sharedExpenses, setSharedExpenses] = useState<any[]>([]);
+  const [expenseDesc, setExpenseDesc] = useState('');
+  const [expenseAmount, setExpenseAmount] = useState('');
 
   // Stati Galleria
   const [galleryMedia, setGalleryMedia] = useState<any[]>([]);
@@ -127,9 +133,11 @@ export default function Dashboard() {
   const router = useRouter();
 
   const fetchData = async () => {
+    // 1. Recensioni
     const { data: comments } = await supabase.from('event_comments').select('*').order('created_at', { ascending: true });
     if (comments) setAllComments(comments);
 
+    // 2. Voti Odierni
     const todayISO = new Date().toISOString().split('T')[0];
     const { data: votes } = await supabase.from('daily_sballato_votes').select('*').eq('vote_date', todayISO);
     if (votes) {
@@ -145,6 +153,7 @@ export default function Dashboard() {
       }
     }
 
+    // 3. Avatar
     const { data: avatarsData } = await supabase.from('user_avatars').select('*');
     if (avatarsData) {
       const avatarMap: Record<string, string> = {};
@@ -152,8 +161,13 @@ export default function Dashboard() {
       setAvatars(avatarMap);
     }
 
+    // 4. Galleria
     const { data: mediaData } = await supabase.from('gallery_media').select('*').order('created_at', { ascending: false });
     if (mediaData) setGalleryMedia(mediaData);
+
+    // 5. Cassa Comune
+    const { data: expensesData } = await supabase.from('shared_expenses').select('*').order('created_at', { ascending: false });
+    if (expensesData) setSharedExpenses(expensesData);
   };
 
   useEffect(() => {
@@ -172,6 +186,24 @@ export default function Dashboard() {
   const isGroup1 = GROUP_1.includes(user);
   const isAle = user === 'Alessandro';
 
+  // --- LOGICA PROTOCOLLO FLARE (SOS) ---
+  const handleFlareSOS = () => {
+    if (!navigator.geolocation) {
+      alert("Sensore GPS non rilevato o disabilitato dal dispositivo.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const message = `Sono qui! Apri il link per visualizzare la mia posizione. https://www.google.com/maps?q=${latitude},${longitude}`;
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+      },
+      () => alert("Recupero coordinate fallito. Verifichi i permessi di localizzazione del browser.")
+    );
+  };
+
+  // --- LOGICA MISSIONE ---
   const handlePostComment = async (eventId: string) => {
     if (!commentText.trim() || !user) return;
     const { error } = await supabase.from('event_comments').insert([{ event_id: eventId, author_name: user, content: commentText }]);
@@ -186,6 +218,7 @@ export default function Dashboard() {
     setEditingCommentId(null); setEditCommentText(''); fetchData();
   };
 
+  // --- LOGICA COMPARI (DIRECTORY) ---
   const handleVoteSballato = async (candidateName: string) => {
     if (!user || hasVotedToday) return;
     const todayISO = new Date().toISOString().split('T')[0];
@@ -217,6 +250,50 @@ export default function Dashboard() {
     }
   };
 
+  // --- LOGICA CASSA COMUNE ---
+  const handleAddExpense = async () => {
+    if (!expenseDesc.trim() || !expenseAmount || isNaN(Number(expenseAmount))) return;
+    const { error } = await supabase.from('shared_expenses').insert([{ 
+      payer_name: user, 
+      description: expenseDesc, 
+      amount: Number(expenseAmount).toFixed(2) 
+    }]);
+    if (!error) {
+      setExpenseDesc('');
+      setExpenseAmount('');
+      fetchData();
+    }
+  };
+
+  const handleDeleteExpense = async (expenseId: string, payerName: string) => {
+    if (user !== payerName) return;
+    const confirm = window.confirm("Rimuovere questa spesa dal registro centrale?");
+    if (!confirm) return;
+    await supabase.from('shared_expenses').delete().eq('id', expenseId);
+    fetchData();
+  };
+
+  // Calcolo Bilanci Cassa Comune (Esclusione Alessandro)
+  const totalExpenses = sharedExpenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
+  const quotaPerPerson = totalExpenses / 11; // Denominatore fisso a 11 paganti
+  
+  const balances: Record<string, { paid: number, balance: number, isGroom: boolean }> = {};
+  ALL_PARTICIPANTS.forEach(p => {
+    if (p === 'Alessandro') {
+      balances[p] = { paid: 0, balance: 0, isGroom: true };
+    } else {
+      const paidByPerson = sharedExpenses
+        .filter(e => e.payer_name === p)
+        .reduce((acc, curr) => acc + Number(curr.amount), 0);
+      balances[p] = {
+        paid: paidByPerson,
+        balance: paidByPerson - quotaPerPerson,
+        isGroom: false
+      };
+    }
+  });
+
+  // --- LOGICA GALLERIA ---
   const handleUploadMedia = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       if (!event.target.files || event.target.files.length === 0 || !user) return;
@@ -285,7 +362,17 @@ export default function Dashboard() {
           <h2 className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.3em]">Operazione Ibiza</h2>
           <p className="text-lg font-bold tracking-tight">Accesso: {user}</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          {/* Tasto Flare SOS */}
+          <button 
+            onClick={handleFlareSOS}
+            className="flex items-center justify-center w-10 h-10 bg-red-900/40 hover:bg-red-500 text-red-500 hover:text-white text-xl rounded-full border border-red-800/50 shadow-lg transition-all"
+            title="Invia Posizione SOS"
+          >
+            🎯
+          </button>
+          
+          {/* Tasto Taxi */}
           <a 
             href="https://www.google.com/maps/dir/?api=1&destination=8,+Carrer+del+Cap,+Ibiza,+Islas+Baleares" 
             target="_blank" 
@@ -295,7 +382,8 @@ export default function Dashboard() {
           >
             🚕
           </a>
-          <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-black overflow-hidden">
+          
+          <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-black overflow-hidden ml-1">
             {avatars[user] ? (
               <img src={avatars[user]} alt="Tu" className="w-full h-full object-cover" />
             ) : (
@@ -415,8 +503,6 @@ export default function Dashboard() {
         {/* VIEW: NEWS & INTELLIGENCE */}
         {activeTab === 'news' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            
-            {/* SEZIONE 1: ATTIVITÀ DIURNE */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden mb-6">
               <div className="p-4 border-b border-slate-800 bg-slate-800/50">
                 <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">Opzioni Diurne & Esplorazione</h3>
@@ -435,7 +521,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* SEZIONE 2: RADAR NOTTURNO ESPANSO */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden mb-6">
               <div className="p-4 border-b border-slate-800 bg-slate-800/50">
                 <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">Radar Eventi Notturni</h3>
@@ -461,7 +546,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* SEZIONE 3: RISTORANTI ORDINATI PER DISTANZA */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
               <div className="p-4 border-b border-slate-800 bg-slate-800/50">
                 <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">Top Gastronomia (4-5 Stelle)</h3>
@@ -487,69 +571,196 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* VIEW: COMPARI */}
+        {/* VIEW: COMPARI & CASSA COMUNE */}
         {activeTab === 'compari' && (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-2xl mb-6">
-              <h4 className="text-[10px] uppercase tracking-[0.2em] text-yellow-600 font-bold mb-2">Sballato del Giorno</h4>
-              {dailyLeaders.length > 0 ? (
-                <p className="text-lg font-black text-yellow-500">{dailyLeaders.join(' & ')} <span className="text-sm text-slate-400 font-normal ml-2">in testa</span></p>
-              ) : <p className="text-sm text-slate-400 italic">Nessun voto registrato oggi.</p>}
+            
+            {/* TOGGLE SUB-MENU COMPARI */}
+            <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1 mb-6">
+              <button onClick={() => setCompariSubTab('directory')} className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${compariSubTab === 'directory' ? 'bg-slate-800 text-yellow-500 shadow-md' : 'text-slate-500'}`}>Directory</button>
+              <button onClick={() => setCompariSubTab('cassa')} className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${compariSubTab === 'cassa' ? 'bg-slate-800 text-yellow-500 shadow-md' : 'text-slate-500'}`}>Cassa Comune</button>
             </div>
 
-            <h3 className="text-2xl font-black uppercase tracking-tighter italic text-slate-300 mb-6">Directory Compari</h3>
-            
-            {ALL_PARTICIPANTS.map(p => {
-              const isMe = user === p;
-              const isExpanded = expandedUser === p;
-              return (
-                <div key={p} className="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg overflow-hidden transition-all">
-                  <div onClick={() => setExpandedUser(isExpanded ? null : p)} className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/50">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-slate-800 border-2 border-slate-700 rounded-full flex items-center justify-center text-xl font-black text-slate-400 overflow-hidden">
-                        {avatars[p] ? <img src={avatars[p]} alt={p} className="w-full h-full object-cover" /> : <span>{p[0]}</span>}
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-lg">{p} {isMe && <span className="text-[9px] bg-yellow-500 text-black px-2 py-0.5 rounded uppercase ml-2">Tu</span>}</h4>
-                        <p className="text-[10px] uppercase text-slate-500">{GROUP_1.includes(p) ? 'Gruppo 1 - Sposo/Testimoni' : 'Gruppo 2 - Amici'}</p>
-                      </div>
-                    </div>
-                    <div className="text-slate-600 font-mono text-xl">{isExpanded ? '-' : '+'}</div>
-                  </div>
-
-                  {isExpanded && (
-                    <div className="p-4 bg-slate-950/50 border-t border-slate-800">
-                      <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div className="bg-slate-900 p-3 rounded-lg border border-slate-800">
-                          <p className="text-[10px] text-slate-500 uppercase">Recensioni</p>
-                          <p className="text-xl font-black">{allComments.filter(c => c.author_name === p).length}</p>
+            {/* SUB-VIEW: DIRECTORY */}
+            {compariSubTab === 'directory' && (
+              <>
+                <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-2xl mb-6">
+                  <h4 className="text-[10px] uppercase tracking-[0.2em] text-yellow-600 font-bold mb-2">Sballato del Giorno</h4>
+                  {dailyLeaders.length > 0 ? (
+                    <p className="text-lg font-black text-yellow-500">{dailyLeaders.join(' & ')} <span className="text-sm text-slate-400 font-normal ml-2">in testa</span></p>
+                  ) : <p className="text-sm text-slate-400 italic">Nessun voto registrato oggi.</p>}
+                </div>
+                
+                {ALL_PARTICIPANTS.map(p => {
+                  const isMe = user === p;
+                  const isExpanded = expandedUser === p;
+                  return (
+                    <div key={p} className="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg overflow-hidden transition-all">
+                      <div onClick={() => setExpandedUser(isExpanded ? null : p)} className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/50">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 bg-slate-800 border-2 border-slate-700 rounded-full flex items-center justify-center text-xl font-black text-slate-400 overflow-hidden">
+                            {avatars[p] ? <img src={avatars[p]} alt={p} className="w-full h-full object-cover" /> : <span>{p[0]}</span>}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-lg">{p} {isMe && <span className="text-[9px] bg-yellow-500 text-black px-2 py-0.5 rounded uppercase ml-2">Tu</span>}</h4>
+                            <p className="text-[10px] uppercase text-slate-500">{GROUP_1.includes(p) ? 'Gruppo 1 - Sposo/Testimoni' : 'Gruppo 2 - Amici'}</p>
+                          </div>
                         </div>
-                        <div className="bg-slate-900 p-3 rounded-lg border border-slate-800">
-                          <p className="text-[10px] text-slate-500 uppercase">Voti Sballato (Oggi)</p>
-                          <p className="text-xl font-black text-yellow-500">{todayVotes.filter(v => v.candidate_name === p).length}</p>
-                        </div>
+                        <div className="text-slate-600 font-mono text-xl">{isExpanded ? '-' : '+'}</div>
                       </div>
 
-                      {isMe ? (
-                        <label className="flex items-center justify-center w-full p-3 border border-dashed border-slate-700 rounded-xl cursor-pointer hover:border-yellow-500 text-slate-400 transition-colors">
-                          <span className="text-xs uppercase font-bold tracking-widest">{isUploadingAvatar ? 'Caricamento...' : 'Carica Foto Profilo'}</span>
-                          <input type="file" className="hidden" accept="image/*" disabled={isUploadingAvatar} onChange={handleUploadAvatar} />
-                        </label>
-                      ) : (
-                        <div className="flex gap-2">
-                          <button onClick={() => handleVoteSballato(p)} disabled={hasVotedToday} className={`flex-1 ${hasVotedToday ? 'bg-slate-800 opacity-30' : 'bg-slate-800 hover:bg-slate-700'} border border-slate-700 text-slate-400 text-xs font-bold py-3 rounded-xl uppercase`}>
-                            {hasVotedToday ? 'Voto Espresso' : 'Vota come Sballato'}
-                          </button>
-                          {votedCandidate === p && (
-                            <button onClick={handleRemoveVote} className="bg-red-500/10 text-red-500 border border-red-500/30 text-xs font-bold py-3 px-4 rounded-xl uppercase">Ritira Voto</button>
+                      {isExpanded && (
+                        <div className="p-4 bg-slate-950/50 border-t border-slate-800">
+                          <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div className="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                              <p className="text-[10px] text-slate-500 uppercase">Recensioni</p>
+                              <p className="text-xl font-black">{allComments.filter(c => c.author_name === p).length}</p>
+                            </div>
+                            <div className="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                              <p className="text-[10px] text-slate-500 uppercase">Voti Sballato (Oggi)</p>
+                              <p className="text-xl font-black text-yellow-500">{todayVotes.filter(v => v.candidate_name === p).length}</p>
+                            </div>
+                          </div>
+
+                          {isMe ? (
+                            <label className="flex items-center justify-center w-full p-3 border border-dashed border-slate-700 rounded-xl cursor-pointer hover:border-yellow-500 text-slate-400 transition-colors">
+                              <span className="text-xs uppercase font-bold tracking-widest">{isUploadingAvatar ? 'Caricamento...' : 'Carica Foto Profilo'}</span>
+                              <input type="file" className="hidden" accept="image/*" disabled={isUploadingAvatar} onChange={handleUploadAvatar} />
+                            </label>
+                          ) : (
+                            <div className="flex gap-2">
+                              <button onClick={() => handleVoteSballato(p)} disabled={hasVotedToday} className={`flex-1 ${hasVotedToday ? 'bg-slate-800 opacity-30' : 'bg-slate-800 hover:bg-slate-700'} border border-slate-700 text-slate-400 text-xs font-bold py-3 rounded-xl uppercase`}>
+                                {hasVotedToday ? 'Voto Espresso' : 'Vota come Sballato'}
+                              </button>
+                              {votedCandidate === p && (
+                                <button onClick={handleRemoveVote} className="bg-red-500/10 text-red-500 border border-red-500/30 text-xs font-bold py-3 px-4 rounded-xl uppercase">Ritira Voto</button>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
                     </div>
+                  );
+                })}
+              </>
+            )}
+
+            {/* SUB-VIEW: CASSA COMUNE */}
+            {compariSubTab === 'cassa' && (
+              <div className="space-y-6 animate-in fade-in">
+                
+                {/* Summary Box */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col justify-center items-center">
+                    <span className="text-[10px] uppercase text-slate-500 font-bold mb-1">Totale Speso</span>
+                    <span className="text-2xl font-black text-white">€{totalExpenses.toFixed(2)}</span>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col justify-center items-center">
+                    <span className="text-[10px] uppercase text-slate-500 font-bold mb-1">Quota Pro-Capite</span>
+                    <span className="text-2xl font-black text-yellow-500">€{quotaPerPerson.toFixed(2)}</span>
+                    <span className="text-[8px] text-slate-500 mt-1 uppercase">Diviso 11 quote</span>
+                  </div>
+                </div>
+
+                {/* Aggiunta Spesa */}
+                <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl">
+                  <h4 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-widest">Aggiungi Spesa per il gruppo</h4>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={expenseDesc} 
+                      onChange={(e) => setExpenseDesc(e.target.value)} 
+                      placeholder="Es. Taxi per DC10" 
+                      className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white"
+                    />
+                    <input 
+                      type="number" 
+                      value={expenseAmount} 
+                      onChange={(e) => setExpenseAmount(e.target.value)} 
+                      placeholder="€ 0.00" 
+                      className="w-24 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white"
+                    />
+                  </div>
+                  <button onClick={handleAddExpense} className="w-full mt-3 bg-yellow-500 hover:bg-yellow-400 text-black py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors">
+                    Registra Importo
+                  </button>
+                </div>
+
+                {/* Bilanci Personali */}
+                <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl">
+                  <h4 className="text-xs uppercase text-slate-400 font-bold mb-4 tracking-widest border-b border-slate-800 pb-2">Bilancio Partecipanti</h4>
+                  <div className="space-y-3">
+                    {ALL_PARTICIPANTS.map(p => {
+                      const data = balances[p];
+                      const isMe = user === p;
+                      let statusText = '';
+                      let statusColor = 'text-slate-400';
+                      
+                      if (data.isGroom) {
+                        statusText = "Sposo - Esente";
+                        statusColor = "text-yellow-500";
+                      } else if (data.balance > 0.01) {
+                        statusText = `Deve ricevere €${data.balance.toFixed(2)}`;
+                        statusColor = "text-emerald-500";
+                      } else if (data.balance < -0.01) {
+                        statusText = `Deve dare €${Math.abs(data.balance).toFixed(2)}`;
+                        statusColor = "text-red-500";
+                      } else {
+                        statusText = "In Pari";
+                        statusColor = "text-slate-500";
+                      }
+
+                      return (
+                        <div key={p} className={`flex justify-between items-center p-2 rounded-lg ${isMe ? 'bg-slate-800/50' : ''}`}>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-black overflow-hidden">
+                              {avatars[p] ? <img src={avatars[p]} alt={p} className="w-full h-full object-cover" /> : p[0]}
+                            </div>
+                            <span className="font-bold text-sm">{p}</span>
+                          </div>
+                          <div className={`text-xs font-bold ${statusColor} text-right`}>
+                            {statusText}
+                            {!data.isGroom && <div className="text-[9px] text-slate-500 font-normal">Ha pagato: €{data.paid.toFixed(2)}</div>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Lista Transazioni Recenti */}
+                <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl">
+                  <h4 className="text-xs uppercase text-slate-400 font-bold mb-4 tracking-widest border-b border-slate-800 pb-2">Registro Transazioni</h4>
+                  {sharedExpenses.length === 0 ? (
+                    <p className="text-sm text-slate-500 italic text-center py-4">Nessuna spesa registrata.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {sharedExpenses.map(expense => {
+                        const isMyExpense = user === expense.payer_name;
+                        const { date, time } = formatDateString(expense.created_at);
+                        return (
+                          <div key={expense.id} className="bg-slate-950 p-3 rounded-lg border border-slate-800/50 flex justify-between items-center">
+                            <div>
+                              <p className="text-sm font-bold text-white">{expense.description}</p>
+                              <p className="text-[10px] text-slate-500 mt-0.5">Pagato da: <span className="text-yellow-500 uppercase">{expense.payer_name}</span> • {date} {time}</p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="font-black text-lg text-white">€{Number(expense.amount).toFixed(2)}</span>
+                              {isMyExpense && (
+                                <button onClick={() => handleDeleteExpense(expense.id, expense.payer_name)} className="text-[9px] uppercase text-red-500 hover:underline">
+                                  Elimina
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
-              );
-            })}
+
+              </div>
+            )}
           </div>
         )}
 
