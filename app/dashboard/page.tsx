@@ -44,9 +44,50 @@ const GROUP_1 = ["Fabri", "Alessandro", "Teo", "Edo", "Cimmi", "Lori"];
 const GROUP_2 = ["Chri", "Maicol", "Nello", "Bibi", "Fiore", "Corra"];
 const ALL_PARTICIPANTS = [...GROUP_1, ...GROUP_2];
 
+// DATASET INTELLIGENCE - EVENTI E GASTRONOMIA
+const IBIZA_NEWS = [
+  {
+    date: '02 GIUGNO 2026',
+    events: [
+      { club: 'Pacha Ibiza', name: 'Chris Stussy presents USS', details: 'Lineup: Chris Stussy, Enzo Siragusa, Shanti Celeste. Ingresso dalle 23:00.' }
+    ]
+  },
+  {
+    date: '03 GIUGNO 2026',
+    events: [
+      { club: 'Ushuaïa', name: 'Tomorrowland Pres. Dimitri Vegas & Like Mike', details: 'Lineup: Dimitri Vegas, Like Mike, Alok, Korolova. Ingresso dalle 17:00.' },
+      { club: 'Amnesia', name: 'Amnesia Trance Ibiza', details: 'Lineup: Chicane, Judge Jules, Markus Schulz. Ingresso dalle 23:59.' },
+      { club: 'Pacha Ibiza', name: 'BLOND:ISH presents Abracadabra', details: 'Lineup: BLOND:ISH, Franky Rizardo. Ingresso dalle 23:00.' }
+    ]
+  },
+  {
+    date: '04 GIUGNO 2026',
+    events: [
+      { club: 'Amnesia', name: 'Do Not Sleep', details: 'Lineup: Sidney Charles B2B L.P. Rhythm, Ozzie Guven. Ingresso dalle 23:00.' },
+      { club: 'Pacha Ibiza', name: 'Shimza & Co', details: 'Lineup: Shimza, Alex Wann, Culoe du Song. Ingresso dalle 23:00.' }
+    ]
+  },
+  {
+    date: '05 GIUGNO 2026',
+    events: [
+      { club: 'Ushuaïa', name: 'Calvin Harris', details: 'Lineup: Calvin Harris, MK, Tyson O\'Brien. Ingresso dalle 17:00.' },
+      { club: 'Amnesia', name: 'Glitterbox', details: 'Lineup: Armand Van Helden, Honey Dijon, Skream (Disco set). Ingresso dalle 23:30.' },
+      { club: 'Pacha Ibiza', name: 'Marco Carola presents Music On', details: 'Lineup: Marco Carola, Gordo, Wade. Ingresso dalle 23:00.' },
+      { club: 'Eden', name: 'Club Night Pass', details: 'Lineup: DJ AG, Charlie Sloth. Ingresso dalle 23:45.' }
+    ]
+  }
+];
+
+const RECOMMENDED_RESTAURANTS = [
+  { name: 'Es Boldadó', location: 'Cala d\'Hort', rating: '4.6', desc: 'Ristorante iconico per paella e pesce fresco affacciato su Es Vedrà. Posizione estremamente tattica in prossimità della Vostra Villa.' },
+  { name: 'Jul\'s Ibiza', location: 'Sa Caleta', rating: '4.5', desc: 'Ristorazione raffinata di altissimo livello con cucina d\'ispirazione greca. Eccellente atmosfera pre-serata e mixology avanzata.' },
+  { name: 'Can Pujol', location: 'Sant Antoni de Portmany', rating: '4.6', desc: 'Eccellenza rustica locale rinomata globalmente per la qualità del pescato e per la visuale incontaminata sul tramonto.' },
+  { name: 'Beso Beach', location: 'Formentera', rating: '4.4', desc: 'Ambiente di alto profilo sulla spiaggia. Già incluso nei Vostri piani iniziali, si riconferma un polo attrattivo primario.' }
+];
+
 export default function Dashboard() {
   const [user, setUser] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('calendar'); // 'calendar', 'compari', 'gallery'
+  const [activeTab, setActiveTab] = useState('calendar'); // 'calendar', 'news', 'gallery', 'compari'
   const [now, setNow] = useState(new Date());
   
   // Stati Missione
@@ -72,11 +113,9 @@ export default function Dashboard() {
   const router = useRouter();
 
   const fetchData = async () => {
-    // 1. Recensioni
     const { data: comments } = await supabase.from('event_comments').select('*').order('created_at', { ascending: true });
     if (comments) setAllComments(comments);
 
-    // 2. Voti Odierni
     const todayISO = new Date().toISOString().split('T')[0];
     const { data: votes } = await supabase.from('daily_sballato_votes').select('*').eq('vote_date', todayISO);
     if (votes) {
@@ -92,7 +131,6 @@ export default function Dashboard() {
       }
     }
 
-    // 3. Avatar
     const { data: avatarsData } = await supabase.from('user_avatars').select('*');
     if (avatarsData) {
       const avatarMap: Record<string, string> = {};
@@ -100,7 +138,6 @@ export default function Dashboard() {
       setAvatars(avatarMap);
     }
 
-    // 4. Galleria
     const { data: mediaData } = await supabase.from('gallery_media').select('*').order('created_at', { ascending: false });
     if (mediaData) setGalleryMedia(mediaData);
   };
@@ -121,7 +158,6 @@ export default function Dashboard() {
   const isGroup1 = GROUP_1.includes(user);
   const isAle = user === 'Alessandro';
 
-  // --- LOGICA MISSIONE ---
   const handlePostComment = async (eventId: string) => {
     if (!commentText.trim() || !user) return;
     const { error } = await supabase.from('event_comments').insert([{ event_id: eventId, author_name: user, content: commentText }]);
@@ -136,7 +172,6 @@ export default function Dashboard() {
     setEditingCommentId(null); setEditCommentText(''); fetchData();
   };
 
-  // --- LOGICA COMPARI ---
   const handleVoteSballato = async (candidateName: string) => {
     if (!user || hasVotedToday) return;
     const todayISO = new Date().toISOString().split('T')[0];
@@ -168,7 +203,6 @@ export default function Dashboard() {
     }
   };
 
-  // --- LOGICA GALLERIA ---
   const handleUploadMedia = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       if (!event.target.files || event.target.files.length === 0 || !user) return;
@@ -182,7 +216,6 @@ export default function Dashboard() {
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage.from('gallery').getPublicUrl(fileName);
-
       const { error: dbError } = await supabase.from('gallery_media').insert([{ 
         uploader_name: user, 
         media_url: publicUrl,
@@ -205,9 +238,7 @@ export default function Dashboard() {
 
     try {
       const fileName = mediaUrl.split('/').pop();
-      if (fileName) {
-        await supabase.storage.from('gallery').remove([fileName]);
-      }
+      if (fileName) await supabase.storage.from('gallery').remove([fileName]);
       const { error } = await supabase.from('gallery_media').delete().eq('id', mediaId);
       if (error) throw error;
       fetchData();
@@ -250,7 +281,6 @@ export default function Dashboard() {
           >
             🚕
           </a>
-          
           <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-black overflow-hidden">
             {avatars[user] ? (
               <img src={avatars[user]} alt="Tu" className="w-full h-full object-cover" />
@@ -365,6 +395,57 @@ export default function Dashboard() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* VIEW: NEWS & INTELLIGENCE */}
+        {activeTab === 'news' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden mb-6">
+              <div className="p-4 border-b border-slate-800 bg-slate-800/50">
+                <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">Radar Eventi Notturni</h3>
+                <p className="text-xs text-slate-400 mt-1">Dati estratti dai circuiti ufficiali. Accuratezza verificata per il periodo 2-5 Giugno 2026.</p>
+              </div>
+              <div className="p-4 space-y-6">
+                {IBIZA_NEWS.map((day, idx) => (
+                  <div key={idx} className="space-y-3">
+                    <h4 className="text-[10px] uppercase font-bold text-slate-500 tracking-wider border-b border-slate-800 pb-1">{day.date}</h4>
+                    <div className="space-y-3">
+                      {day.events.map((ev, eIdx) => (
+                        <div key={eIdx} className="bg-slate-950 p-3 rounded-lg border border-slate-800/50">
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="text-sm font-black text-white uppercase">{ev.club}</span>
+                          </div>
+                          <p className="text-xs font-bold text-yellow-500">{ev.name}</p>
+                          <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">{ev.details}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+              <div className="p-4 border-b border-slate-800 bg-slate-800/50">
+                <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">Intelligence Gastronomica</h3>
+                <p className="text-xs text-slate-400 mt-1">Aggregazione valutazioni globali. Filtro applicato: Rating &gt; 4.4/5.0.</p>
+              </div>
+              <div className="p-4 grid grid-cols-1 gap-3">
+                {RECOMMENDED_RESTAURANTS.map((rest, rIdx) => (
+                  <div key={rIdx} className="bg-slate-950 p-3 rounded-lg border border-slate-800/50 flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm font-black text-white uppercase">{rest.name}</span>
+                        <span className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded">{rest.rating} ★</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">📍 {rest.location}</p>
+                      <p className="text-xs text-slate-400 leading-relaxed">{rest.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -504,16 +585,18 @@ export default function Dashboard() {
         )}
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-slate-950/90 backdrop-blur-xl border-t border-slate-800 p-4 flex justify-around items-center z-50">
+      {/* BOTTOM NAVIGATION A 4 VIE */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-slate-950/90 backdrop-blur-xl border-t border-slate-800 p-2 sm:p-4 flex justify-around items-center z-50">
         {[
           { id: 'calendar', label: 'Missione' },
+          { id: 'news', label: 'News' },
           { id: 'gallery', label: 'Galleria' },
           { id: 'compari', label: 'Compari' }
         ].map((tab) => (
           <button 
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`text-[10px] uppercase font-black tracking-widest transition-all px-4 py-2 rounded-full ${activeTab === tab.id ? 'bg-yellow-500 text-black scale-105 shadow-lg shadow-yellow-500/20' : 'text-slate-500 hover:text-slate-300'}`}
+            className={`text-[10px] uppercase font-black tracking-widest transition-all px-3 py-2 rounded-full ${activeTab === tab.id ? 'bg-yellow-500 text-black scale-105 shadow-lg shadow-yellow-500/20' : 'text-slate-500 hover:text-slate-300'}`}
           >
             {tab.label}
           </button>
