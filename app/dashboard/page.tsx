@@ -14,6 +14,7 @@ const IBIZA_SCHEDULE = [
   { id: '6', date: '2026-06-02', time: '15:30', title: 'Arrivo e giro spiagge', location: 'Formentera', group: 'initial', imageUrl: '/images/06.webp' },
   { id: '7', date: '2026-06-02', time: '20:00', title: 'Cena in Barca', location: 'Costa Nord Formentera', group: 'initial', imageUrl: '/images/07.webp' },
   { id: '8', date: '2026-06-02', time: '23:00', title: 'Sbarco e giro locali', location: 'Formentera', group: 'initial', imageUrl: '/images/08.webp' },
+  
   { id: '9', date: '2026-06-03', time: '03:00', title: 'Rientro in barca e sbraco', location: 'El Beso', group: 'initial', imageUrl: '/images/09.webp' },
   { id: '10', date: '2026-06-03', time: '07:00', title: 'Decollo Secondo Gruppo', location: 'Milano Malpensa', group: 'second', imageUrl: '/images/10.webp' },
   { id: '11', date: '2026-06-03', time: '09:30', title: 'Atterraggio Secondo Gruppo', location: 'Aeroporto Ibiza', group: 'second', imageUrl: '/images/11.webp' },
@@ -26,11 +27,13 @@ const IBIZA_SCHEDULE = [
   { id: '18', date: '2026-06-03', time: '17:00', title: 'Spesa per Grigliata', location: 'Zona Cala d\'Hort', group: 'all', imageUrl: '/images/18.webp' },
   { id: '19', date: '2026-06-03', time: '18:00', title: 'Rientro Villa e Doccia', location: 'Zona Cala d\'Hort', group: 'all', imageUrl: '/images/19.webp' },
   { id: '20', date: '2026-06-03', time: '20:00', title: 'Aperitivo + Cena Leuci', location: 'Playa d\'en Bossa', group: 'all', imageUrl: '/images/20.webp' },
+  
   { id: '21', date: '2026-06-04', time: '00:00', title: 'SERATA DC10', location: 'DC 10', group: 'all', imageUrl: '/images/21.webp' },
   { id: '22', date: '2026-06-04', time: '04:00', title: 'Rientro Villa e Sbraco', location: 'Zona Cala d\'Hort', group: 'all', imageUrl: '/images/22.webp' },
   { id: '23', date: '2026-06-04', time: '15:00', title: 'Grigliata Lunga e Piscina', location: 'Villa', group: 'all', imageUrl: '/images/23.webp' },
   { id: '24', date: '2026-06-04', time: '20:00', title: 'Preserata', location: 'Villa', group: 'all', imageUrl: '/images/24.webp' },
   { id: '25', date: '2026-06-04', time: '23:00', title: 'Da Decidersi', location: 'Ibiza', group: 'all', imageUrl: '/images/25.webp' },
+  
   { id: '26', date: '2026-06-05', time: '03:00', title: 'Rientro Villa e Sbraco', location: 'Zona Cala d\'Hort', group: 'all', imageUrl: '/images/26.webp' },
   { id: '27', date: '2026-06-05', time: '12:00', title: 'Colazione Hangover', location: 'Villa', group: 'all', imageUrl: '/images/27.webp' },
   { id: '28', date: '2026-06-05', time: '15:00', title: 'Spiaggia e Mare', location: 'Cala Tarida', group: 'all', imageUrl: '/images/28.webp' },
@@ -60,6 +63,7 @@ export default function Dashboard() {
   // Nuovi stati per la logica Sballato del Giorno
   const [todayVotes, setTodayVotes] = useState<any[]>([]);
   const [hasVotedToday, setHasVotedToday] = useState(false);
+  const [votedCandidate, setVotedCandidate] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -74,10 +78,17 @@ export default function Dashboard() {
     
     if (votes) {
       setTodayVotes(votes);
-      // Verifica se l'utente loggato ha già votato oggi
+      
       const userLogged = localStorage.getItem('ibiza_user');
-      const alreadyVoted = votes.some(v => v.voter_name === userLogged);
-      setHasVotedToday(alreadyVoted);
+      const userVote = votes.find(v => v.voter_name === userLogged);
+      
+      if (userVote) {
+        setHasVotedToday(true);
+        setVotedCandidate(userVote.candidate_name);
+      } else {
+        setHasVotedToday(false);
+        setVotedCandidate(null);
+      }
     }
   };
 
@@ -121,23 +132,28 @@ export default function Dashboard() {
 
   const handleVoteSballato = async (candidateName: string) => {
     if (!user || hasVotedToday) return;
-    
     const todayISO = new Date().toISOString().split('T')[0];
     const { error } = await supabase
       .from('daily_sballato_votes')
       .insert([{ voter_name: user, candidate_name: candidateName, vote_date: todayISO }]);
 
-    if (error) {
-      if (error.code === '23505') alert("Protocollo di sicurezza: Ha già espresso il Suo voto odierno.");
-      else alert("Errore di trasmissione del voto.");
-      return;
-    }
-    fetchData();
+    if (!error) fetchData();
+  };
+
+  // Funzione di rimozione voto (Reset)
+  const handleRemoveVote = async () => {
+    if (!user) return;
+    const todayISO = new Date().toISOString().split('T')[0];
+    const { error } = await supabase
+      .from('daily_sballato_votes')
+      .delete()
+      .match({ voter_name: user, vote_date: todayISO });
+
+    if (!error) fetchData();
   };
 
   const ibizaDays = ['2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05'];
 
-  // Calcolo Leader Sballato Odierno
   const calculateDailyLeaders = () => {
     if (todayVotes.length === 0) return [];
     const voteCounts: Record<string, number> = {};
@@ -302,7 +318,6 @@ export default function Dashboard() {
         {activeTab === 'compari' && (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             
-            {/* Classifica Odierna Sballato */}
             <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-2xl mb-6">
               <h4 className="text-[10px] uppercase tracking-[0.2em] text-yellow-600 font-bold mb-2">Classifica Odierna: Sballato del Giorno</h4>
               {dailyLeaders.length > 0 ? (
@@ -318,6 +333,7 @@ export default function Dashboard() {
               const isMe = user === p;
               const isExpanded = expandedUser === p;
               const votesReceivedToday = todayVotes.filter(v => v.candidate_name === p).length;
+              const isMyVotedCandidate = votedCandidate === p;
 
               return (
                 <div key={p} className="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg overflow-hidden transition-all">
@@ -360,13 +376,25 @@ export default function Dashboard() {
                           <input type="file" className="hidden" accept="image/*" onChange={(e) => alert('Interfaccia upload pronta. Preparazione bucket Cloudinary in corso.')} />
                         </label>
                       ) : (
-                        <button 
-                          onClick={() => handleVoteSballato(p)}
-                          disabled={hasVotedToday}
-                          className="w-full bg-slate-800 disabled:opacity-30 hover:bg-slate-700 border border-slate-700 hover:border-yellow-500 hover:text-yellow-500 text-slate-400 text-xs font-bold py-3 rounded-xl uppercase transition-all"
-                        >
-                          {hasVotedToday ? 'Voto Espresso' : 'Vota come Sballato'}
-                        </button>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleVoteSballato(p)}
+                            disabled={hasVotedToday}
+                            className={`flex-1 ${hasVotedToday ? 'bg-slate-800 opacity-30 cursor-not-allowed' : 'bg-slate-800 hover:bg-slate-700'} border border-slate-700 text-slate-400 text-xs font-bold py-3 rounded-xl uppercase transition-all`}
+                          >
+                            {hasVotedToday ? 'Voto Espresso' : 'Vota come Sballato'}
+                          </button>
+                          
+                          {/* Pulsante Reset Voto: visibile solo se l'utente ha votato questo specifico candidato */}
+                          {isMyVotedCandidate && (
+                            <button 
+                              onClick={handleRemoveVote}
+                              className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 text-xs font-bold py-3 px-4 rounded-xl uppercase transition-all"
+                            >
+                              Ritira Voto
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
