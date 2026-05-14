@@ -192,7 +192,7 @@ export default function Dashboard() {
 
       fetchData();
     } catch (error) {
-      alert("Errore durante il caricamento del file multimediale.");
+      alert("Errore durante il caricamento. Verificare il formato del file.");
     } finally {
       setIsUploadingMedia(false);
     }
@@ -200,7 +200,7 @@ export default function Dashboard() {
 
   const handleDeleteMedia = async (mediaId: string, mediaUrl: string) => {
     if (!user) return;
-    const confirmDelete = window.confirm("Conferma l'eliminazione definitiva di questo file?");
+    const confirmDelete = window.confirm("Conferma l'eliminazione definitiva di questa immagine?");
     if (!confirmDelete) return;
 
     try {
@@ -212,7 +212,7 @@ export default function Dashboard() {
       if (error) throw error;
       fetchData();
     } catch (error) {
-      alert("Errore durante l'eliminazione del file.");
+      alert("Errore durante l'eliminazione dell'immagine.");
     }
   };
 
@@ -241,7 +241,6 @@ export default function Dashboard() {
           <p className="text-lg font-bold tracking-tight">Accesso: {user}</p>
         </div>
         <div className="flex items-center gap-4">
-          {/* Pulsante Chiamata Taxi/Uber */}
           <a 
             href="https://www.google.com/maps/dir/?api=1&destination=8,+Carrer+del+Cap,+Ibiza,+Islas+Baleares" 
             target="_blank" 
@@ -435,14 +434,14 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* VIEW: GALLERIA MULTIMEDIALE */}
+        {/* VIEW: GALLERIA FOTOGRAFICA */}
         {activeTab === 'gallery' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-2xl font-black uppercase tracking-tighter italic text-slate-300">Archivio Media</h3>
+              <h3 className="text-2xl font-black uppercase tracking-tighter italic text-slate-300">Archivio Foto</h3>
               <label className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded-full font-black text-[10px] uppercase cursor-pointer shadow-lg transition-transform hover:scale-105 flex items-center gap-2">
-                {isUploadingMedia ? 'UPLOADING...' : '+ CARICA FILE'}
-                <input type="file" className="hidden" accept="image/*, video/*" disabled={isUploadingMedia} onChange={handleUploadMedia} />
+                {isUploadingMedia ? 'UPLOADING...' : '+ CARICA FOTO'}
+                <input type="file" className="hidden" accept="image/*" disabled={isUploadingMedia} onChange={handleUploadMedia} />
               </label>
             </div>
 
@@ -460,11 +459,7 @@ export default function Dashboard() {
                   return (
                     <div key={media.id} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
                       <div className="w-full aspect-video bg-black relative flex items-center justify-center">
-                        {media.media_type === 'video' ? (
-                          <video src={media.media_url} controls className="w-full h-full object-contain" />
-                        ) : (
-                          <img src={media.media_url} alt="Media" className="w-full h-full object-cover" />
-                        )}
+                        <img src={media.media_url} alt="Media" className="w-full h-full object-cover" />
                       </div>
                       
                       <div className="p-4 bg-slate-900/90 flex flex-col gap-3 border-t border-slate-800">
@@ -501,7 +496,7 @@ export default function Dashboard() {
               
               {galleryMedia.filter(m => galleryFilter === 'mine' ? m.uploader_name === user : m.uploader_name !== user).length === 0 && (
                 <div className="col-span-full py-12 text-center text-slate-600 italic text-sm">
-                  {galleryFilter === 'mine' ? 'Non hai ancora caricato nessun file multimediale.' : 'Nessun file condiviso dagli altri compari al momento.'}
+                  {galleryFilter === 'mine' ? 'Non hai ancora caricato nessuna fotografia.' : 'Nessuna foto condivisa dagli altri compari al momento.'}
                 </div>
               )}
             </div>
