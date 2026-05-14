@@ -14,7 +14,6 @@ const IBIZA_SCHEDULE = [
   { id: '6', date: '2026-06-02', time: '15:30', title: 'Arrivo e giro spiagge', location: 'Formentera', group: 'initial', imageUrl: '/images/06.webp' },
   { id: '7', date: '2026-06-02', time: '20:00', title: 'Cena in Barca', location: 'Costa Nord Formentera', group: 'initial', imageUrl: '/images/07.webp' },
   { id: '8', date: '2026-06-02', time: '23:00', title: 'Sbarco e giro locali', location: 'Formentera', group: 'initial', imageUrl: '/images/08.webp' },
-  
   { id: '9', date: '2026-06-03', time: '03:00', title: 'Rientro in barca e sbraco', location: 'El Beso', group: 'initial', imageUrl: '/images/09.webp' },
   { id: '10', date: '2026-06-03', time: '07:00', title: 'Decollo Secondo Gruppo', location: 'Milano Malpensa', group: 'second', imageUrl: '/images/10.webp' },
   { id: '11', date: '2026-06-03', time: '09:30', title: 'Atterraggio Secondo Gruppo', location: 'Aeroporto Ibiza', group: 'second', imageUrl: '/images/11.webp' },
@@ -27,13 +26,11 @@ const IBIZA_SCHEDULE = [
   { id: '18', date: '2026-06-03', time: '17:00', title: 'Spesa per Grigliata', location: 'Zona Cala d\'Hort', group: 'all', imageUrl: '/images/18.webp' },
   { id: '19', date: '2026-06-03', time: '18:00', title: 'Rientro Villa e Doccia', location: 'Zona Cala d\'Hort', group: 'all', imageUrl: '/images/19.webp' },
   { id: '20', date: '2026-06-03', time: '20:00', title: 'Aperitivo + Cena Leuci', location: 'Playa d\'en Bossa', group: 'all', imageUrl: '/images/20.webp' },
-  
   { id: '21', date: '2026-06-04', time: '00:00', title: 'SERATA DC10', location: 'DC 10', group: 'all', imageUrl: '/images/21.webp' },
   { id: '22', date: '2026-06-04', time: '04:00', title: 'Rientro Villa e Sbraco', location: 'Zona Cala d\'Hort', group: 'all', imageUrl: '/images/22.webp' },
   { id: '23', date: '2026-06-04', time: '15:00', title: 'Grigliata Lunga e Piscina', location: 'Villa', group: 'all', imageUrl: '/images/23.webp' },
   { id: '24', date: '2026-06-04', time: '20:00', title: 'Preserata', location: 'Villa', group: 'all', imageUrl: '/images/24.webp' },
   { id: '25', date: '2026-06-04', time: '23:00', title: 'Da Decidersi', location: 'Ibiza', group: 'all', imageUrl: '/images/25.webp' },
-  
   { id: '26', date: '2026-06-05', time: '03:00', title: 'Rientro Villa e Sbraco', location: 'Zona Cala d\'Hort', group: 'all', imageUrl: '/images/26.webp' },
   { id: '27', date: '2026-06-05', time: '12:00', title: 'Colazione Hangover', location: 'Villa', group: 'all', imageUrl: '/images/27.webp' },
   { id: '28', date: '2026-06-05', time: '15:00', title: 'Spiaggia e Mare', location: 'Cala Tarida', group: 'all', imageUrl: '/images/28.webp' },
@@ -60,12 +57,27 @@ export default function Dashboard() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
 
+  // Nuovi stati per la logica Sballato del Giorno
+  const [todayVotes, setTodayVotes] = useState<any[]>([]);
+  const [hasVotedToday, setHasVotedToday] = useState(false);
+
   const router = useRouter();
 
-  const fetchComments = async () => {
-    const { data, error } = await supabase.from('event_comments').select('*').order('created_at', { ascending: true });
-    if (!error && data) {
-      setAllComments(data);
+  const fetchData = async () => {
+    // Recupero Recensioni
+    const { data: comments } = await supabase.from('event_comments').select('*').order('created_at', { ascending: true });
+    if (comments) setAllComments(comments);
+
+    // Recupero Voti Odierni
+    const todayISO = new Date().toISOString().split('T')[0];
+    const { data: votes } = await supabase.from('daily_sballato_votes').select('*').eq('vote_date', todayISO);
+    
+    if (votes) {
+      setTodayVotes(votes);
+      // Verifica se l'utente loggato ha già votato oggi
+      const userLogged = localStorage.getItem('ibiza_user');
+      const alreadyVoted = votes.some(v => v.voter_name === userLogged);
+      setHasVotedToday(alreadyVoted);
     }
   };
 
@@ -74,7 +86,7 @@ export default function Dashboard() {
     if (!savedUser) router.push('/');
     else setUser(savedUser);
 
-    fetchComments();
+    fetchData();
 
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
@@ -87,54 +99,55 @@ export default function Dashboard() {
 
   const handlePostComment = async (eventId: string) => {
     if (!commentText.trim() || !user) return;
-
-    const { error } = await supabase
-      .from('event_comments')
-      .insert([{ event_id: eventId, author_name: user, content: commentText }]);
-
+    const { error } = await supabase.from('event_comments').insert([{ event_id: eventId, author_name: user, content: commentText }]);
     if (error) {
-      if (error.code === '23505') {
-        alert("Violazione protocollo: Hai già inserito una recensione per questo evento.");
-      } else {
-        alert("Errore di comunicazione con il database.");
-      }
+      if (error.code === '23505') alert("Violazione protocollo: Hai già inserito una recensione per questo evento.");
+      else alert("Errore di comunicazione con il database.");
       return;
     }
-
-    setCommentText('');
-    setActiveCommentEvent(null);
-    fetchComments();
+    setCommentText(''); setActiveCommentEvent(null); fetchData();
   };
 
   const handleDeleteComment = async (commentId: string) => {
-    const { error } = await supabase.from('event_comments').delete().eq('id', commentId);
-    if (error) {
-      alert("Impossibile eliminare la recensione.");
-      return;
-    }
-    fetchComments();
+    await supabase.from('event_comments').delete().eq('id', commentId);
+    fetchData();
   };
 
   const handleUpdateComment = async (commentId: string) => {
     if (!editCommentText.trim()) return;
-    
-    const { error } = await supabase
-      .from('event_comments')
-      .update({ content: editCommentText })
-      .eq('id', commentId);
-
-    if (error) {
-      alert("Impossibile aggiornare la recensione.");
-      return;
-    }
-    
-    setEditingCommentId(null);
-    setEditCommentText('');
-    fetchComments();
+    await supabase.from('event_comments').update({ content: editCommentText }).eq('id', commentId);
+    setEditingCommentId(null); setEditCommentText(''); fetchData();
   };
 
-  // Vettore per generare dinamicamente i blocchi giornalieri
+  const handleVoteSballato = async (candidateName: string) => {
+    if (!user || hasVotedToday) return;
+    
+    const todayISO = new Date().toISOString().split('T')[0];
+    const { error } = await supabase
+      .from('daily_sballato_votes')
+      .insert([{ voter_name: user, candidate_name: candidateName, vote_date: todayISO }]);
+
+    if (error) {
+      if (error.code === '23505') alert("Protocollo di sicurezza: Ha già espresso il Suo voto odierno.");
+      else alert("Errore di trasmissione del voto.");
+      return;
+    }
+    fetchData();
+  };
+
   const ibizaDays = ['2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05'];
+
+  // Calcolo Leader Sballato Odierno
+  const calculateDailyLeaders = () => {
+    if (todayVotes.length === 0) return [];
+    const voteCounts: Record<string, number> = {};
+    todayVotes.forEach(v => {
+      voteCounts[v.candidate_name] = (voteCounts[v.candidate_name] || 0) + 1;
+    });
+    const maxVotes = Math.max(...Object.values(voteCounts), 0);
+    return Object.keys(voteCounts).filter(k => voteCounts[k] === maxVotes);
+  };
+  const dailyLeaders = calculateDailyLeaders();
 
   return (
     <main className="min-h-screen bg-slate-950 text-white pb-24 font-sans">
@@ -154,7 +167,6 @@ export default function Dashboard() {
         {activeTab === 'calendar' && (
           <div className="space-y-8">
             {ibizaDays.map((dateString) => {
-              // Estrazione e filtraggio eventi per singola data
               const dayEvents = IBIZA_SCHEDULE.filter(e => e.date === dateString);
               const visibleEventsForDay = dayEvents.filter(event => {
                 if (event.group === 'initial' && !isGroup1) return false;
@@ -162,15 +174,12 @@ export default function Dashboard() {
                 return true;
               });
 
-              // Se il gruppo non ha eventi visibili in questa data, non mostra l'intestazione
               if (visibleEventsForDay.length === 0) return null;
 
               const dayLabel = `${dateString.split('-')[2]} GIUGNO`;
 
               return (
                 <div key={dateString} className="space-y-4">
-                  
-                  {/* INTESTAZIONE GIORNALIERA RIPRISTINATA */}
                   <div className="pb-2 border-b border-slate-800 mt-2">
                     <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">
                       {dayLabel}
@@ -182,7 +191,6 @@ export default function Dashboard() {
                       const eventDateTime = new Date(`${event.date}T${event.time}:00`);
                       const unlockTime = new Date(eventDateTime.getTime() + (60 * 60 * 1000));
                       const isHidden = isAle && now < unlockTime;
-                      
                       const eventComments = allComments.filter(c => c.event_id === event.id);
 
                       return (
@@ -293,10 +301,23 @@ export default function Dashboard() {
         {/* VIEW: COMPARI */}
         {activeTab === 'compari' && (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            
+            {/* Classifica Odierna Sballato */}
+            <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-2xl mb-6">
+              <h4 className="text-[10px] uppercase tracking-[0.2em] text-yellow-600 font-bold mb-2">Classifica Odierna: Sballato del Giorno</h4>
+              {dailyLeaders.length > 0 ? (
+                <p className="text-lg font-black text-yellow-500">{dailyLeaders.join(' & ')} <span className="text-sm text-slate-400 font-normal ml-2">in testa</span></p>
+              ) : (
+                <p className="text-sm text-slate-400 italic">Nessun voto registrato oggi.</p>
+              )}
+            </div>
+
             <h3 className="text-2xl font-black uppercase tracking-tighter italic text-slate-300 mb-6">Directory Compari</h3>
+            
             {ALL_PARTICIPANTS.map(p => {
               const isMe = user === p;
               const isExpanded = expandedUser === p;
+              const votesReceivedToday = todayVotes.filter(v => v.candidate_name === p).length;
 
               return (
                 <div key={p} className="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg overflow-hidden transition-all">
@@ -328,8 +349,8 @@ export default function Dashboard() {
                           <p className="text-xl font-black">{allComments.filter(c => c.author_name === p).length}</p>
                         </div>
                         <div className="bg-slate-900 p-3 rounded-lg border border-slate-800">
-                          <p className="text-[10px] text-slate-500 uppercase">Voti Sballato</p>
-                          <p className="text-xl font-black text-yellow-500">0</p>
+                          <p className="text-[10px] text-slate-500 uppercase">Voti Sballato (Oggi)</p>
+                          <p className="text-xl font-black text-yellow-500">{votesReceivedToday}</p>
                         </div>
                       </div>
 
@@ -339,8 +360,12 @@ export default function Dashboard() {
                           <input type="file" className="hidden" accept="image/*" onChange={(e) => alert('Interfaccia upload pronta. Preparazione bucket Cloudinary in corso.')} />
                         </label>
                       ) : (
-                        <button className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-yellow-500 hover:text-yellow-500 text-slate-400 text-xs font-bold py-3 rounded-xl uppercase transition-all">
-                          Vota come Sballato
+                        <button 
+                          onClick={() => handleVoteSballato(p)}
+                          disabled={hasVotedToday}
+                          className="w-full bg-slate-800 disabled:opacity-30 hover:bg-slate-700 border border-slate-700 hover:border-yellow-500 hover:text-yellow-500 text-slate-400 text-xs font-bold py-3 rounded-xl uppercase transition-all"
+                        >
+                          {hasVotedToday ? 'Voto Espresso' : 'Vota come Sballato'}
                         </button>
                       )}
                     </div>
