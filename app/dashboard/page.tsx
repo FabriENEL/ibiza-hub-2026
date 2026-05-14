@@ -198,6 +198,33 @@ export default function Dashboard() {
     }
   };
 
+  // Funzione per l'eliminazione del media
+  const handleDeleteMedia = async (mediaId: string, mediaUrl: string) => {
+    if (!user) return;
+    
+    // Conferma di sicurezza base per evitare cancellazioni accidentali
+    const confirmDelete = window.confirm("Conferma l'eliminazione definitiva di questo file?");
+    if (!confirmDelete) return;
+
+    try {
+      // 1. Estrazione del nome file dall'URL pubblico di Supabase
+      const fileName = mediaUrl.split('/').pop();
+      
+      // 2. Cancellazione fisica dallo Storage
+      if (fileName) {
+        await supabase.storage.from('gallery').remove([fileName]);
+      }
+
+      // 3. Cancellazione del record logico dal Database
+      const { error } = await supabase.from('gallery_media').delete().eq('id', mediaId);
+      if (error) throw error;
+
+      fetchData();
+    } catch (error) {
+      alert("Errore durante l'eliminazione del file.");
+    }
+  };
+
   const formatDateString = (isoString: string) => {
     const dateObj = new Date(isoString);
     const date = dateObj.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -415,13 +442,11 @@ export default function Dashboard() {
               </label>
             </div>
 
-            {/* Toggle Switch */}
             <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1 mb-6">
               <button onClick={() => setGalleryFilter('mine')} className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${galleryFilter === 'mine' ? 'bg-slate-800 text-yellow-500 shadow-md' : 'text-slate-500'}`}>I Miei File</button>
               <button onClick={() => setGalleryFilter('others')} className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${galleryFilter === 'others' ? 'bg-slate-800 text-yellow-500 shadow-md' : 'text-slate-500'}`}>Archivio Compari</button>
             </div>
 
-            {/* Griglia Media */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {galleryMedia
                 .filter(media => galleryFilter === 'mine' ? media.uploader_name === user : media.uploader_name !== user)
@@ -430,7 +455,6 @@ export default function Dashboard() {
                   
                   return (
                     <div key={media.id} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-                      {/* Media Container */}
                       <div className="w-full aspect-video bg-black relative flex items-center justify-center">
                         {media.media_type === 'video' ? (
                           <video src={media.media_url} controls className="w-full h-full object-contain" />
@@ -439,25 +463,34 @@ export default function Dashboard() {
                         )}
                       </div>
                       
-                      {/* Metadati e Azioni */}
-                      <div className="p-4 bg-slate-900/90 flex justify-between items-center border-t border-slate-800">
-                        <div>
-                          {galleryFilter === 'others' && (
-                            <p className="text-[10px] uppercase font-bold text-yellow-500 mb-1">Di: {media.uploader_name}</p>
-                          )}
-                          <p className="text-xs text-slate-400 font-mono">{date} - {time}</p>
+                      <div className="p-4 bg-slate-900/90 flex flex-col gap-3 border-t border-slate-800">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            {galleryFilter === 'others' && (
+                              <p className="text-[10px] uppercase font-bold text-yellow-500 mb-1">Di: {media.uploader_name}</p>
+                            )}
+                            <p className="text-xs text-slate-400 font-mono">{date} - {time}</p>
+                          </div>
+                          <a 
+                            href={`${media.media_url}?download=`} 
+                            download 
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border border-slate-700 flex items-center gap-2"
+                          >
+                            ⬇ Salva
+                          </a>
                         </div>
-                        
-                        {/* Tasto Download (Forza scaricamento aggiungendo parametro download a Supabase URL) */}
-                        <a 
-                          href={`${media.media_url}?download=`} 
-                          download 
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border border-slate-700 flex items-center gap-2"
-                        >
-                          ⬇ Salva
-                        </a>
+
+                        {/* Modulo Eliminazione: Visibile solo se l'utente è il proprietario */}
+                        {galleryFilter === 'mine' && (
+                          <button 
+                            onClick={() => handleDeleteMedia(media.id, media.media_url)}
+                            className="w-full mt-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 text-[10px] font-bold py-2 rounded-lg uppercase tracking-widest transition-colors"
+                          >
+                            Elimina Definitivamente
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
@@ -473,7 +506,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* BOTTOM NAVIGATION a 3 VIE */}
       <nav className="fixed bottom-0 left-0 right-0 bg-slate-950/90 backdrop-blur-xl border-t border-slate-800 p-4 flex justify-around items-center z-50">
         {[
           { id: 'calendar', label: 'Missione' },
