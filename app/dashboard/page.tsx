@@ -44,50 +44,64 @@ const GROUP_1 = ["Fabri", "Alessandro", "Teo", "Edo", "Cimmi", "Lori"];
 const GROUP_2 = ["Chri", "Maicol", "Nello", "Bibi", "Fiore", "Corra"];
 const ALL_PARTICIPANTS = [...GROUP_1, ...GROUP_2];
 
-// DATASET INTELLIGENCE - EVENTI E GASTRONOMIA
+// DATASET INTELLIGENCE - EVENTI, ATTIVITÀ E GASTRONOMIA
 const IBIZA_NEWS = [
   {
     date: '02 GIUGNO 2026',
     events: [
-      { club: 'Pacha Ibiza', name: 'Chris Stussy presents USS', details: 'Lineup: Chris Stussy, Enzo Siragusa, Shanti Celeste. Ingresso dalle 23:00.' }
+      { club: 'Cafè Mambo', name: 'Sunset Sessions & Live DJ', details: 'Aperitivo al tramonto con DJ set dal vivo. Classico pre-serata ibizenco. Dalle 18:00.' },
+      { club: 'Pacha Ibiza', name: 'Chris Stussy presents USS', details: 'Lineup: Chris Stussy, Enzo Siragusa. Ingresso dalle 23:00.' }
     ]
   },
   {
     date: '03 GIUGNO 2026',
     events: [
-      { club: 'Ushuaïa', name: 'Tomorrowland Pres. Dimitri Vegas & Like Mike', details: 'Lineup: Dimitri Vegas, Like Mike, Alok, Korolova. Ingresso dalle 17:00.' },
-      { club: 'Amnesia', name: 'Amnesia Trance Ibiza', details: 'Lineup: Chicane, Judge Jules, Markus Schulz. Ingresso dalle 23:59.' },
-      { club: 'Pacha Ibiza', name: 'BLOND:ISH presents Abracadabra', details: 'Lineup: BLOND:ISH, Franky Rizardo. Ingresso dalle 23:00.' }
+      { club: 'Las Dalias', name: 'Night Market & Acoustic Live', details: 'Storico mercatino hippy in versione serale con musica dal vivo, street food e artigianato. Dalle 19:00.' },
+      { club: 'Ushuaïa', name: 'Tomorrowland Pres. Dimitri Vegas', details: 'Pool Party open air. Lineup: Dimitri Vegas, Like Mike. Dalle 17:00.' },
+      { club: 'Amnesia', name: 'Amnesia Trance Ibiza', details: 'Lineup: Chicane, Judge Jules. Ingresso dalle 23:59.' }
     ]
   },
   {
     date: '04 GIUGNO 2026',
     events: [
-      { club: 'Amnesia', name: 'Do Not Sleep', details: 'Lineup: Sidney Charles B2B L.P. Rhythm, Ozzie Guven. Ingresso dalle 23:00.' },
-      { club: 'Pacha Ibiza', name: 'Shimza & Co', details: 'Lineup: Shimza, Alex Wann, Culoe du Song. Ingresso dalle 23:00.' }
+      { club: 'Pikes Ibiza', name: 'Pikes House Party', details: 'Atmosfera intima e folle. Musica dal vivo, performance teatrali e DJ set a bordo piscina. Selezione rigorosa. Dalle 20:00.' },
+      { club: 'Ibiza Rocks', name: 'Live Performance / Pool Party', details: 'Musica dal vivo ed esibizioni urbane. Atmosfera giovane e caotica. Dalle 14:00 alle 21:00.' },
+      { club: 'Amnesia', name: 'Do Not Sleep', details: 'Tech House. Lineup: Sidney Charles. Ingresso dalle 23:00.' }
     ]
   },
   {
     date: '05 GIUGNO 2026',
     events: [
-      { club: 'Ushuaïa', name: 'Calvin Harris', details: 'Lineup: Calvin Harris, MK, Tyson O\'Brien. Ingresso dalle 17:00.' },
-      { club: 'Amnesia', name: 'Glitterbox', details: 'Lineup: Armand Van Helden, Honey Dijon, Skream (Disco set). Ingresso dalle 23:30.' },
-      { club: 'Pacha Ibiza', name: 'Marco Carola presents Music On', details: 'Lineup: Marco Carola, Gordo, Wade. Ingresso dalle 23:00.' },
-      { club: 'Eden', name: 'Club Night Pass', details: 'Lineup: DJ AG, Charlie Sloth. Ingresso dalle 23:45.' }
+      { club: 'O Beach', name: 'Pool Party Extravaganza', details: 'Festa diurna con acrobati, musica house e spettacolo dal vivo. Dalle 13:00.' },
+      { club: 'Ushuaïa', name: 'Calvin Harris', details: 'Ingresso dalle 17:00. Evento open air di punta della giornata.' },
+      { club: 'Lío Ibiza', name: 'Dinner & Cabaret Show', details: 'Spettacolo di cabaret di altissimo livello sul porto di Marina Botafoch. Necessaria prenotazione anticipata.' }
     ]
   }
 ];
 
+const DAYTIME_ACTIVITIES = [
+  { name: 'Noleggio Gommoni (Senza Patente)', location: 'Sant Antoni / Port d\'es Torrent', details: 'Possibilità di noleggiare piccole imbarcazioni fino a 15cv per esplorare le calette ovest (Cala Bassa, Cala Conta). Costo medio: 250€/giorno.' },
+  { name: 'Esplorazione in E-Bike', location: 'Partenza da Ibiza Città o Santa Eulalia', details: 'Tour guidati o noleggio libero di mountain bike elettriche per percorsi sterrati lungo la costa nord o verso le saline.' },
+  { name: 'Sa Trinxa (Playa de las Salinas)', location: 'Las Salinas', details: 'Spiaggia iconica. Atmosfera festosa, musica balearica dal vivo, cocktail e pubblico variegato. Altamente raccomandata per il tardo pomeriggio.' },
+  { name: 'Blue Marlin', location: 'Cala Jondal', details: 'Il beach club più esclusivo dell\'isola. Musica costante, lettini VIP e target altolocato. Richiede budget elevato.' },
+  { name: 'Bora Bora / Nassau', location: 'Playa d\'en Bossa', details: 'Il cuore della movida da spiaggia. Musica ad alto volume dalle prime ore del pomeriggio, feste sulla sabbia.' }
+];
+
 const RECOMMENDED_RESTAURANTS = [
-  { name: 'Es Boldadó', location: 'Cala d\'Hort', rating: '4.6', desc: 'Ristorante iconico per paella e pesce fresco affacciato su Es Vedrà. Posizione estremamente tattica in prossimità della Vostra Villa.' },
-  { name: 'Jul\'s Ibiza', location: 'Sa Caleta', rating: '4.5', desc: 'Ristorazione raffinata di altissimo livello con cucina d\'ispirazione greca. Eccellente atmosfera pre-serata e mixology avanzata.' },
-  { name: 'Can Pujol', location: 'Sant Antoni de Portmany', rating: '4.6', desc: 'Eccellenza rustica locale rinomata globalmente per la qualità del pescato e per la visuale incontaminata sul tramonto.' },
-  { name: 'Beso Beach', location: 'Formentera', rating: '4.4', desc: 'Ambiente di alto profilo sulla spiaggia. Già incluso nei Vostri piani iniziali, si riconferma un polo attrattivo primario.' }
+  { name: 'Es Boldadó', distance: '1.2 km', rating: '4.6', desc: 'Arroccato sulla scogliera. La migliore vista su Es Vedrà. Specialità paella e pesce fresco.' },
+  { name: 'Restaurante El Carmen', distance: '1.5 km', rating: '4.4', desc: 'Sulla spiaggia di Cala d\'Hort. Atmosfera rilassata, cucina tradizionale ibizenca e frutti di mare.' },
+  { name: 'Jul\'s Ibiza', distance: '10.5 km', rating: '4.5', desc: 'Ristorazione raffinata d\'ispirazione greca a Sa Caleta. Mixology avanzata e ambiente pre-serata d\'eccellenza.' },
+  { name: 'Es Xarcu', distance: '12.8 km', rating: '4.7', desc: 'Rustico ed esclusivo. Noto per il pesce al forno pescato in giornata e il prosciutto iberico di pura ghianda.' },
+  { name: 'Can Pujol', distance: '15.2 km', rating: '4.6', desc: 'Sant Antoni. Estetica spartana ma qualità del pescato impareggiabile. Visuale perfetta per il tramonto.' },
+  { name: 'Sa Capella', distance: '19.5 km', rating: '4.8', desc: 'Situato in una cappella sconsacrata a Sant Antoni. Carne alla griglia, hierbas fatto in casa e atmosfera gotico-romantica.' },
+  { name: 'Amante Ibiza', distance: '28.4 km', rating: '4.6', desc: 'Cala Llonga. Incastonato in una scogliera. Cucina mediterranea contemporanea, ambiente estremamente elegante.' },
+  { name: 'La Paloma', distance: '29.1 km', rating: '4.7', desc: 'San Lorenzo. Cucina organica italo-israeliana in un rigoglioso giardino di agrumi. Prenotazione complessa ma necessaria.' },
+  { name: 'Beso Beach', distance: '36.5 km', rating: '4.4', desc: 'Formentera (necessario traghetto). Locale iconico sulla spiaggia, altissimo afflusso, cucina spagnola e mojito.' }
 ];
 
 export default function Dashboard() {
   const [user, setUser] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('calendar'); // 'calendar', 'news', 'gallery', 'compari'
+  const [activeTab, setActiveTab] = useState('calendar');
   const [now, setNow] = useState(new Date());
   
   // Stati Missione
@@ -401,10 +415,31 @@ export default function Dashboard() {
         {/* VIEW: NEWS & INTELLIGENCE */}
         {activeTab === 'news' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            
+            {/* SEZIONE 1: ATTIVITÀ DIURNE */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden mb-6">
+              <div className="p-4 border-b border-slate-800 bg-slate-800/50">
+                <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">Opzioni Diurne & Esplorazione</h3>
+                <p className="text-xs text-slate-400 mt-1">Alternativa ai piani base. Noleggi, spiagge con movida e attività all'aperto.</p>
+              </div>
+              <div className="p-4 space-y-3">
+                {DAYTIME_ACTIVITIES.map((act, aIdx) => (
+                  <div key={aIdx} className="bg-slate-950 p-3 rounded-lg border border-slate-800/50">
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-sm font-black text-white uppercase">{act.name}</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">📍 {act.location}</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">{act.details}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* SEZIONE 2: RADAR NOTTURNO ESPANSO */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden mb-6">
               <div className="p-4 border-b border-slate-800 bg-slate-800/50">
                 <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">Radar Eventi Notturni</h3>
-                <p className="text-xs text-slate-400 mt-1">Dati estratti dai circuiti ufficiali. Accuratezza verificata per il periodo 2-5 Giugno 2026.</p>
+                <p className="text-xs text-slate-400 mt-1">Club, concerti live, mercatini serali e party alternativi (2-5 Giugno 2026).</p>
               </div>
               <div className="p-4 space-y-6">
                 {IBIZA_NEWS.map((day, idx) => (
@@ -426,21 +461,24 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {/* SEZIONE 3: RISTORANTI ORDINATI PER DISTANZA */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
               <div className="p-4 border-b border-slate-800 bg-slate-800/50">
-                <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">Intelligence Gastronomica</h3>
-                <p className="text-xs text-slate-400 mt-1">Aggregazione valutazioni globali. Filtro applicato: Rating &gt; 4.4/5.0.</p>
+                <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">Top Gastronomia (4-5 Stelle)</h3>
+                <p className="text-xs text-slate-400 mt-1">Ordinati per distanza dal Vostro campo base (Carrer del Cap, 8).</p>
               </div>
               <div className="p-4 grid grid-cols-1 gap-3">
                 {RECOMMENDED_RESTAURANTS.map((rest, rIdx) => (
-                  <div key={rIdx} className="bg-slate-950 p-3 rounded-lg border border-slate-800/50 flex flex-col justify-between">
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
+                  <div key={rIdx} className="bg-slate-950 p-3 rounded-lg border border-slate-800/50 flex flex-col justify-between relative overflow-hidden">
+                    <div className="absolute top-0 right-0 bg-yellow-500 text-black px-2 py-1 rounded-bl-lg font-black text-[10px] z-10">
+                      {rest.distance}
+                    </div>
+                    <div className="pt-2">
+                      <div className="flex justify-between items-center mb-1 pr-12">
                         <span className="text-sm font-black text-white uppercase">{rest.name}</span>
                         <span className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded">{rest.rating} ★</span>
                       </div>
-                      <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">📍 {rest.location}</p>
-                      <p className="text-xs text-slate-400 leading-relaxed">{rest.desc}</p>
+                      <p className="text-xs text-slate-400 leading-relaxed pr-2">{rest.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -585,7 +623,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* BOTTOM NAVIGATION A 4 VIE */}
       <nav className="fixed bottom-0 left-0 right-0 bg-slate-950/90 backdrop-blur-xl border-t border-slate-800 p-2 sm:p-4 flex justify-around items-center z-50">
         {[
           { id: 'calendar', label: 'Missione' },
