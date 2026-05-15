@@ -359,7 +359,7 @@ export default function Dashboard() {
     <main className="min-h-screen bg-slate-950 text-white pb-24 font-sans">
       <header className="p-6 border-b border-slate-800 bg-slate-900/80 sticky top-0 backdrop-blur-xl z-50 flex justify-between items-center">
         <div>
-          <h2 className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.3em]">Operazione Ibiza</h2>
+          <h2 className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.3em]">Addio al Celibato Ale</h2>
           <p className="text-lg font-bold tracking-tight">Accesso: {user}</p>
         </div>
         <div className="flex items-center gap-3">
@@ -395,7 +395,7 @@ export default function Dashboard() {
 
       <div className="p-4 space-y-6">
         
-        {/* VIEW: MISSIONE */}
+        {/* VIEW: CALENDARIO */}
         {activeTab === 'calendar' && (
           <div className="space-y-8 animate-in fade-in">
             {ibizaDays.map((dateString) => {
@@ -500,7 +500,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* VIEW: NEWS & INTELLIGENCE */}
+        {/* VIEW: HINTS & INTELLIGENCE */}
         {activeTab === 'news' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden mb-6">
@@ -816,7 +816,7 @@ export default function Dashboard() {
                             onClick={() => handleDeleteMedia(media.id, media.media_url)}
                             className="w-full mt-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 text-[10px] font-bold py-2 rounded-lg uppercase tracking-widest transition-colors"
                           >
-                            Elimina Definitivamente
+                            Elimina
                           </button>
                         )}
                       </div>
@@ -836,8 +836,8 @@ export default function Dashboard() {
 
       <nav className="fixed bottom-0 left-0 right-0 bg-slate-950/90 backdrop-blur-xl border-t border-slate-800 p-2 sm:p-4 flex justify-around items-center z-50">
         {[
-          { id: 'calendar', label: 'Missione' },
-          { id: 'news', label: 'News' },
+          { id: 'calendar', label: 'Calendario' },
+          { id: 'news', label: 'Hints' },
           { id: 'gallery', label: 'Galleria' },
           { id: 'compari', label: 'Compari' }
         ].map((tab) => (
