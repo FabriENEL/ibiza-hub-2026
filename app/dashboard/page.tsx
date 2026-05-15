@@ -764,7 +764,7 @@ export default function Dashboard() {
                         const isMyExpense = user === expense.payer_name;
                         const { date, time } = formatDateString(expense.created_at);
                         return (
-                          <div key={expense.id} className="bg-slate-950/80 p-4 rounded-xl border border-white/5 shadow-inner flex justify-between items-center group">
+                          <div key={expense.id} className="bg-slate-950/80 p-4 rounded-xl border border-white/5 shadow-inner flex justify-between items-center">
                             <div>
                               <p className="text-sm font-black text-white uppercase tracking-tight">{expense.description}</p>
                               <p className="text-[10px] text-slate-500 mt-1 font-bold">BY: <span className="text-yellow-500/80 uppercase mr-2">{expense.payer_name}</span> <span className="font-mono font-normal opacity-70">{date} - {time}</span></p>
@@ -772,7 +772,7 @@ export default function Dashboard() {
                             <div className="flex flex-col items-end gap-1.5">
                               <span className="font-black text-xl text-white tracking-tight drop-shadow-md">€{Number(expense.amount).toFixed(2)}</span>
                               {isMyExpense && (
-                                <button onClick={() => handleDeleteExpense(expense.id, expense.payer_name)} className="text-[9px] font-bold uppercase tracking-widest text-red-500/70 hover:text-red-500 transition-colors bg-red-500/10 px-2 py-0.5 rounded opacity-0 group-hover:opacity-100">
+                                <button onClick={() => handleDeleteExpense(expense.id, expense.payer_name)} className="text-[9px] font-bold uppercase tracking-widest text-red-500/80 hover:text-red-500 transition-colors bg-red-500/10 px-2 py-0.5 rounded">
                                   Elimina
                                 </button>
                               )}
