@@ -691,14 +691,14 @@ export default function Dashboard() {
                       value={expenseDesc} 
                       onChange={(e) => setExpenseDesc(e.target.value)} 
                       placeholder="Descrizione (es. Spesa Villa)" 
-                      className="flex-1 bg-slate-950 border border-slate-700/80 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all placeholder:text-slate-600"
+                      className="flex-1 min-w-0 bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all placeholder:text-slate-600"
                     />
                     <input 
                       type="number" 
                       value={expenseAmount} 
                       onChange={(e) => setExpenseAmount(e.target.value)} 
                       placeholder="€ 0.00" 
-                      className="w-28 bg-slate-950 border border-slate-700/80 rounded-xl px-4 py-3 text-sm font-black text-white focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all placeholder:text-slate-600"
+                      className="w-24 shrink-0 bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-3 text-sm font-black text-white focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all placeholder:text-slate-600"
                     />
                   </div>
                   <button onClick={handleAddExpense} className="w-full mt-4 bg-gradient-to-r from-yellow-400 to-yellow-600 hover:scale-[1.01] active:scale-95 text-slate-950 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-yellow-500/20 transition-all">
