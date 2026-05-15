@@ -431,7 +431,7 @@ export default function Dashboard() {
                   const eventComments = allComments.filter(c => c.event_id === event.id);
 
                   return (
-                    <div key={event.id} className={`overflow-hidden rounded-3xl border ${isHidden ? 'border-slate-800/50 bg-slate-900/30 opacity-80' : 'border-white/5 bg-gradient-to-b from-slate-900 to-slate-950 shadow-2xl shadow-black/40'}`}>
+                    <div key={event.id} className={`overflow-hidden rounded-3xl border ${isHidden ? 'border-slate-800/50 bg-slate-900/30 opacity-80' : 'border-white/10 bg-slate-800 shadow-xl shadow-yellow-500/5 ring-1 ring-white/5'}`}>
                       <div className="h-40 w-full bg-slate-800 relative overflow-hidden">
                         {isHidden ? (
                           <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80 backdrop-blur-md">
@@ -439,8 +439,8 @@ export default function Dashboard() {
                           </div>
                         ) : (
                           <>
-                            <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover opacity-70 mix-blend-overlay transition-transform duration-700 hover:scale-105" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent" />
+                            <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover brightness-110 saturate-[1.15] transition-transform duration-700 hover:scale-105" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-transparent to-transparent" />
                           </>
                         )}
                         <div className="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 shadow-lg">
@@ -448,9 +448,9 @@ export default function Dashboard() {
                         </div>
                       </div>
 
-                      <div className="p-6 relative">
-                        <h3 className={`text-2xl font-black uppercase tracking-tight drop-shadow-sm ${isHidden ? 'text-slate-600' : 'text-white'}`}>{isHidden ? 'Dati Oscurati' : event.title}</h3>
-                        <p className="text-sm text-slate-400 mt-1.5 font-medium flex items-center gap-1">
+                      <div className="p-6 relative bg-gradient-to-br from-slate-800 to-slate-800/95">
+                        <h3 className={`text-2xl font-black uppercase tracking-tight drop-shadow-md ${isHidden ? 'text-slate-600' : 'text-white'}`}>{isHidden ? 'Dati Oscurati' : event.title}</h3>
+                        <p className="text-sm text-slate-300 mt-1.5 font-medium flex items-center gap-1">
                           <span className="text-yellow-500/80">📍</span> {isHidden ? '(???)' : event.location}
                         </p>
 
@@ -462,10 +462,10 @@ export default function Dashboard() {
                         )}
 
                         {!isHidden && (
-                          <div className="mt-6 pt-5 border-t border-slate-800/80">
+                          <div className="mt-6 pt-5 border-t border-slate-700/80">
                             <div className="flex justify-between items-center mb-4">
-                              <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-black">Recensioni</span>
-                              <button onClick={() => setActiveCommentEvent(activeCommentEvent === event.id ? null : event.id)} className="text-[10px] bg-slate-800 hover:bg-slate-700 active:scale-95 px-4 py-2 rounded-lg text-white font-bold transition-all shadow-md border border-white/5">
+                              <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-black">Recensioni</span>
+                              <button onClick={() => setActiveCommentEvent(activeCommentEvent === event.id ? null : event.id)} className="text-[10px] bg-slate-700 hover:bg-slate-600 active:scale-95 px-4 py-2 rounded-lg text-white font-bold transition-all shadow-md border border-white/5">
                                 {activeCommentEvent === event.id ? 'Annulla' : '+ Aggiungi'}
                               </button>
                             </div>
@@ -475,22 +475,22 @@ export default function Dashboard() {
                                   const isMyComment = c.author_name === user;
                                   const isEditing = editingCommentId === c.id;
                                   return (
-                                    <div key={c.id} className="bg-slate-950/80 p-4 rounded-xl border border-white/5 shadow-inner">
+                                    <div key={c.id} className="bg-slate-900/60 p-4 rounded-xl border border-white/5 shadow-inner">
                                       <div className="flex justify-between items-center mb-1.5">
                                         <span className="text-[10px] text-yellow-500 uppercase font-black tracking-widest">{c.author_name}</span>
                                         {isMyComment && !isEditing && (
                                           <div className="flex gap-3">
-                                            <button onClick={() => { setEditingCommentId(c.id); setEditCommentText(c.content); }} className="text-[9px] text-slate-500 hover:text-yellow-500 font-bold uppercase transition-colors">Modifica</button>
-                                            <button onClick={() => handleDeleteComment(c.id)} className="text-[9px] text-slate-500 hover:text-red-500 font-bold uppercase transition-colors">Elimina</button>
+                                            <button onClick={() => { setEditingCommentId(c.id); setEditCommentText(c.content); }} className="text-[9px] text-slate-400 hover:text-yellow-500 font-bold uppercase transition-colors">Modifica</button>
+                                            <button onClick={() => handleDeleteComment(c.id)} className="text-[9px] text-slate-400 hover:text-red-500 font-bold uppercase transition-colors">Elimina</button>
                                           </div>
                                         )}
                                       </div>
                                       {isEditing ? (
                                         <div className="flex gap-2 mt-3">
-                                          <input type="text" value={editCommentText} onChange={(e) => setEditCommentText(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500/50" />
+                                          <input type="text" value={editCommentText} onChange={(e) => setEditCommentText(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500/50" />
                                           <button onClick={() => handleUpdateComment(c.id)} className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-slate-950 px-3 py-1.5 rounded-lg text-[10px] font-black shadow-md hover:scale-105 transition-transform">Salva</button>
                                         </div>
-                                      ) : <p className="text-sm text-slate-300 mt-1 leading-relaxed">{c.content}</p>}
+                                      ) : <p className="text-sm text-slate-200 mt-1 leading-relaxed">{c.content}</p>}
                                     </div>
                                   );
                                 })}
@@ -498,7 +498,7 @@ export default function Dashboard() {
                             )}
                             {activeCommentEvent === event.id && (
                               <div className="flex gap-2 mt-2 animate-in slide-in-from-top-2">
-                                <input type="text" value={commentText} onChange={(e) => setCommentText(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 focus:border-yellow-500/50 focus:ring-2 focus:ring-yellow-500/20 rounded-xl px-4 py-2.5 text-sm text-white transition-all outline-none placeholder:text-slate-600" placeholder="Scrivi la tua recensione..." />
+                                <input type="text" value={commentText} onChange={(e) => setCommentText(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 focus:border-yellow-500/50 focus:ring-2 focus:ring-yellow-500/20 rounded-xl px-4 py-2.5 text-sm text-white transition-all outline-none placeholder:text-slate-500" placeholder="Scrivi la tua recensione..." />
                                 <button onClick={() => handlePostComment(event.id)} className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-slate-950 px-5 rounded-xl font-black text-xs uppercase shadow-lg shadow-yellow-500/20 hover:scale-105 active:scale-95 transition-all">Invia</button>
                               </div>
                             )}
