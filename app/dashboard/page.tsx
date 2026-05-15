@@ -102,6 +102,7 @@ const RECOMMENDED_RESTAURANTS = [
 export default function Dashboard() {
   const [user, setUser] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('calendar'); // 'calendar', 'news', 'gallery', 'compari'
+  const [selectedDay, setSelectedDay] = useState('2026-06-02');
   const [now, setNow] = useState(new Date());
   
   // Stati Missione
@@ -398,105 +399,112 @@ export default function Dashboard() {
         {/* VIEW: CALENDARIO */}
         {activeTab === 'calendar' && (
           <div className="space-y-8 animate-in fade-in">
-            {ibizaDays.map((dateString) => {
-              const dayEvents = IBIZA_SCHEDULE.filter(e => e.date === dateString);
-              const visibleEventsForDay = dayEvents.filter(event => {
-                if (event.group === 'initial' && !isGroup1) return false;
-                if (event.group === 'second' && isGroup1 && !isAle) return false; 
-                return true;
-              });
+            <div className="flex justify-between items-center pb-2 border-b border-slate-800 mt-2">
+              <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">
+                {selectedDay.split('-')[2]} GIUGNO
+              </h3>
+              <select 
+                value={selectedDay} 
+                onChange={(e) => setSelectedDay(e.target.value)}
+                className="bg-slate-900 text-white border border-slate-700 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:border-yellow-500"
+              >
+                {ibizaDays.map(day => (
+                  <option key={day} value={day}>{day.split('-')[2]} GIUGNO</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="space-y-6">
+              {(() => {
+                const dayEvents = IBIZA_SCHEDULE.filter(e => e.date === selectedDay);
+                const visibleEventsForDay = dayEvents.filter(event => {
+                  if (event.group === 'initial' && !isGroup1) return false;
+                  if (event.group === 'second' && isGroup1 && !isAle) return false; 
+                  return true;
+                });
 
-              if (visibleEventsForDay.length === 0) return null;
-              const dayLabel = `${dateString.split('-')[2]} GIUGNO`;
+                if (visibleEventsForDay.length === 0) return <p className="text-sm text-slate-500 italic">Nessun evento visibile per questa data.</p>;
 
-              return (
-                <div key={dateString} className="space-y-4">
-                  <div className="pb-2 border-b border-slate-800 mt-2">
-                    <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">{dayLabel}</h3>
-                  </div>
-                  <div className="space-y-6">
-                    {visibleEventsForDay.map((event) => {
-                      const unlockTime = new Date(new Date(`${event.date}T${event.time}:00`).getTime() + 3600000);
-                      const isHidden = isAle && now < unlockTime;
-                      const eventComments = allComments.filter(c => c.event_id === event.id);
+                return visibleEventsForDay.map((event) => {
+                  const unlockTime = new Date(new Date(`${event.date}T${event.time}:00`).getTime() + 3600000);
+                  const isHidden = isAle && now < unlockTime;
+                  const eventComments = allComments.filter(c => c.event_id === event.id);
 
-                      return (
-                        <div key={event.id} className={`overflow-hidden rounded-2xl border ${isHidden ? 'border-slate-800 bg-slate-900/40' : 'border-slate-800 bg-slate-900 shadow-xl'}`}>
-                          <div className="h-32 w-full bg-slate-800 relative">
-                            {isHidden ? (
-                              <div className="absolute inset-0 flex items-center justify-center bg-slate-950">
-                                <span className="text-slate-700 font-mono text-4xl font-black">(???)</span>
-                              </div>
-                            ) : (
-                              <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover opacity-60" />
-                            )}
-                            <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-md border border-white/10">
-                              <span className="text-yellow-500 font-mono font-bold text-xs">{event.time}</span>
-                            </div>
+                  return (
+                    <div key={event.id} className={`overflow-hidden rounded-2xl border ${isHidden ? 'border-slate-800 bg-slate-900/40' : 'border-slate-800 bg-slate-900 shadow-xl'}`}>
+                      <div className="h-32 w-full bg-slate-800 relative">
+                        {isHidden ? (
+                          <div className="absolute inset-0 flex items-center justify-center bg-slate-950">
+                            <span className="text-slate-700 font-mono text-4xl font-black">(???)</span>
                           </div>
-
-                          <div className="p-5">
-                            <h3 className={`text-xl font-black uppercase tracking-tight ${isHidden ? 'text-slate-600' : 'text-white'}`}>{isHidden ? 'Dati Oscurati' : event.title}</h3>
-                            <p className="text-sm text-slate-400 mt-1 font-medium">📍 {isHidden ? '(???)' : event.location}</p>
-
-                            {isHidden && (
-                              <div className="mt-4 bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-lg flex justify-between items-center">
-                                <span className="text-xs uppercase font-bold text-yellow-600">Sblocco tra:</span>
-                                <span className="font-mono font-black text-yellow-500">{Math.max(0, Math.ceil((unlockTime.getTime() - now.getTime()) / 60000))} min</span>
-                              </div>
-                            )}
-
-                            {!isHidden && (
-                              <div className="mt-5 pt-4 border-t border-slate-800/50">
-                                <div className="flex justify-between items-center mb-3">
-                                  <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Recensioni</span>
-                                  <button onClick={() => setActiveCommentEvent(activeCommentEvent === event.id ? null : event.id)} className="text-[10px] bg-slate-800 px-3 py-1.5 rounded-md text-white">
-                                    {activeCommentEvent === event.id ? 'Annulla' : '+ Aggiungi'}
-                                  </button>
-                                </div>
-                                {eventComments.length > 0 && (
-                                  <div className="mb-4 space-y-2">
-                                    {eventComments.map(c => {
-                                      const isMyComment = c.author_name === user;
-                                      const isEditing = editingCommentId === c.id;
-                                      return (
-                                        <div key={c.id} className="bg-slate-950 p-3 rounded-lg border border-slate-800">
-                                          <div className="flex justify-between items-center mb-1">
-                                            <span className="text-[10px] text-yellow-500 uppercase font-bold tracking-wider">{c.author_name}</span>
-                                            {isMyComment && !isEditing && (
-                                              <div className="flex gap-2">
-                                                <button onClick={() => { setEditingCommentId(c.id); setEditCommentText(c.content); }} className="text-[9px] text-slate-400 hover:text-yellow-500 uppercase">Modifica</button>
-                                                <button onClick={() => handleDeleteComment(c.id)} className="text-[9px] text-slate-400 hover:text-red-500 uppercase">Elimina</button>
-                                              </div>
-                                            )}
-                                          </div>
-                                          {isEditing ? (
-                                            <div className="flex gap-2 mt-2">
-                                              <input type="text" value={editCommentText} onChange={(e) => setEditCommentText(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white" />
-                                              <button onClick={() => handleUpdateComment(c.id)} className="bg-yellow-500 text-black px-2 py-1 rounded text-[10px] font-bold">Salva</button>
-                                            </div>
-                                          ) : <p className="text-sm text-slate-300 mt-1">{c.content}</p>}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                                {activeCommentEvent === event.id && (
-                                  <div className="flex gap-2">
-                                    <input type="text" value={commentText} onChange={(e) => setCommentText(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="Scrivi..." />
-                                    <button onClick={() => handlePostComment(event.id)} className="bg-yellow-500 text-black px-4 rounded-lg font-bold text-xs uppercase">Invia</button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                        ) : (
+                          <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover opacity-60" />
+                        )}
+                        <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-md border border-white/10">
+                          <span className="text-yellow-500 font-mono font-bold text-xs">{event.time}</span>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+                      </div>
+
+                      <div className="p-5">
+                        <h3 className={`text-xl font-black uppercase tracking-tight ${isHidden ? 'text-slate-600' : 'text-white'}`}>{isHidden ? 'Dati Oscurati' : event.title}</h3>
+                        <p className="text-sm text-slate-400 mt-1 font-medium">📍 {isHidden ? '(???)' : event.location}</p>
+
+                        {isHidden && (
+                          <div className="mt-4 bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-lg flex justify-between items-center">
+                            <span className="text-xs uppercase font-bold text-yellow-600">Sblocco tra:</span>
+                            <span className="font-mono font-black text-yellow-500">{Math.max(0, Math.ceil((unlockTime.getTime() - now.getTime()) / 60000))} min</span>
+                          </div>
+                        )}
+
+                        {!isHidden && (
+                          <div className="mt-5 pt-4 border-t border-slate-800/50">
+                            <div className="flex justify-between items-center mb-3">
+                              <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Recensioni</span>
+                              <button onClick={() => setActiveCommentEvent(activeCommentEvent === event.id ? null : event.id)} className="text-[10px] bg-slate-800 px-3 py-1.5 rounded-md text-white">
+                                {activeCommentEvent === event.id ? 'Annulla' : '+ Aggiungi'}
+                              </button>
+                            </div>
+                            {eventComments.length > 0 && (
+                              <div className="mb-4 space-y-2">
+                                {eventComments.map(c => {
+                                  const isMyComment = c.author_name === user;
+                                  const isEditing = editingCommentId === c.id;
+                                  return (
+                                    <div key={c.id} className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                      <div className="flex justify-between items-center mb-1">
+                                        <span className="text-[10px] text-yellow-500 uppercase font-bold tracking-wider">{c.author_name}</span>
+                                        {isMyComment && !isEditing && (
+                                          <div className="flex gap-2">
+                                            <button onClick={() => { setEditingCommentId(c.id); setEditCommentText(c.content); }} className="text-[9px] text-slate-400 hover:text-yellow-500 uppercase">Modifica</button>
+                                            <button onClick={() => handleDeleteComment(c.id)} className="text-[9px] text-slate-400 hover:text-red-500 uppercase">Elimina</button>
+                                          </div>
+                                        )}
+                                      </div>
+                                      {isEditing ? (
+                                        <div className="flex gap-2 mt-2">
+                                          <input type="text" value={editCommentText} onChange={(e) => setEditCommentText(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white" />
+                                          <button onClick={() => handleUpdateComment(c.id)} className="bg-yellow-500 text-black px-2 py-1 rounded text-[10px] font-bold">Salva</button>
+                                        </div>
+                                      ) : <p className="text-sm text-slate-300 mt-1">{c.content}</p>}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                            {activeCommentEvent === event.id && (
+                              <div className="flex gap-2">
+                                <input type="text" value={commentText} onChange={(e) => setCommentText(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="Scrivi..." />
+                                <button onClick={() => handlePostComment(event.id)} className="bg-yellow-500 text-black px-4 rounded-lg font-bold text-xs uppercase">Invia</button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
           </div>
         )}
 
