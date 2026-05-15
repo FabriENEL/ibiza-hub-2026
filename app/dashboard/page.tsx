@@ -357,17 +357,17 @@ export default function Dashboard() {
   const ibizaDays = ['2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05'];
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white pb-24 font-sans">
-      <header className="p-6 border-b border-slate-800 bg-slate-900/80 sticky top-0 backdrop-blur-xl z-50 flex justify-between items-center">
+    <main className="min-h-screen bg-slate-950 text-slate-100 pb-24 font-sans antialiased selection:bg-yellow-500/30">
+      <header className="p-6 border-b border-white/5 bg-slate-950/80 sticky top-0 backdrop-blur-2xl z-50 flex justify-between items-center shadow-2xl shadow-black/50">
         <div>
-          <h2 className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.3em]">Addio al Celibato Ale</h2>
-          <p className="text-lg font-bold tracking-tight">Accesso: {user}</p>
+          <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 text-[10px] font-black uppercase tracking-[0.3em] drop-shadow-sm">Addio al Celibato Ale</h2>
+          <p className="text-lg font-bold tracking-tight text-white drop-shadow-md">Accesso: {user}</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Tasto Flare SOS */}
           <button 
             onClick={handleFlareSOS}
-            className="flex items-center justify-center w-10 h-10 bg-red-900/40 hover:bg-red-500 text-red-500 hover:text-white text-xl rounded-full border border-red-800/50 shadow-lg transition-all"
+            className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-red-900/40 to-red-950/40 hover:from-red-600 hover:to-red-500 text-red-500 hover:text-white text-xl rounded-full border border-red-500/20 shadow-lg shadow-red-900/20 transition-all hover:scale-105 active:scale-95"
             title="Invia Posizione SOS"
           >
             🎯
@@ -378,17 +378,17 @@ export default function Dashboard() {
             href="https://www.google.com/maps/dir/?api=1&destination=8,+Carrer+del+Cap,+Ibiza,+Islas+Baleares" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="flex items-center justify-center w-10 h-10 bg-slate-800 hover:bg-yellow-500 hover:text-black text-xl rounded-full border border-slate-700 shadow-lg transition-all"
+            className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-slate-800 to-slate-900 hover:from-yellow-400 hover:to-yellow-500 hover:text-black text-xl rounded-full border border-white/5 shadow-lg shadow-black/20 transition-all hover:scale-105 active:scale-95"
             title="Naviga verso la Villa"
           >
             🚕
           </a>
           
-          <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-black overflow-hidden ml-1">
+          <div className="w-10 h-10 rounded-full bg-slate-800 border-2 border-slate-700/50 shadow-inner flex items-center justify-center font-black overflow-hidden ml-1">
             {avatars[user] ? (
               <img src={avatars[user]} alt="Tu" className="w-full h-full object-cover" />
             ) : (
-              <span>{user[0]}</span>
+              <span className="text-slate-400">{user[0]}</span>
             )}
           </div>
         </div>
@@ -398,15 +398,15 @@ export default function Dashboard() {
         
         {/* VIEW: CALENDARIO */}
         {activeTab === 'calendar' && (
-          <div className="space-y-8 animate-in fade-in">
-            <div className="flex justify-between items-center pb-2 border-b border-slate-800 mt-2">
-              <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="flex justify-between items-center p-4 bg-slate-900/60 rounded-2xl border border-white/5 shadow-inner">
+              <h3 className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 font-black uppercase tracking-[0.2em] text-sm">
                 {selectedDay.split('-')[2]} GIUGNO
               </h3>
               <select 
                 value={selectedDay} 
                 onChange={(e) => setSelectedDay(e.target.value)}
-                className="bg-slate-900 text-white border border-slate-700 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:border-yellow-500"
+                className="bg-slate-950 text-white border border-slate-700/50 rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-yellow-500/50 transition-shadow cursor-pointer hover:border-slate-500"
               >
                 {ibizaDays.map(day => (
                   <option key={day} value={day}>{day.split('-')[2]} GIUGNO</option>
@@ -423,7 +423,7 @@ export default function Dashboard() {
                   return true;
                 });
 
-                if (visibleEventsForDay.length === 0) return <p className="text-sm text-slate-500 italic">Nessun evento visibile per questa data.</p>;
+                if (visibleEventsForDay.length === 0) return <div className="text-center py-10 bg-slate-900/30 rounded-2xl border border-white/5"><p className="text-sm text-slate-500 italic">Nessun evento visibile per questa data.</p></div>;
 
                 return visibleEventsForDay.map((event) => {
                   const unlockTime = new Date(new Date(`${event.date}T${event.time}:00`).getTime() + 3600000);
@@ -431,70 +431,75 @@ export default function Dashboard() {
                   const eventComments = allComments.filter(c => c.event_id === event.id);
 
                   return (
-                    <div key={event.id} className={`overflow-hidden rounded-2xl border ${isHidden ? 'border-slate-800 bg-slate-900/40' : 'border-slate-800 bg-slate-900 shadow-xl'}`}>
-                      <div className="h-32 w-full bg-slate-800 relative">
+                    <div key={event.id} className={`overflow-hidden rounded-3xl border ${isHidden ? 'border-slate-800/50 bg-slate-900/30 opacity-80' : 'border-white/5 bg-gradient-to-b from-slate-900 to-slate-950 shadow-2xl shadow-black/40'}`}>
+                      <div className="h-40 w-full bg-slate-800 relative overflow-hidden">
                         {isHidden ? (
-                          <div className="absolute inset-0 flex items-center justify-center bg-slate-950">
-                            <span className="text-slate-700 font-mono text-4xl font-black">(???)</span>
+                          <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80 backdrop-blur-md">
+                            <span className="text-slate-700 font-mono text-5xl font-black drop-shadow-md">(???)</span>
                           </div>
                         ) : (
-                          <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover opacity-60" />
+                          <>
+                            <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover opacity-70 mix-blend-overlay transition-transform duration-700 hover:scale-105" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent" />
+                          </>
                         )}
-                        <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-md border border-white/10">
-                          <span className="text-yellow-500 font-mono font-bold text-xs">{event.time}</span>
+                        <div className="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 shadow-lg">
+                          <span className="text-yellow-500 font-mono font-black text-xs tracking-wider">{event.time}</span>
                         </div>
                       </div>
 
-                      <div className="p-5">
-                        <h3 className={`text-xl font-black uppercase tracking-tight ${isHidden ? 'text-slate-600' : 'text-white'}`}>{isHidden ? 'Dati Oscurati' : event.title}</h3>
-                        <p className="text-sm text-slate-400 mt-1 font-medium">📍 {isHidden ? '(???)' : event.location}</p>
+                      <div className="p-6 relative">
+                        <h3 className={`text-2xl font-black uppercase tracking-tight drop-shadow-sm ${isHidden ? 'text-slate-600' : 'text-white'}`}>{isHidden ? 'Dati Oscurati' : event.title}</h3>
+                        <p className="text-sm text-slate-400 mt-1.5 font-medium flex items-center gap-1">
+                          <span className="text-yellow-500/80">📍</span> {isHidden ? '(???)' : event.location}
+                        </p>
 
                         {isHidden && (
-                          <div className="mt-4 bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-lg flex justify-between items-center">
-                            <span className="text-xs uppercase font-bold text-yellow-600">Sblocco tra:</span>
-                            <span className="font-mono font-black text-yellow-500">{Math.max(0, Math.ceil((unlockTime.getTime() - now.getTime()) / 60000))} min</span>
+                          <div className="mt-5 bg-gradient-to-r from-yellow-500/10 to-yellow-600/5 border border-yellow-500/20 p-4 rounded-xl flex justify-between items-center shadow-inner">
+                            <span className="text-xs uppercase font-bold text-yellow-600 tracking-wider">Sblocco tra:</span>
+                            <span className="font-mono font-black text-yellow-500 text-lg drop-shadow-[0_0_5px_rgba(234,179,8,0.4)]">{Math.max(0, Math.ceil((unlockTime.getTime() - now.getTime()) / 60000))} min</span>
                           </div>
                         )}
 
                         {!isHidden && (
-                          <div className="mt-5 pt-4 border-t border-slate-800/50">
-                            <div className="flex justify-between items-center mb-3">
-                              <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Recensioni</span>
-                              <button onClick={() => setActiveCommentEvent(activeCommentEvent === event.id ? null : event.id)} className="text-[10px] bg-slate-800 px-3 py-1.5 rounded-md text-white">
+                          <div className="mt-6 pt-5 border-t border-slate-800/80">
+                            <div className="flex justify-between items-center mb-4">
+                              <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-black">Recensioni</span>
+                              <button onClick={() => setActiveCommentEvent(activeCommentEvent === event.id ? null : event.id)} className="text-[10px] bg-slate-800 hover:bg-slate-700 active:scale-95 px-4 py-2 rounded-lg text-white font-bold transition-all shadow-md border border-white/5">
                                 {activeCommentEvent === event.id ? 'Annulla' : '+ Aggiungi'}
                               </button>
                             </div>
                             {eventComments.length > 0 && (
-                              <div className="mb-4 space-y-2">
+                              <div className="mb-5 space-y-3">
                                 {eventComments.map(c => {
                                   const isMyComment = c.author_name === user;
                                   const isEditing = editingCommentId === c.id;
                                   return (
-                                    <div key={c.id} className="bg-slate-950 p-3 rounded-lg border border-slate-800">
-                                      <div className="flex justify-between items-center mb-1">
-                                        <span className="text-[10px] text-yellow-500 uppercase font-bold tracking-wider">{c.author_name}</span>
+                                    <div key={c.id} className="bg-slate-950/80 p-4 rounded-xl border border-white/5 shadow-inner">
+                                      <div className="flex justify-between items-center mb-1.5">
+                                        <span className="text-[10px] text-yellow-500 uppercase font-black tracking-widest">{c.author_name}</span>
                                         {isMyComment && !isEditing && (
-                                          <div className="flex gap-2">
-                                            <button onClick={() => { setEditingCommentId(c.id); setEditCommentText(c.content); }} className="text-[9px] text-slate-400 hover:text-yellow-500 uppercase">Modifica</button>
-                                            <button onClick={() => handleDeleteComment(c.id)} className="text-[9px] text-slate-400 hover:text-red-500 uppercase">Elimina</button>
+                                          <div className="flex gap-3">
+                                            <button onClick={() => { setEditingCommentId(c.id); setEditCommentText(c.content); }} className="text-[9px] text-slate-500 hover:text-yellow-500 font-bold uppercase transition-colors">Modifica</button>
+                                            <button onClick={() => handleDeleteComment(c.id)} className="text-[9px] text-slate-500 hover:text-red-500 font-bold uppercase transition-colors">Elimina</button>
                                           </div>
                                         )}
                                       </div>
                                       {isEditing ? (
-                                        <div className="flex gap-2 mt-2">
-                                          <input type="text" value={editCommentText} onChange={(e) => setEditCommentText(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white" />
-                                          <button onClick={() => handleUpdateComment(c.id)} className="bg-yellow-500 text-black px-2 py-1 rounded text-[10px] font-bold">Salva</button>
+                                        <div className="flex gap-2 mt-3">
+                                          <input type="text" value={editCommentText} onChange={(e) => setEditCommentText(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500/50" />
+                                          <button onClick={() => handleUpdateComment(c.id)} className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-slate-950 px-3 py-1.5 rounded-lg text-[10px] font-black shadow-md hover:scale-105 transition-transform">Salva</button>
                                         </div>
-                                      ) : <p className="text-sm text-slate-300 mt-1">{c.content}</p>}
+                                      ) : <p className="text-sm text-slate-300 mt-1 leading-relaxed">{c.content}</p>}
                                     </div>
                                   );
                                 })}
                               </div>
                             )}
                             {activeCommentEvent === event.id && (
-                              <div className="flex gap-2">
-                                <input type="text" value={commentText} onChange={(e) => setCommentText(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="Scrivi..." />
-                                <button onClick={() => handlePostComment(event.id)} className="bg-yellow-500 text-black px-4 rounded-lg font-bold text-xs uppercase">Invia</button>
+                              <div className="flex gap-2 mt-2 animate-in slide-in-from-top-2">
+                                <input type="text" value={commentText} onChange={(e) => setCommentText(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 focus:border-yellow-500/50 focus:ring-2 focus:ring-yellow-500/20 rounded-xl px-4 py-2.5 text-sm text-white transition-all outline-none placeholder:text-slate-600" placeholder="Scrivi la tua recensione..." />
+                                <button onClick={() => handlePostComment(event.id)} className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-slate-950 px-5 rounded-xl font-black text-xs uppercase shadow-lg shadow-yellow-500/20 hover:scale-105 active:scale-95 transition-all">Invia</button>
                               </div>
                             )}
                           </div>
@@ -511,41 +516,45 @@ export default function Dashboard() {
         {/* VIEW: HINTS & INTELLIGENCE */}
         {activeTab === 'news' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden mb-6">
-              <div className="p-4 border-b border-slate-800 bg-slate-800/50">
-                <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">Opzioni Diurne & Esplorazione</h3>
-                <p className="text-xs text-slate-400 mt-1">Alternativa ai piani base. Noleggi, spiagge con movida e attività all'aperto.</p>
+            <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 rounded-3xl shadow-2xl overflow-hidden mb-6">
+              <div className="p-5 border-b border-white/5 bg-slate-800/30 backdrop-blur-sm">
+                <h3 className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 font-black uppercase tracking-[0.2em] text-sm drop-shadow-sm">Opzioni Diurne & Esplorazione</h3>
+                <p className="text-xs text-slate-400 mt-1.5 font-medium">Alternativa ai piani base. Noleggi, spiagge con movida e attività all'aperto.</p>
               </div>
-              <div className="p-4 space-y-3">
+              <div className="p-5 space-y-3">
                 {DAYTIME_ACTIVITIES.map((act, aIdx) => (
-                  <div key={aIdx} className="bg-slate-950 p-3 rounded-lg border border-slate-800/50">
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-sm font-black text-white uppercase">{act.name}</span>
+                  <div key={aIdx} className="bg-slate-950/60 p-4 rounded-xl border border-white/5 hover:border-yellow-500/30 transition-colors shadow-inner">
+                    <div className="flex justify-between items-start mb-1.5">
+                      <span className="text-sm font-black text-white uppercase tracking-tight">{act.name}</span>
                     </div>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">📍 {act.location}</p>
+                    <p className="text-[10px] text-yellow-500/70 font-bold uppercase tracking-wider mb-2 flex items-center gap-1"><span className="text-slate-500">📍</span> {act.location}</p>
                     <p className="text-xs text-slate-400 leading-relaxed">{act.details}</p>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden mb-6">
-              <div className="p-4 border-b border-slate-800 bg-slate-800/50">
-                <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">Radar Eventi Notturni</h3>
-                <p className="text-xs text-slate-400 mt-1">Club, concerti live, mercatini serali e party alternativi (2-5 Giugno 2026).</p>
+            <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 rounded-3xl shadow-2xl overflow-hidden mb-6">
+              <div className="p-5 border-b border-white/5 bg-slate-800/30 backdrop-blur-sm">
+                <h3 className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 font-black uppercase tracking-[0.2em] text-sm drop-shadow-sm">Radar Eventi Notturni</h3>
+                <p className="text-xs text-slate-400 mt-1.5 font-medium">Club, concerti live, mercatini serali e party alternativi (2-5 Giugno 2026).</p>
               </div>
-              <div className="p-4 space-y-6">
+              <div className="p-5 space-y-8">
                 {IBIZA_NEWS.map((day, idx) => (
-                  <div key={idx} className="space-y-3">
-                    <h4 className="text-[10px] uppercase font-bold text-slate-500 tracking-wider border-b border-slate-800 pb-1">{day.date}</h4>
+                  <div key={idx} className="space-y-4">
+                    <h4 className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] border-b border-slate-800 pb-2 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-yellow-500/50"></span>
+                      {day.date}
+                    </h4>
                     <div className="space-y-3">
                       {day.events.map((ev, eIdx) => (
-                        <div key={eIdx} className="bg-slate-950 p-3 rounded-lg border border-slate-800/50">
-                          <div className="flex justify-between items-start mb-1">
-                            <span className="text-sm font-black text-white uppercase">{ev.club}</span>
+                        <div key={eIdx} className="bg-slate-950/60 p-4 rounded-xl border border-white/5 hover:border-yellow-500/30 transition-colors shadow-inner relative overflow-hidden">
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-yellow-400 to-yellow-600 opacity-50"></div>
+                          <div className="pl-2">
+                            <span className="text-sm font-black text-white uppercase tracking-tight block">{ev.club}</span>
+                            <span className="text-xs font-bold text-yellow-500 mt-0.5 block">{ev.name}</span>
+                            <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">{ev.details}</p>
                           </div>
-                          <p className="text-xs font-bold text-yellow-500">{ev.name}</p>
-                          <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">{ev.details}</p>
                         </div>
                       ))}
                     </div>
@@ -554,23 +563,23 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
-              <div className="p-4 border-b border-slate-800 bg-slate-800/50">
-                <h3 className="text-yellow-500 font-black uppercase tracking-[0.2em] text-sm">Top Gastronomia (4-5 Stelle)</h3>
-                <p className="text-xs text-slate-400 mt-1">Ordinati per distanza dal Vostro campo base (Carrer del Cap, 8).</p>
+            <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 rounded-3xl shadow-2xl overflow-hidden">
+              <div className="p-5 border-b border-white/5 bg-slate-800/30 backdrop-blur-sm">
+                <h3 className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 font-black uppercase tracking-[0.2em] text-sm drop-shadow-sm">Top Gastronomia (4-5 Stelle)</h3>
+                <p className="text-xs text-slate-400 mt-1.5 font-medium">Ordinati per distanza dal Vostro campo base (Carrer del Cap, 8).</p>
               </div>
-              <div className="p-4 grid grid-cols-1 gap-3">
+              <div className="p-5 grid grid-cols-1 gap-3">
                 {RECOMMENDED_RESTAURANTS.map((rest, rIdx) => (
-                  <div key={rIdx} className="bg-slate-950 p-3 rounded-lg border border-slate-800/50 flex flex-col justify-between relative overflow-hidden">
-                    <div className="absolute top-0 right-0 bg-yellow-500 text-black px-2 py-1 rounded-bl-lg font-black text-[10px] z-10">
+                  <div key={rIdx} className="bg-slate-950/60 p-4 rounded-xl border border-white/5 flex flex-col justify-between relative overflow-hidden shadow-inner group hover:border-yellow-500/30 transition-colors">
+                    <div className="absolute top-0 right-0 bg-gradient-to-bl from-yellow-500 to-yellow-600 text-slate-950 px-3 py-1.5 rounded-bl-xl font-black text-[10px] z-10 shadow-md">
                       {rest.distance}
                     </div>
                     <div className="pt-2">
-                      <div className="flex justify-between items-center mb-1 pr-12">
-                        <span className="text-sm font-black text-white uppercase">{rest.name}</span>
-                        <span className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded">{rest.rating} ★</span>
+                      <div className="flex justify-between items-center mb-1.5 pr-14">
+                        <span className="text-sm font-black text-white uppercase tracking-tight group-hover:text-yellow-500 transition-colors">{rest.name}</span>
+                        <span className="text-[10px] font-black text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded shadow-sm">{rest.rating} ★</span>
                       </div>
-                      <p className="text-xs text-slate-400 leading-relaxed pr-2">{rest.desc}</p>
+                      <p className="text-[11px] text-slate-400 leading-relaxed pr-2 italic">"{rest.desc}"</p>
                     </div>
                   </div>
                 ))}
@@ -584,64 +593,66 @@ export default function Dashboard() {
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             
             {/* TOGGLE SUB-MENU COMPARI */}
-            <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1 mb-6">
-              <button onClick={() => setCompariSubTab('directory')} className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${compariSubTab === 'directory' ? 'bg-slate-800 text-yellow-500 shadow-md' : 'text-slate-500'}`}>Directory</button>
-              <button onClick={() => setCompariSubTab('cassa')} className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${compariSubTab === 'cassa' ? 'bg-slate-800 text-yellow-500 shadow-md' : 'text-slate-500'}`}>Cassa Comune</button>
+            <div className="flex bg-slate-900 border border-white/5 rounded-xl p-1 mb-6 shadow-lg">
+              <button onClick={() => setCompariSubTab('directory')} className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-lg transition-all ${compariSubTab === 'directory' ? 'bg-slate-800 text-yellow-500 shadow-md border border-white/5' : 'text-slate-500 hover:text-slate-400'}`}>Directory</button>
+              <button onClick={() => setCompariSubTab('cassa')} className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-lg transition-all ${compariSubTab === 'cassa' ? 'bg-slate-800 text-yellow-500 shadow-md border border-white/5' : 'text-slate-500 hover:text-slate-400'}`}>Cassa Comune</button>
             </div>
 
             {/* SUB-VIEW: DIRECTORY */}
             {compariSubTab === 'directory' && (
               <>
-                <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-2xl mb-6">
-                  <h4 className="text-[10px] uppercase tracking-[0.2em] text-yellow-600 font-bold mb-2">Sballato del Giorno</h4>
+                <div className="bg-gradient-to-r from-yellow-500/10 to-yellow-600/5 border border-yellow-500/20 p-5 rounded-3xl mb-6 shadow-inner relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                  <h4 className="text-[10px] uppercase tracking-[0.2em] text-yellow-600 font-black mb-2">Sballato del Giorno</h4>
                   {dailyLeaders.length > 0 ? (
-                    <p className="text-lg font-black text-yellow-500">{dailyLeaders.join(' & ')} <span className="text-sm text-slate-400 font-normal ml-2">in testa</span></p>
-                  ) : <p className="text-sm text-slate-400 italic">Nessun voto registrato oggi.</p>}
+                    <p className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 drop-shadow-sm">{dailyLeaders.join(' & ')} <span className="text-sm text-slate-400 font-bold ml-2 tracking-normal text-white">in testa</span></p>
+                  ) : <p className="text-sm text-slate-400 italic font-medium">Nessun voto registrato oggi.</p>}
                 </div>
                 
                 {ALL_PARTICIPANTS.map(p => {
                   const isMe = user === p;
                   const isExpanded = expandedUser === p;
                   return (
-                    <div key={p} className="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg overflow-hidden transition-all">
-                      <div onClick={() => setExpandedUser(isExpanded ? null : p)} className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/50">
+                    <div key={p} className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 rounded-3xl shadow-xl overflow-hidden transition-all duration-300 mb-4 hover:border-slate-700">
+                      <div onClick={() => setExpandedUser(isExpanded ? null : p)} className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-800/30 transition-colors">
                         <div className="flex items-center gap-4">
-                          <div className="w-14 h-14 bg-slate-800 border-2 border-slate-700 rounded-full flex items-center justify-center text-xl font-black text-slate-400 overflow-hidden">
+                          <div className="w-16 h-16 bg-slate-800 border-2 border-slate-700/50 rounded-full flex items-center justify-center text-xl font-black text-slate-400 overflow-hidden shadow-inner">
                             {avatars[p] ? <img src={avatars[p]} alt={p} className="w-full h-full object-cover" /> : <span>{p[0]}</span>}
                           </div>
                           <div>
-                            <h4 className="font-bold text-lg">{p} {isMe && <span className="text-[9px] bg-yellow-500 text-black px-2 py-0.5 rounded uppercase ml-2">Tu</span>}</h4>
-                            <p className="text-[10px] uppercase text-slate-500">{GROUP_1.includes(p) ? 'Gruppo 1 - Sposo/Testimoni' : 'Gruppo 2 - Amici'}</p>
+                            <h4 className="font-black text-xl tracking-tight text-white">{p} {isMe && <span className="text-[9px] bg-gradient-to-r from-yellow-400 to-yellow-600 text-slate-950 px-2 py-0.5 rounded shadow-sm uppercase font-black ml-2 tracking-widest align-middle">Tu</span>}</h4>
+                            <p className="text-[10px] uppercase text-slate-500 font-bold tracking-wider mt-0.5">{GROUP_1.includes(p) ? 'Gruppo 1 - Sposo/Testimoni' : 'Gruppo 2 - Amici'}</p>
                           </div>
                         </div>
-                        <div className="text-slate-600 font-mono text-xl">{isExpanded ? '-' : '+'}</div>
+                        <div className={`text-slate-500 font-mono text-2xl font-light transition-transform duration-300 ${isExpanded ? 'rotate-45 text-yellow-500' : ''}`}>+</div>
                       </div>
 
                       {isExpanded && (
-                        <div className="p-4 bg-slate-950/50 border-t border-slate-800">
-                          <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div className="bg-slate-900 p-3 rounded-lg border border-slate-800">
-                              <p className="text-[10px] text-slate-500 uppercase">Recensioni</p>
-                              <p className="text-xl font-black">{allComments.filter(c => c.author_name === p).length}</p>
+                        <div className="p-5 bg-slate-950/80 border-t border-slate-800/80 animate-in slide-in-from-top-2">
+                          <div className="grid grid-cols-2 gap-4 mb-5">
+                            <div className="bg-slate-900 p-4 rounded-2xl border border-white/5 shadow-inner text-center">
+                              <p className="text-[9px] text-slate-500 uppercase font-black tracking-widest mb-1">Recensioni</p>
+                              <p className="text-2xl font-black text-white">{allComments.filter(c => c.author_name === p).length}</p>
                             </div>
-                            <div className="bg-slate-900 p-3 rounded-lg border border-slate-800">
-                              <p className="text-[10px] text-slate-500 uppercase">Voti Sballato (Oggi)</p>
-                              <p className="text-xl font-black text-yellow-500">{todayVotes.filter(v => v.candidate_name === p).length}</p>
+                            <div className="bg-slate-900 p-4 rounded-2xl border border-white/5 shadow-inner text-center relative overflow-hidden">
+                              <div className="absolute inset-0 bg-yellow-500/5 pointer-events-none"></div>
+                              <p className="text-[9px] text-slate-500 uppercase font-black tracking-widest mb-1 relative z-10">Voti Ricevuti</p>
+                              <p className="text-2xl font-black text-yellow-500 drop-shadow-sm relative z-10">{todayVotes.filter(v => v.candidate_name === p).length}</p>
                             </div>
                           </div>
 
                           {isMe ? (
-                            <label className="flex items-center justify-center w-full p-3 border border-dashed border-slate-700 rounded-xl cursor-pointer hover:border-yellow-500 text-slate-400 transition-colors">
-                              <span className="text-xs uppercase font-bold tracking-widest">{isUploadingAvatar ? 'Caricamento...' : 'Carica Foto Profilo'}</span>
+                            <label className="flex items-center justify-center w-full p-4 border-2 border-dashed border-slate-700 rounded-2xl cursor-pointer hover:border-yellow-500/50 hover:bg-yellow-500/5 text-slate-400 transition-all group">
+                              <span className="text-[11px] uppercase font-black tracking-widest group-hover:text-yellow-500 transition-colors">{isUploadingAvatar ? 'Sincronizzazione...' : 'Aggiorna Fotografia'}</span>
                               <input type="file" className="hidden" accept="image/*" disabled={isUploadingAvatar} onChange={handleUploadAvatar} />
                             </label>
                           ) : (
-                            <div className="flex gap-2">
-                              <button onClick={() => handleVoteSballato(p)} disabled={hasVotedToday} className={`flex-1 ${hasVotedToday ? 'bg-slate-800 opacity-30' : 'bg-slate-800 hover:bg-slate-700'} border border-slate-700 text-slate-400 text-xs font-bold py-3 rounded-xl uppercase`}>
-                                {hasVotedToday ? 'Voto Espresso' : 'Vota come Sballato'}
+                            <div className="flex gap-3">
+                              <button onClick={() => handleVoteSballato(p)} disabled={hasVotedToday} className={`flex-1 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${hasVotedToday ? 'bg-slate-900 border-slate-800 text-slate-600 opacity-50 cursor-not-allowed' : 'bg-slate-800 border-slate-700 text-white hover:bg-yellow-500 hover:text-slate-950 hover:border-yellow-400 shadow-lg active:scale-95'}`}>
+                                {hasVotedToday ? 'Voto Registrato' : 'Vota come Sballato'}
                               </button>
                               {votedCandidate === p && (
-                                <button onClick={handleRemoveVote} className="bg-red-500/10 text-red-500 border border-red-500/30 text-xs font-bold py-3 px-4 rounded-xl uppercase">Ritira Voto</button>
+                                <button onClick={handleRemoveVote} className="bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 text-[10px] font-black py-3.5 px-5 rounded-2xl uppercase tracking-widest transition-colors active:scale-95">Ritira Voto</button>
                               )}
                             </div>
                           )}
@@ -659,76 +670,82 @@ export default function Dashboard() {
                 
                 {/* Summary Box */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col justify-center items-center">
-                    <span className="text-[10px] uppercase text-slate-500 font-bold mb-1">Totale Speso</span>
-                    <span className="text-2xl font-black text-white">€{totalExpenses.toFixed(2)}</span>
+                  <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 p-5 rounded-3xl flex flex-col justify-center items-center shadow-xl relative overflow-hidden">
+                    <span className="text-[10px] uppercase text-slate-500 font-black tracking-widest mb-1.5 relative z-10">Totale Cassa</span>
+                    <span className="text-3xl font-black text-white tracking-tight relative z-10">€{totalExpenses.toFixed(2)}</span>
                   </div>
-                  <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col justify-center items-center">
-                    <span className="text-[10px] uppercase text-slate-500 font-bold mb-1">Quota Pro-Capite</span>
-                    <span className="text-2xl font-black text-yellow-500">€{quotaPerPerson.toFixed(2)}</span>
-                    <span className="text-[8px] text-slate-500 mt-1 uppercase">Diviso 11 quote</span>
+                  <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 p-5 rounded-3xl flex flex-col justify-center items-center shadow-xl relative overflow-hidden">
+                    <div className="absolute inset-0 bg-yellow-500/5 pointer-events-none"></div>
+                    <span className="text-[10px] uppercase text-slate-500 font-black tracking-widest mb-1.5 relative z-10">Quota Personale</span>
+                    <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 drop-shadow-sm tracking-tight relative z-10">€{quotaPerPerson.toFixed(2)}</span>
+                    <span className="text-[9px] text-slate-500 mt-1 font-bold uppercase tracking-widest relative z-10">Su 11 Quote</span>
                   </div>
                 </div>
 
                 {/* Aggiunta Spesa */}
-                <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl">
-                  <h4 className="text-xs uppercase text-slate-400 font-bold mb-3 tracking-widest">Aggiungi Spesa per il gruppo</h4>
-                  <div className="flex gap-2">
+                <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 p-6 rounded-3xl shadow-2xl">
+                  <h4 className="text-[10px] uppercase text-slate-400 font-black mb-4 tracking-[0.2em]">Registrazione Nuova Spesa</h4>
+                  <div className="flex gap-3">
                     <input 
                       type="text" 
                       value={expenseDesc} 
                       onChange={(e) => setExpenseDesc(e.target.value)} 
-                      placeholder="Es. Taxi per DC10" 
-                      className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white"
+                      placeholder="Descrizione (es. Spesa Villa)" 
+                      className="flex-1 bg-slate-950 border border-slate-700/80 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all placeholder:text-slate-600"
                     />
                     <input 
                       type="number" 
                       value={expenseAmount} 
                       onChange={(e) => setExpenseAmount(e.target.value)} 
                       placeholder="€ 0.00" 
-                      className="w-24 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white"
+                      className="w-28 bg-slate-950 border border-slate-700/80 rounded-xl px-4 py-3 text-sm font-black text-white focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all placeholder:text-slate-600"
                     />
                   </div>
-                  <button onClick={handleAddExpense} className="w-full mt-3 bg-yellow-500 hover:bg-yellow-400 text-black py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors">
-                    Registra Importo
+                  <button onClick={handleAddExpense} className="w-full mt-4 bg-gradient-to-r from-yellow-400 to-yellow-600 hover:scale-[1.01] active:scale-95 text-slate-950 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-yellow-500/20 transition-all">
+                    Processa Transazione
                   </button>
                 </div>
 
                 {/* Bilanci Personali */}
-                <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl">
-                  <h4 className="text-xs uppercase text-slate-400 font-bold mb-4 tracking-widest border-b border-slate-800 pb-2">Bilancio Partecipanti</h4>
-                  <div className="space-y-3">
+                <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 p-6 rounded-3xl shadow-2xl">
+                  <h4 className="text-[10px] uppercase text-slate-400 font-black mb-5 tracking-[0.2em] border-b border-slate-800 pb-3">Stato Bilanci Individuali</h4>
+                  <div className="space-y-2.5">
                     {ALL_PARTICIPANTS.map(p => {
                       const data = balances[p];
                       const isMe = user === p;
                       let statusText = '';
                       let statusColor = 'text-slate-400';
+                      let bgAccent = '';
                       
                       if (data.isGroom) {
-                        statusText = "Sposo - Esente";
+                        statusText = "Ospite d'Onore";
                         statusColor = "text-yellow-500";
+                        bgAccent = "bg-yellow-500/5 border-yellow-500/20";
                       } else if (data.balance > 0.01) {
-                        statusText = `Deve ricevere €${data.balance.toFixed(2)}`;
-                        statusColor = "text-emerald-500";
+                        statusText = `Credito: €${data.balance.toFixed(2)}`;
+                        statusColor = "text-emerald-400";
+                        bgAccent = "bg-emerald-500/5 border-emerald-500/10";
                       } else if (data.balance < -0.01) {
-                        statusText = `Deve dare €${Math.abs(data.balance).toFixed(2)}`;
-                        statusColor = "text-red-500";
+                        statusText = `Debito: €${Math.abs(data.balance).toFixed(2)}`;
+                        statusColor = "text-red-400";
+                        bgAccent = "bg-red-500/5 border-red-500/10";
                       } else {
-                        statusText = "In Pari";
-                        statusColor = "text-slate-500";
+                        statusText = "Bilancio in Pari";
+                        statusColor = "text-slate-400";
+                        bgAccent = "bg-slate-800/30 border-transparent";
                       }
 
                       return (
-                        <div key={p} className={`flex justify-between items-center p-2 rounded-lg ${isMe ? 'bg-slate-800/50' : ''}`}>
+                        <div key={p} className={`flex justify-between items-center p-3 rounded-xl border ${isMe ? 'ring-1 ring-white/10 shadow-md' : ''} ${bgAccent} transition-colors`}>
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-black overflow-hidden">
-                              {avatars[p] ? <img src={avatars[p]} alt={p} className="w-full h-full object-cover" /> : p[0]}
+                            <div className="w-9 h-9 rounded-full bg-slate-800 border border-white/5 flex items-center justify-center text-xs font-black overflow-hidden shadow-inner">
+                              {avatars[p] ? <img src={avatars[p]} alt={p} className="w-full h-full object-cover" /> : <span className="text-slate-400">{p[0]}</span>}
                             </div>
-                            <span className="font-bold text-sm">{p}</span>
+                            <span className="font-bold text-sm text-white">{p}</span>
                           </div>
-                          <div className={`text-xs font-bold ${statusColor} text-right`}>
-                            {statusText}
-                            {!data.isGroom && <div className="text-[9px] text-slate-500 font-normal">Ha pagato: €{data.paid.toFixed(2)}</div>}
+                          <div className="text-right">
+                            <div className={`text-xs font-black uppercase tracking-wider ${statusColor}`}>{statusText}</div>
+                            {!data.isGroom && <div className="text-[10px] text-slate-500 font-bold mt-0.5">Versato: €{data.paid.toFixed(2)}</div>}
                           </div>
                         </div>
                       );
@@ -737,25 +754,25 @@ export default function Dashboard() {
                 </div>
 
                 {/* Lista Transazioni Recenti */}
-                <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl">
-                  <h4 className="text-xs uppercase text-slate-400 font-bold mb-4 tracking-widest border-b border-slate-800 pb-2">Registro Transazioni</h4>
+                <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 p-6 rounded-3xl shadow-2xl">
+                  <h4 className="text-[10px] uppercase text-slate-400 font-black mb-5 tracking-[0.2em] border-b border-slate-800 pb-3">Registro Attività Finanziarie</h4>
                   {sharedExpenses.length === 0 ? (
-                    <p className="text-sm text-slate-500 italic text-center py-4">Nessuna spesa registrata.</p>
+                    <p className="text-sm text-slate-500 font-medium italic text-center py-6 bg-slate-950/50 rounded-xl border border-white/5">Nessuna transazione rilevata nel database.</p>
                   ) : (
                     <div className="space-y-3">
                       {sharedExpenses.map(expense => {
                         const isMyExpense = user === expense.payer_name;
                         const { date, time } = formatDateString(expense.created_at);
                         return (
-                          <div key={expense.id} className="bg-slate-950 p-3 rounded-lg border border-slate-800/50 flex justify-between items-center">
+                          <div key={expense.id} className="bg-slate-950/80 p-4 rounded-xl border border-white/5 shadow-inner flex justify-between items-center group">
                             <div>
-                              <p className="text-sm font-bold text-white">{expense.description}</p>
-                              <p className="text-[10px] text-slate-500 mt-0.5">Pagato da: <span className="text-yellow-500 uppercase">{expense.payer_name}</span> • {date} {time}</p>
+                              <p className="text-sm font-black text-white uppercase tracking-tight">{expense.description}</p>
+                              <p className="text-[10px] text-slate-500 mt-1 font-bold">BY: <span className="text-yellow-500/80 uppercase mr-2">{expense.payer_name}</span> <span className="font-mono font-normal opacity-70">{date} - {time}</span></p>
                             </div>
-                            <div className="flex flex-col items-end gap-1">
-                              <span className="font-black text-lg text-white">€{Number(expense.amount).toFixed(2)}</span>
+                            <div className="flex flex-col items-end gap-1.5">
+                              <span className="font-black text-xl text-white tracking-tight drop-shadow-md">€{Number(expense.amount).toFixed(2)}</span>
                               {isMyExpense && (
-                                <button onClick={() => handleDeleteExpense(expense.id, expense.payer_name)} className="text-[9px] uppercase text-red-500 hover:underline">
+                                <button onClick={() => handleDeleteExpense(expense.id, expense.payer_name)} className="text-[9px] font-bold uppercase tracking-widest text-red-500/70 hover:text-red-500 transition-colors bg-red-500/10 px-2 py-0.5 rounded opacity-0 group-hover:opacity-100">
                                   Elimina
                                 </button>
                               )}
@@ -775,45 +792,46 @@ export default function Dashboard() {
         {/* VIEW: GALLERIA FOTOGRAFICA */}
         {activeTab === 'gallery' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-2xl font-black uppercase tracking-tighter italic text-slate-300">Archivio Foto</h3>
-              <label className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded-full font-black text-[10px] uppercase cursor-pointer shadow-lg transition-transform hover:scale-105 flex items-center gap-2">
-                {isUploadingMedia ? 'UPLOADING...' : '+ CARICA FOTO'}
+            <div className="flex justify-between items-center mb-6 bg-slate-900/40 p-4 rounded-2xl border border-white/5 shadow-inner">
+              <h3 className="text-xl font-black uppercase tracking-widest text-slate-200 drop-shadow-sm">Archivio Foto</h3>
+              <label className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-slate-950 px-5 py-2.5 rounded-xl font-black text-[10px] uppercase cursor-pointer shadow-lg shadow-yellow-500/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-2">
+                {isUploadingMedia ? 'Sincronizzazione...' : '+ Carica File'}
                 <input type="file" className="hidden" accept="image/*" disabled={isUploadingMedia} onChange={handleUploadMedia} />
               </label>
             </div>
 
-            <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1 mb-6">
-              <button onClick={() => setGalleryFilter('mine')} className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${galleryFilter === 'mine' ? 'bg-slate-800 text-yellow-500 shadow-md' : 'text-slate-500'}`}>I Miei File</button>
-              <button onClick={() => setGalleryFilter('others')} className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${galleryFilter === 'others' ? 'bg-slate-800 text-yellow-500 shadow-md' : 'text-slate-500'}`}>Archivio Compari</button>
+            <div className="flex bg-slate-900 border border-white/5 rounded-xl p-1 mb-8 shadow-lg">
+              <button onClick={() => setGalleryFilter('mine')} className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-lg transition-all ${galleryFilter === 'mine' ? 'bg-slate-800 text-yellow-500 shadow-md border border-white/5' : 'text-slate-500 hover:text-slate-400'}`}>I Miei File</button>
+              <button onClick={() => setGalleryFilter('others')} className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-lg transition-all ${galleryFilter === 'others' ? 'bg-slate-800 text-yellow-500 shadow-md border border-white/5' : 'text-slate-500 hover:text-slate-400'}`}>Archivio Compari</button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {galleryMedia
                 .filter(media => galleryFilter === 'mine' ? media.uploader_name === user : media.uploader_name !== user)
                 .map((media) => {
                   const { date, time } = formatDateString(media.created_at);
                   
                   return (
-                    <div key={media.id} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-                      <div className="w-full aspect-video bg-black relative flex items-center justify-center">
-                        <img src={media.media_url} alt="Media" className="w-full h-full object-cover" />
+                    <div key={media.id} className="bg-slate-900 border border-white/5 rounded-3xl overflow-hidden shadow-2xl shadow-black/40 group">
+                      <div className="w-full aspect-square bg-slate-950 relative flex items-center justify-center overflow-hidden">
+                        <img src={media.media_url} alt="Media" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       </div>
                       
-                      <div className="p-4 bg-slate-900/90 flex flex-col gap-3 border-t border-slate-800">
+                      <div className="p-5 bg-gradient-to-b from-slate-900 to-slate-950 flex flex-col gap-4 border-t border-slate-800 relative z-10">
                         <div className="flex justify-between items-start">
                           <div>
                             {galleryFilter === 'others' && (
-                              <p className="text-[10px] uppercase font-bold text-yellow-500 mb-1">Di: {media.uploader_name}</p>
+                              <p className="text-[10px] uppercase font-black tracking-widest text-yellow-500 mb-1">BY: {media.uploader_name}</p>
                             )}
-                            <p className="text-xs text-slate-400 font-mono">{date} - {time}</p>
+                            <p className="text-[11px] text-slate-400 font-mono font-medium">{date} <span className="opacity-50">/</span> {time}</p>
                           </div>
                           <a 
                             href={`${media.media_url}?download=`} 
                             download 
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border border-slate-700 flex items-center gap-2"
+                            className="bg-slate-800 hover:bg-yellow-500 hover:text-slate-950 hover:border-yellow-400 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 border border-white/5 flex items-center gap-2"
                           >
                             ⬇ Salva
                           </a>
@@ -822,7 +840,7 @@ export default function Dashboard() {
                         {galleryFilter === 'mine' && (
                           <button 
                             onClick={() => handleDeleteMedia(media.id, media.media_url)}
-                            className="w-full mt-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 text-[10px] font-bold py-2 rounded-lg uppercase tracking-widest transition-colors"
+                            className="w-full mt-1 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 text-[10px] font-black py-2.5 rounded-xl uppercase tracking-[0.2em] transition-all active:scale-95 shadow-sm"
                           >
                             Elimina
                           </button>
@@ -833,8 +851,11 @@ export default function Dashboard() {
                 })}
               
               {galleryMedia.filter(m => galleryFilter === 'mine' ? m.uploader_name === user : m.uploader_name !== user).length === 0 && (
-                <div className="col-span-full py-12 text-center text-slate-600 italic text-sm">
-                  {galleryFilter === 'mine' ? 'Non hai ancora caricato nessuna fotografia.' : 'Nessuna foto condivisa dagli altri compari al momento.'}
+                <div className="col-span-full py-16 px-4 text-center bg-slate-900/30 rounded-3xl border border-white/5 border-dashed">
+                  <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">
+                    {galleryFilter === 'mine' ? 'Nessun file caricato' : 'Nessun file condiviso'}
+                  </p>
+                  <p className="text-[11px] text-slate-600 mt-2">I file multimediali appariranno qui dopo il caricamento.</p>
                 </div>
               )}
             </div>
@@ -842,7 +863,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-slate-950/90 backdrop-blur-xl border-t border-slate-800 p-2 sm:p-4 flex justify-around items-center z-50">
+      <nav className="fixed bottom-0 left-0 right-0 bg-slate-950/85 backdrop-blur-2xl border-t border-white/10 p-3 sm:p-5 flex justify-around items-center z-50 shadow-[0_-20px_50px_rgba(0,0,0,0.8)] pb-safe">
         {[
           { id: 'calendar', label: 'Calendario' },
           { id: 'news', label: 'Hints' },
@@ -852,7 +873,7 @@ export default function Dashboard() {
           <button 
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`text-[10px] uppercase font-black tracking-widest transition-all px-3 py-2 rounded-full ${activeTab === tab.id ? 'bg-yellow-500 text-black scale-105 shadow-lg shadow-yellow-500/20' : 'text-slate-500 hover:text-slate-300'}`}
+            className={`text-[9px] uppercase font-black tracking-[0.2em] transition-all px-4 py-2.5 rounded-xl ${activeTab === tab.id ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-slate-950 scale-105 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'}`}
           >
             {tab.label}
           </button>
