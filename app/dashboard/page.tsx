@@ -89,7 +89,7 @@ const DAYTIME_ACTIVITIES = [
 
 const RECOMMENDED_RESTAURANTS = [
   { name: 'Es Boldadó', distance: '1.2 km', rating: '4.6', desc: 'Arroccato sulla scogliera. La migliore vista su Es Vedrà. Specialità paella e pesce fresco.' },
-  { name: 'Restaurante El Carmen', distance: '1.5 km', rating: '4.4', desc: 'Sulla spiaggia di Cala d\'Hort. Atmosfera rilassata, cucina tradizionale ibizenca e frutti di mare.' },
+  { name: 'Restaurante El Carmen', distance: '1.5 km', rating: '4.4', desc: 'Sulla spiaggia di Cala d\'Hort. Atmosfera rilassata, cucina tradicional ibizenca e frutti di mare.' },
   { name: 'Jul\'s Ibiza', distance: '10.5 km', rating: '4.5', desc: 'Ristorazione raffinata d\'ispirazione greca a Sa Caleta. Mixology avanzata e ambiente pre-serata d\'eccellenza.' },
   { name: 'Es Xarcu', distance: '12.8 km', rating: '4.7', desc: 'Rustico ed esclusivo. Noto per il pesce al forno pescato in giornata e il prosciutto iberico di pura ghianda.' },
   { name: 'Can Pujol', distance: '15.2 km', rating: '4.6', desc: 'Sant Antoni. Estetica spartana ma qualità del pescato impareggiabile. Visuale perfetta per il tramonto.' },
@@ -257,7 +257,7 @@ export default function Dashboard() {
     const { error } = await supabase.from('shared_expenses').insert([{ 
       payer_name: user, 
       description: expenseDesc, 
-      amount: Number(expenseAmount).toFixed(2) 
+      amount: Number(expenseAmount)
     }]);
     if (!error) {
       setExpenseDesc('');
