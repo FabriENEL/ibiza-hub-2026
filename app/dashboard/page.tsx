@@ -44,7 +44,7 @@ const GROUP_1 = ["Fabri", "Alessandro", "Teo", "Edo", "Cimmi", "Lori"];
 const GROUP_2 = ["Chri", "Maicol", "Nello", "Bibi", "Fiore", "Corra"];
 const ALL_PARTICIPANTS = [...GROUP_1, ...GROUP_2];
 
-// DATASET INTELLIGENCE - EVENTI, ATTIVITÀ E GASTRONOMIA
+// DATASET INTELLIGENCE
 const IBIZA_NEWS = [
   {
     date: '02 GIUGNO 2026',
@@ -101,7 +101,7 @@ const RECOMMENDED_RESTAURANTS = [
 
 export default function Dashboard() {
   const [user, setUser] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('calendar'); // 'calendar', 'news', 'gallery', 'compari'
+  const [activeTab, setActiveTab] = useState('calendar'); 
   const [selectedDay, setSelectedDay] = useState('2026-06-02');
   const [now, setNow] = useState(new Date());
   
@@ -112,7 +112,7 @@ export default function Dashboard() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
 
-  // Stati Compari & Sottomenu
+  // Stati Compari
   const [compariSubTab, setCompariSubTab] = useState<'directory' | 'cassa'>('directory');
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [todayVotes, setTodayVotes] = useState<any[]>([]);
@@ -121,7 +121,7 @@ export default function Dashboard() {
   const [avatars, setAvatars] = useState<Record<string, string>>({});
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
-  // Stati Cassa Comune
+  // Stati Cassa
   const [sharedExpenses, setSharedExpenses] = useState<any[]>([]);
   const [expenseDesc, setExpenseDesc] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
@@ -133,12 +133,25 @@ export default function Dashboard() {
 
   const router = useRouter();
 
+  // --- MOTORE TELEMETRICO ---
+  const logTelemetry = async (actionType: string, detailsPayload: any = {}) => {
+    const currentUser = localStorage.getItem('ibiza_user');
+    if (!currentUser) return;
+    
+    // Esecuzione silente in background per non bloccare l'interfaccia
+    supabase.from('usage_logs').insert([{
+      username: currentUser,
+      action_type: actionType,
+      details: detailsPayload
+    }]).then(({ error }) => {
+      if (error) console.error("Telemetry error:", error);
+    });
+  };
+
   const fetchData = async () => {
-    // 1. Recensioni
     const { data: comments } = await supabase.from('event_comments').select('*').order('created_at', { ascending: true });
     if (comments) setAllComments(comments);
 
-    // 2. Voti Odierni
     const todayISO = new Date().toISOString().split('T')[0];
     const { data: votes } = await supabase.from('daily_sballato_votes').select('*').eq('vote_date', todayISO);
     if (votes) {
@@ -154,7 +167,6 @@ export default function Dashboard() {
       }
     }
 
-    // 3. Avatar
     const { data: avatarsData } = await supabase.from('user_avatars').select('*');
     if (avatarsData) {
       const avatarMap: Record<string, string> = {};
@@ -162,19 +174,21 @@ export default function Dashboard() {
       setAvatars(avatarMap);
     }
 
-    // 4. Galleria
     const { data: mediaData } = await supabase.from('gallery_media').select('*').order('created_at', { ascending: false });
     if (mediaData) setGalleryMedia(mediaData);
 
-    // 5. Cassa Comune
     const { data: expensesData } = await supabase.from('shared_expenses').select('*').order('created_at', { ascending: false });
     if (expensesData) setSharedExpenses(expensesData);
   };
 
   useEffect(() => {
     const savedUser = localStorage.getItem('ibiza_user');
-    if (!savedUser) router.push('/');
-    else setUser(savedUser);
+    if (!savedUser) {
+      router.push('/');
+    } else {
+      setUser(savedUser);
+      logTelemetry('app_open', { timestamp: new Date().toISOString() }); // Log Avvio
+    }
 
     fetchData();
 
@@ -187,8 +201,13 @@ export default function Dashboard() {
   const isGroup1 = GROUP_1.includes(user);
   const isAle = user === 'Alessandro';
 
-  // --- LOGICA PROTOCOLLO FLARE (SOS) ---
+  const handleTabSwitch = (tabId: string) => {
+    setActiveTab(tabId);
+    logTelemetry('tab_switch', { target_tab: tabId });
+  };
+
   const handleFlareSOS = () => {
+    logTelemetry('flare_sos_triggered');
     if (!navigator.geolocation) {
       alert("Sensore GPS non rilevato o disabilitato dal dispositivo.");
       return;
@@ -204,34 +223,48 @@ export default function Dashboard() {
     );
   };
 
-  // --- LOGICA MISSIONE ---
+  const handleTaxiClick = () => {
+    logTelemetry('taxi_navigation_triggered');
+  };
+
   const handlePostComment = async (eventId: string) => {
     if (!commentText.trim() || !user) return;
     const { error } = await supabase.from('event_comments').insert([{ event_id: eventId, author_name: user, content: commentText }]);
-    if (!error) { setCommentText(''); setActiveCommentEvent(null); fetchData(); }
+    if (!error) { 
+      logTelemetry('post_comment', { event_id: eventId, length: commentText.length });
+      setCommentText(''); setActiveCommentEvent(null); fetchData(); 
+    }
   };
+
   const handleDeleteComment = async (commentId: string) => {
-    await supabase.from('event_comments').delete().eq('id', commentId); fetchData();
+    await supabase.from('event_comments').delete().eq('id', commentId); 
+    logTelemetry('delete_comment', { comment_id: commentId });
+    fetchData();
   };
+
   const handleUpdateComment = async (commentId: string) => {
     if (!editCommentText.trim()) return;
     await supabase.from('event_comments').update({ content: editCommentText }).eq('id', commentId);
+    logTelemetry('update_comment', { comment_id: commentId });
     setEditingCommentId(null); setEditCommentText(''); fetchData();
   };
 
-  // --- LOGICA COMPARI (DIRECTORY) ---
   const handleVoteSballato = async (candidateName: string) => {
     if (!user || hasVotedToday) return;
     const todayISO = new Date().toISOString().split('T')[0];
     await supabase.from('daily_sballato_votes').insert([{ voter_name: user, candidate_name: candidateName, vote_date: todayISO }]);
+    logTelemetry('vote_sballato', { candidate: candidateName });
     fetchData();
   };
+
   const handleRemoveVote = async () => {
     if (!user) return;
     const todayISO = new Date().toISOString().split('T')[0];
     await supabase.from('daily_sballato_votes').delete().match({ voter_name: user, vote_date: todayISO });
+    logTelemetry('remove_vote');
     fetchData();
   };
+
   const handleUploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       if (!event.target.files || event.target.files.length === 0 || !user) return;
@@ -243,6 +276,7 @@ export default function Dashboard() {
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
       await supabase.from('user_avatars').upsert({ username: user, avatar_url: publicUrl });
+      logTelemetry('upload_avatar');
       fetchData();
     } catch (error) {
       alert("Errore caricamento avatar.");
@@ -251,7 +285,6 @@ export default function Dashboard() {
     }
   };
 
-  // --- LOGICA CASSA COMUNE ---
   const handleAddExpense = async () => {
     if (!expenseDesc.trim() || !expenseAmount || isNaN(Number(expenseAmount))) return;
     const { error } = await supabase.from('shared_expenses').insert([{ 
@@ -260,6 +293,7 @@ export default function Dashboard() {
       amount: Number(expenseAmount)
     }]);
     if (!error) {
+      logTelemetry('add_expense', { amount: Number(expenseAmount) });
       setExpenseDesc('');
       setExpenseAmount('');
       fetchData();
@@ -271,30 +305,10 @@ export default function Dashboard() {
     const confirm = window.confirm("Rimuovere questa spesa dal registro centrale?");
     if (!confirm) return;
     await supabase.from('shared_expenses').delete().eq('id', expenseId);
+    logTelemetry('delete_expense');
     fetchData();
   };
 
-  // Calcolo Bilanci Cassa Comune (Esclusione Alessandro)
-  const totalExpenses = sharedExpenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
-  const quotaPerPerson = totalExpenses / 11; // Denominatore fisso a 11 paganti
-  
-  const balances: Record<string, { paid: number, balance: number, isGroom: boolean }> = {};
-  ALL_PARTICIPANTS.forEach(p => {
-    if (p === 'Alessandro') {
-      balances[p] = { paid: 0, balance: 0, isGroom: true };
-    } else {
-      const paidByPerson = sharedExpenses
-        .filter(e => e.payer_name === p)
-        .reduce((acc, curr) => acc + Number(curr.amount), 0);
-      balances[p] = {
-        paid: paidByPerson,
-        balance: paidByPerson - quotaPerPerson,
-        isGroom: false
-      };
-    }
-  });
-
-  // --- LOGICA GALLERIA ---
   const handleUploadMedia = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       if (!event.target.files || event.target.files.length === 0 || !user) return;
@@ -315,6 +329,7 @@ export default function Dashboard() {
       }]);
       if (dbError) throw dbError;
 
+      logTelemetry('upload_media', { type: mediaType });
       fetchData();
     } catch (error) {
       alert("Errore durante il caricamento. Verificare il formato del file.");
@@ -333,11 +348,35 @@ export default function Dashboard() {
       if (fileName) await supabase.storage.from('gallery').remove([fileName]);
       const { error } = await supabase.from('gallery_media').delete().eq('id', mediaId);
       if (error) throw error;
+      logTelemetry('delete_media');
       fetchData();
     } catch (error) {
       alert("Errore durante l'eliminazione dell'immagine.");
     }
   };
+
+  const handleMediaDownload = () => {
+    logTelemetry('download_media');
+  };
+
+  const totalExpenses = sharedExpenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
+  const quotaPerPerson = totalExpenses / 11; 
+  
+  const balances: Record<string, { paid: number, balance: number, isGroom: boolean }> = {};
+  ALL_PARTICIPANTS.forEach(p => {
+    if (p === 'Alessandro') {
+      balances[p] = { paid: 0, balance: 0, isGroom: true };
+    } else {
+      const paidByPerson = sharedExpenses
+        .filter(e => e.payer_name === p)
+        .reduce((acc, curr) => acc + Number(curr.amount), 0);
+      balances[p] = {
+        paid: paidByPerson,
+        balance: paidByPerson - quotaPerPerson,
+        isGroom: false
+      };
+    }
+  });
 
   const formatDateString = (isoString: string) => {
     const dateObj = new Date(isoString);
@@ -364,7 +403,6 @@ export default function Dashboard() {
           <p className="text-lg font-bold tracking-tight text-white drop-shadow-md">Accesso: {user}</p>
         </div>
         <div className="flex items-center gap-3">
-          {/* Tasto Flare SOS */}
           <button 
             onClick={handleFlareSOS}
             className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-red-900/40 to-red-950/40 hover:from-red-600 hover:to-red-500 text-red-500 hover:text-white text-xl rounded-full border border-red-500/20 shadow-lg shadow-red-900/20 transition-all hover:scale-105 active:scale-95"
@@ -373,11 +411,11 @@ export default function Dashboard() {
             🎯
           </button>
           
-          {/* Tasto Taxi */}
           <a 
             href="https://www.google.com/maps/dir/?api=1&destination=8,+Carrer+del+Cap,+Ibiza,+Islas+Baleares" 
             target="_blank" 
             rel="noopener noreferrer"
+            onClick={handleTaxiClick}
             className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-slate-800 to-slate-900 hover:from-yellow-400 hover:to-yellow-500 hover:text-black text-xl rounded-full border border-white/5 shadow-lg shadow-black/20 transition-all hover:scale-105 active:scale-95"
             title="Naviga verso la Villa"
           >
@@ -405,7 +443,7 @@ export default function Dashboard() {
               </h3>
               <select 
                 value={selectedDay} 
-                onChange={(e) => setSelectedDay(e.target.value)}
+                onChange={(e) => { setSelectedDay(e.target.value); logTelemetry('filter_calendar_day', { day: e.target.value }); }}
                 className="bg-slate-950 text-white border border-slate-700/50 rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-yellow-500/50 transition-shadow cursor-pointer hover:border-slate-500"
               >
                 {ibizaDays.map(day => (
@@ -465,7 +503,7 @@ export default function Dashboard() {
                           <div className="mt-6 pt-5 border-t border-slate-700/80">
                             <div className="flex justify-between items-center mb-4">
                               <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-black">Recensioni</span>
-                              <button onClick={() => setActiveCommentEvent(activeCommentEvent === event.id ? null : event.id)} className="text-[10px] bg-slate-700 hover:bg-slate-600 active:scale-95 px-4 py-2 rounded-lg text-white font-bold transition-all shadow-md border border-white/5">
+                              <button onClick={() => { setActiveCommentEvent(activeCommentEvent === event.id ? null : event.id); logTelemetry('toggle_comment_box', { event_id: event.id }); }} className="text-[10px] bg-slate-700 hover:bg-slate-600 active:scale-95 px-4 py-2 rounded-lg text-white font-bold transition-all shadow-md border border-white/5">
                                 {activeCommentEvent === event.id ? 'Annulla' : '+ Aggiungi'}
                               </button>
                             </div>
@@ -592,10 +630,9 @@ export default function Dashboard() {
         {activeTab === 'compari' && (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             
-            {/* TOGGLE SUB-MENU COMPARI */}
             <div className="flex bg-slate-900 border border-white/5 rounded-xl p-1 mb-6 shadow-lg">
-              <button onClick={() => setCompariSubTab('directory')} className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-lg transition-all ${compariSubTab === 'directory' ? 'bg-slate-800 text-yellow-500 shadow-md border border-white/5' : 'text-slate-500 hover:text-slate-400'}`}>Directory</button>
-              <button onClick={() => setCompariSubTab('cassa')} className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-lg transition-all ${compariSubTab === 'cassa' ? 'bg-slate-800 text-yellow-500 shadow-md border border-white/5' : 'text-slate-500 hover:text-slate-400'}`}>Cassa Comune</button>
+              <button onClick={() => { setCompariSubTab('directory'); logTelemetry('filter_compari', { sub_tab: 'directory' }); }} className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-lg transition-all ${compariSubTab === 'directory' ? 'bg-slate-800 text-yellow-500 shadow-md border border-white/5' : 'text-slate-500 hover:text-slate-400'}`}>Directory</button>
+              <button onClick={() => { setCompariSubTab('cassa'); logTelemetry('filter_compari', { sub_tab: 'cassa' }); }} className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-lg transition-all ${compariSubTab === 'cassa' ? 'bg-slate-800 text-yellow-500 shadow-md border border-white/5' : 'text-slate-500 hover:text-slate-400'}`}>Cassa Comune</button>
             </div>
 
             {/* SUB-VIEW: DIRECTORY */}
@@ -614,7 +651,7 @@ export default function Dashboard() {
                   const isExpanded = expandedUser === p;
                   return (
                     <div key={p} className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 rounded-3xl shadow-xl overflow-hidden transition-all duration-300 mb-4 hover:border-slate-700">
-                      <div onClick={() => setExpandedUser(isExpanded ? null : p)} className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-800/30 transition-colors">
+                      <div onClick={() => { setExpandedUser(isExpanded ? null : p); if (!isExpanded) logTelemetry('expand_user_profile', { profile: p }); }} className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-800/30 transition-colors">
                         <div className="flex items-center gap-4">
                           <div className="w-16 h-16 bg-slate-800 border-2 border-slate-700/50 rounded-full flex items-center justify-center text-xl font-black text-slate-400 overflow-hidden shadow-inner">
                             {avatars[p] ? <img src={avatars[p]} alt={p} className="w-full h-full object-cover" /> : <span>{p[0]}</span>}
@@ -668,7 +705,6 @@ export default function Dashboard() {
             {compariSubTab === 'cassa' && (
               <div className="space-y-6 animate-in fade-in">
                 
-                {/* Summary Box */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 p-5 rounded-3xl flex flex-col justify-center items-center shadow-xl relative overflow-hidden">
                     <span className="text-[10px] uppercase text-slate-500 font-black tracking-widest mb-1.5 relative z-10">Totale Cassa</span>
@@ -682,7 +718,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Aggiunta Spesa */}
                 <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 p-6 rounded-3xl shadow-2xl">
                   <h4 className="text-[10px] uppercase text-slate-400 font-black mb-4 tracking-[0.2em]">Registrazione Nuova Spesa</h4>
                   <div className="flex gap-3">
@@ -706,7 +741,6 @@ export default function Dashboard() {
                   </button>
                 </div>
 
-                {/* Bilanci Personali */}
                 <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 p-6 rounded-3xl shadow-2xl">
                   <h4 className="text-[10px] uppercase text-slate-400 font-black mb-5 tracking-[0.2em] border-b border-slate-800 pb-3">Stato Bilanci Individuali</h4>
                   <div className="space-y-2.5">
@@ -753,7 +787,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Lista Transazioni Recenti */}
                 <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 p-6 rounded-3xl shadow-2xl">
                   <h4 className="text-[10px] uppercase text-slate-400 font-black mb-5 tracking-[0.2em] border-b border-slate-800 pb-3">Registro Attività Finanziarie</h4>
                   {sharedExpenses.length === 0 ? (
@@ -801,8 +834,8 @@ export default function Dashboard() {
             </div>
 
             <div className="flex bg-slate-900 border border-white/5 rounded-xl p-1 mb-8 shadow-lg">
-              <button onClick={() => setGalleryFilter('mine')} className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-lg transition-all ${galleryFilter === 'mine' ? 'bg-slate-800 text-yellow-500 shadow-md border border-white/5' : 'text-slate-500 hover:text-slate-400'}`}>I Miei File</button>
-              <button onClick={() => setGalleryFilter('others')} className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-lg transition-all ${galleryFilter === 'others' ? 'bg-slate-800 text-yellow-500 shadow-md border border-white/5' : 'text-slate-500 hover:text-slate-400'}`}>Archivio Compari</button>
+              <button onClick={() => { setGalleryFilter('mine'); logTelemetry('filter_gallery', { view: 'mine' }); }} className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-lg transition-all ${galleryFilter === 'mine' ? 'bg-slate-800 text-yellow-500 shadow-md border border-white/5' : 'text-slate-500 hover:text-slate-400'}`}>I Miei File</button>
+              <button onClick={() => { setGalleryFilter('others'); logTelemetry('filter_gallery', { view: 'others' }); }} className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-lg transition-all ${galleryFilter === 'others' ? 'bg-slate-800 text-yellow-500 shadow-md border border-white/5' : 'text-slate-500 hover:text-slate-400'}`}>Archivio Compari</button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -829,6 +862,7 @@ export default function Dashboard() {
                           <a 
                             href={`${media.media_url}?download=`} 
                             download 
+                            onClick={handleMediaDownload}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="bg-slate-800 hover:bg-yellow-500 hover:text-slate-950 hover:border-yellow-400 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 border border-white/5 flex items-center gap-2"
@@ -872,7 +906,7 @@ export default function Dashboard() {
         ].map((tab) => (
           <button 
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabSwitch(tab.id)}
             className={`text-[9px] uppercase font-black tracking-[0.2em] transition-all px-4 py-2.5 rounded-xl ${activeTab === tab.id ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-slate-950 scale-105 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'}`}
           >
             {tab.label}
