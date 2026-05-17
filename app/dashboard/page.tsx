@@ -197,7 +197,7 @@ export default function Dashboard() {
       (position) => {
         const { latitude, longitude } = position.coords;
         const message = `Sono qui! Apri il link per visualizzare la mia posizione: https://maps.google.com/?q=${latitude},${longitude}`;
-        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(message)}`;
         window.location.href = whatsappUrl;
       },
       () => alert("Recupero coordinate fallito. Verifichi i permessi di localizzazione di Safari e dell'iPhone.")
