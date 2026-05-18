@@ -99,6 +99,17 @@ const RECOMMENDED_RESTAURANTS = [
   { name: 'Beso Beach', distance: '36.5 km', rating: '4.4', desc: 'Formentera (necessario traghetto). Locale iconico sulla spiaggia, altissimo afflusso, cucina spagnola e mojito.' }
 ];
 
+const getWeatherEmoji = (code: number) => {
+  if (code === 0) return '☀️';
+  if (code === 1 || code === 2 || code === 3) return '🌤️';
+  if (code >= 45 && code <= 48) return '🌫️';
+  if (code >= 51 && code <= 67) return '🌧️';
+  if (code >= 71 && code <= 77) return '❄️';
+  if (code >= 80 && code <= 82) return '🌦️';
+  if (code >= 95) return '⛈️';
+  return '🌡️';
+};
+
 export default function Dashboard() {
   const [user, setUser] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('calendar'); 
@@ -130,6 +141,9 @@ export default function Dashboard() {
   const [galleryMedia, setGalleryMedia] = useState<any[]>([]);
   const [galleryFilter, setGalleryFilter] = useState<'mine' | 'others'>('mine');
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
+  // Stato Meteo
+  const [weatherInfo, setWeatherInfo] = useState<{ type: 'current' | 'forecast', current?: any, forecast?: any[] } | null>(null);
 
   const router = useRouter();
 
@@ -181,6 +195,40 @@ export default function Dashboard() {
     if (expensesData) setSharedExpenses(expensesData);
   };
 
+  const fetchWeather = async () => {
+    try {
+      const today = new Date();
+      const transitionDate = new Date('2026-05-30T00:00:00');
+      
+      if (today < transitionDate) {
+        const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=38.9067&longitude=1.4206&current=temperature_2m,weather_code');
+        const data = await res.json();
+        if (data && data.current) {
+          setWeatherInfo({ type: 'current', current: data.current });
+        }
+      } else {
+        const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=38.9067&longitude=1.4206&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Europe%2FBerlin');
+        const data = await res.json();
+        if (data && data.daily) {
+          const forecastDays: any[] = [];
+          for(let i=0; i<data.daily.time.length; i++) {
+            if (['2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05'].includes(data.daily.time[i])) {
+              forecastDays.push({
+                date: data.daily.time[i],
+                max: data.daily.temperature_2m_max[i],
+                min: data.daily.temperature_2m_min[i],
+                code: data.daily.weather_code[i]
+              });
+            }
+          }
+          setWeatherInfo({ type: 'forecast', forecast: forecastDays });
+        }
+      }
+    } catch (error) {
+      console.error("Errore telemetria meteo:", error);
+    }
+  };
+
   useEffect(() => {
     const savedUser = localStorage.getItem('ibiza_user');
     if (!savedUser) {
@@ -191,6 +239,7 @@ export default function Dashboard() {
     }
 
     fetchData();
+    fetchWeather();
 
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
@@ -571,6 +620,42 @@ export default function Dashboard() {
         {/* VIEW: HINTS & INTELLIGENCE */}
         {activeTab === 'news' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            
+            {/* INIZIO BANNER METEO */}
+            {weatherInfo && (
+              <div className="bg-gradient-to-r from-blue-900/40 to-cyan-900/40 border border-cyan-500/20 rounded-3xl p-5 shadow-lg flex items-center justify-between">
+                <div>
+                  <h3 className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400 font-black uppercase tracking-[0.2em] text-sm drop-shadow-sm">
+                    {weatherInfo.type === 'current' ? 'Meteo Attuale Ibiza' : 'Previsioni Viaggio (2-5 Giu)'}
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 font-medium">
+                    {weatherInfo.type === 'current' ? 'Dati in tempo reale.' : 'Dati aggiornati per l\'evento.'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  {weatherInfo.type === 'current' && weatherInfo.current ? (
+                    <div className="text-center">
+                      <span className="text-3xl">{getWeatherEmoji(weatherInfo.current.weather_code)}</span>
+                      <p className="text-xl font-black text-white">{weatherInfo.current.temperature_2m}°C</p>
+                    </div>
+                  ) : weatherInfo.forecast && weatherInfo.forecast.length > 0 ? (
+                    <div className="flex gap-2">
+                      {weatherInfo.forecast.map((f: any, idx: number) => (
+                        <div key={idx} className="text-center bg-slate-950/50 p-2 rounded-xl border border-white/5">
+                          <p className="text-[9px] font-black uppercase text-cyan-500">{f.date.split('-')[2]} GIU</p>
+                          <span className="text-lg block my-0.5">{getWeatherEmoji(f.code)}</span>
+                          <p className="text-[10px] font-bold text-white">{f.max}° <span className="text-slate-500">{f.min}°</span></p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500 italic">Attesa dati...</p>
+                  )}
+                </div>
+              </div>
+            )}
+            {/* FINE BANNER METEO */}
+
             <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 rounded-3xl shadow-2xl overflow-hidden mb-6">
               <div className="p-5 border-b border-white/5 bg-slate-800/30 backdrop-blur-sm">
                 <h3 className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 font-black uppercase tracking-[0.2em] text-sm drop-shadow-sm">Opzioni Diurne & Esplorazione</h3>
