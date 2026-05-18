@@ -355,8 +355,25 @@ export default function Dashboard() {
     }
   };
 
-  const handleMediaDownload = () => {
-    logTelemetry('download_media');
+  const handleMediaDownload = async (mediaUrl: string) => {
+    logTelemetry('download_media', { url: mediaUrl });
+    try {
+      const response = await fetch(mediaUrl);
+      if (!response.ok) throw new Error('Network response was not ok');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = mediaUrl.split('/').pop() || 'download';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Errore durante il download:', error);
+      alert('Errore durante il download. Verificare la connessione.');
+    }
   };
 
   const totalExpenses = sharedExpenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
@@ -859,16 +876,12 @@ export default function Dashboard() {
                             )}
                             <p className="text-[11px] text-slate-400 font-mono font-medium">{date} <span className="opacity-50">/</span> {time}</p>
                           </div>
-                          <a 
-                            href={`${media.media_url}?download=`} 
-                            download 
-                            onClick={handleMediaDownload}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button 
+                            onClick={() => handleMediaDownload(media.media_url)}
                             className="bg-slate-800 hover:bg-yellow-500 hover:text-slate-950 hover:border-yellow-400 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 border border-white/5 flex items-center gap-2"
                           >
                             ⬇ Salva
-                          </a>
+                          </button>
                         </div>
 
                         {galleryFilter === 'mine' && (
