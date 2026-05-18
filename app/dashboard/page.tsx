@@ -132,6 +132,10 @@ export default function Dashboard() {
   const [avatars, setAvatars] = useState<Record<string, string>>({});
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
+  // Stati Biglietti
+  const [myTickets, setMyTickets] = useState<{name: string, url: string}[]>([]);
+  const [isUploadingTicket, setIsUploadingTicket] = useState(false);
+
   // Stati Cassa
   const [sharedExpenses, setSharedExpenses] = useState<any[]>([]);
   const [expenseDesc, setExpenseDesc] = useState('');
@@ -178,6 +182,19 @@ export default function Dashboard() {
       } else {
         setHasVotedToday(false);
         setVotedCandidate(null);
+      }
+    }
+
+    const currentUser = localStorage.getItem('ibiza_user');
+    if (currentUser) {
+      const { data: ticketFiles } = await supabase.storage.from('flight_tickets').list(currentUser);
+      if (ticketFiles) {
+        const validFiles = ticketFiles.filter(f => f.name !== '.emptyFolderPlaceholder' && f.id);
+        const tickets = validFiles.map(file => {
+          const { data: { publicUrl } } = supabase.storage.from('flight_tickets').getPublicUrl(`${currentUser}/${file.name}`);
+          return { name: file.name, url: publicUrl };
+        });
+        setMyTickets(tickets);
       }
     }
 
@@ -331,6 +348,36 @@ export default function Dashboard() {
       alert("Errore caricamento avatar.");
     } finally {
       setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleUploadTicket = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!event.target.files || event.target.files.length === 0 || !user) return;
+      setIsUploadingTicket(true);
+      const file = event.target.files[0];
+      const cleanName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      const { error: uploadError } = await supabase.storage.from('flight_tickets').upload(`${user}/${cleanName}`, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      logTelemetry('upload_ticket');
+      fetchData();
+    } catch (error) {
+      alert("Errore caricamento biglietto.");
+    } finally {
+      setIsUploadingTicket(false);
+    }
+  };
+
+  const handleDeleteTicket = async (fileName: string) => {
+    if (!user) return;
+    const confirmDelete = window.confirm("Eliminare definitivamente questo documento?");
+    if (!confirmDelete) return;
+    try {
+      await supabase.storage.from('flight_tickets').remove([`${user}/${fileName}`]);
+      logTelemetry('delete_ticket');
+      fetchData();
+    } catch (error) {
+      alert("Errore durante l'eliminazione.");
     }
   };
 
@@ -781,10 +828,34 @@ export default function Dashboard() {
                           </div>
 
                           {isMe ? (
-                            <label className="flex items-center justify-center w-full p-4 border-2 border-dashed border-slate-700 rounded-2xl cursor-pointer hover:border-yellow-500/50 hover:bg-yellow-500/5 text-slate-400 transition-all group">
-                              <span className="text-[11px] uppercase font-black tracking-widest group-hover:text-yellow-500 transition-colors">{isUploadingAvatar ? 'Sincronizzazione...' : 'Aggiorna Fotografia'}</span>
-                              <input type="file" className="hidden" accept="image/*" disabled={isUploadingAvatar} onChange={handleUploadAvatar} />
-                            </label>
+                            <div className="space-y-4">
+                              <label className="flex items-center justify-center w-full p-4 border-2 border-dashed border-slate-700 rounded-2xl cursor-pointer hover:border-yellow-500/50 hover:bg-yellow-500/5 text-slate-400 transition-all group">
+                                <span className="text-[11px] uppercase font-black tracking-widest group-hover:text-yellow-500 transition-colors">{isUploadingAvatar ? 'Sincronizzazione...' : 'Aggiorna Fotografia'}</span>
+                                <input type="file" className="hidden" accept="image/*" disabled={isUploadingAvatar} onChange={handleUploadAvatar} />
+                              </label>
+                              
+                              <div className="bg-slate-900 p-4 rounded-2xl border border-white/5 shadow-inner">
+                                <div className="flex justify-between items-center mb-4">
+                                  <span className="text-[10px] uppercase text-slate-500 font-black tracking-widest">I Miei Biglietti (PDF/IMG)</span>
+                                  <label className="bg-slate-800 hover:bg-yellow-500 hover:text-slate-950 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all shadow-md">
+                                    {isUploadingTicket ? 'Caricamento...' : '+ Aggiungi'}
+                                    <input type="file" className="hidden" accept="application/pdf,image/*" disabled={isUploadingTicket} onChange={handleUploadTicket} />
+                                  </label>
+                                </div>
+                                {myTickets.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {myTickets.map((ticket, idx) => (
+                                      <div key={idx} className="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-white/5">
+                                        <a href={ticket.url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-white hover:text-yellow-500 truncate flex-1 pr-4">{ticket.name}</a>
+                                        <button onClick={() => handleDeleteTicket(ticket.name)} className="text-[9px] font-black text-red-500/80 hover:text-red-500 uppercase tracking-wider bg-red-500/10 px-2 py-1 rounded">Elimina</button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-[10px] text-slate-600 font-medium italic">Nessun documento di viaggio caricato.</p>
+                                )}
+                              </div>
+                            </div>
                           ) : (
                             <div className="flex gap-3">
                               <button onClick={() => handleVoteSballato(p)} disabled={hasVotedToday} className={`flex-1 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${hasVotedToday ? 'bg-slate-900 border-slate-800 text-slate-600 opacity-50 cursor-not-allowed' : 'bg-slate-800 border-slate-700 text-white hover:bg-yellow-500 hover:text-slate-950 hover:border-yellow-400 shadow-lg active:scale-95'}`}>
