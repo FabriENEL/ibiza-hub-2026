@@ -4,6 +4,18 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
+// INSERIRE QUI LA CHIAVE VAPID PUBBLICA GENERATA DA SUPABASE O DAL GENERATORE
+const PUBLIC_VAPID_KEY = process.env.NEXT_PUBLIC_VAPID_KEY || 'sb_publishable_6PHNYoGyv9x7egF3AlkxwA_h2T_BbBa';
+
+const urlBase64ToUint8Array = (base64String: string) => {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+  return outputArray;
+};
+
 // DATASET COMPLETO IBIZA 2026 - CABLATO CON 32 ASSET LOCALI WEBP
 const IBIZA_SCHEDULE = [
   { id: '1', date: '2026-06-02', time: '06:10', title: 'Decollo', location: 'Milano Malpensa', group: 'initial', imageUrl: '/images/01.webp' },
@@ -149,6 +161,9 @@ export default function Dashboard() {
   // Stato Meteo
   const [weatherInfo, setWeatherInfo] = useState<{ type: 'current' | 'forecast', current?: any, forecast?: any[] } | null>(null);
 
+  // Stato Permessi Push
+  const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied'>('default');
+
   const router = useRouter();
 
   // --- MOTORE TELEMETRICO ---
@@ -156,7 +171,6 @@ export default function Dashboard() {
     const currentUser = localStorage.getItem('ibiza_user');
     if (!currentUser) return;
     
-    // Esecuzione silente in background per non bloccare l'interfaccia
     supabase.from('usage_logs').insert([{
       username: currentUser,
       action_type: actionType,
@@ -164,6 +178,49 @@ export default function Dashboard() {
     }]).then(({ error }) => {
       if (error) console.error("Telemetry error:", error);
     });
+  };
+
+  const checkPushPermission = () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setPushStatus(Notification.permission as any);
+    }
+  };
+
+  // Funzione di attivazione notifiche (Delega a utente per restrizioni iOS)
+  const enablePushNotifications = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !user) {
+      alert('Il tuo browser o dispositivo non supporta le notifiche push web. Assicurati di aver aggiunto l\'app alla Home Screen su iOS.');
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      setPushStatus(permission);
+
+      if (permission === 'granted') {
+        const registration = await navigator.serviceWorker.ready;
+        let subscription = await registration.pushManager.getSubscription();
+        
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
+          });
+        }
+
+        if (subscription) {
+          await supabase.from('push_subscriptions').upsert({
+            username: user,
+            subscription_data: JSON.parse(JSON.stringify(subscription))
+          });
+          logTelemetry('push_enabled');
+          alert('Notifiche di sistema attivate correttamente.');
+        }
+      }
+    } catch (error) {
+      console.error('Errore attivazione Push:', error);
+      alert('Errore durante la configurazione delle notifiche.');
+    }
   };
 
   const fetchData = async () => {
@@ -252,7 +309,8 @@ export default function Dashboard() {
       router.push('/');
     } else {
       setUser(savedUser);
-      logTelemetry('app_open', { timestamp: new Date().toISOString() }); // Log Avvio
+      logTelemetry('app_open', { timestamp: new Date().toISOString() }); 
+      checkPushPermission();
     }
 
     fetchData();
@@ -510,12 +568,25 @@ export default function Dashboard() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 pb-24 font-sans antialiased selection:bg-yellow-500/30">
+      
       <header className="p-6 border-b border-white/5 bg-slate-950/80 sticky top-0 backdrop-blur-2xl z-50 flex justify-between items-center shadow-2xl shadow-black/50">
         <div>
           <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 text-[10px] font-black uppercase tracking-[0.3em] drop-shadow-sm">Addio al Celibato Ale</h2>
           <p className="text-lg font-bold tracking-tight text-white drop-shadow-md">Accesso: {user}</p>
         </div>
         <div className="flex items-center gap-3">
+          
+          {/* PULSANTE ABILITAZIONE PUSH (RICHIESTO DA IOS) */}
+          {pushStatus !== 'granted' && (
+            <button 
+              onClick={enablePushNotifications}
+              className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-900/40 to-blue-950/40 hover:from-blue-600 hover:to-blue-500 text-blue-500 hover:text-white text-xl rounded-full border border-blue-500/20 shadow-lg transition-all hover:scale-105 active:scale-95 animate-pulse"
+              title="Attiva Notifiche Push"
+            >
+              🔔
+            </button>
+          )}
+
           <button 
             onClick={handleFlareSOS}
             className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-red-900/40 to-red-950/40 hover:from-red-600 hover:to-red-500 text-red-500 hover:text-white text-xl rounded-full border border-red-500/20 shadow-lg shadow-red-900/20 transition-all hover:scale-105 active:scale-95"
