@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-// INSERIRE QUI LA CHIAVE VAPID PUBBLICA GENERATA DA SUPABASE O DAL GENERATORE
+// CHIAVE VAPID INSERITA CORRETTAMENTE
 const PUBLIC_VAPID_KEY = process.env.NEXT_PUBLIC_VAPID_KEY || 'sb_publishable_6PHNYoGyv9x7egF3AlkxwA_h2T_BbBa';
 
 const urlBase64ToUint8Array = (base64String: string) => {
@@ -186,19 +186,24 @@ export default function Dashboard() {
     }
   };
 
-  // Funzione di attivazione notifiche (Delega a utente per restrizioni iOS)
   const enablePushNotifications = async () => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !user) {
-      alert('Il tuo browser o dispositivo non supporta le notifiche push web. Assicurati di aver aggiunto l\'app alla Home Screen su iOS.');
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert('Il tuo browser o dispositivo non supporta le notifiche push web.');
+      return;
+    }
+    if (!user) {
+      alert('Errore: Utente non identificato. Riavviare l\'app.');
       return;
     }
 
     try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+
       const permission = await Notification.requestPermission();
       setPushStatus(permission);
 
       if (permission === 'granted') {
-        const registration = await navigator.serviceWorker.ready;
         let subscription = await registration.pushManager.getSubscription();
         
         if (!subscription) {
@@ -209,17 +214,25 @@ export default function Dashboard() {
         }
 
         if (subscription) {
-          await supabase.from('push_subscriptions').upsert({
+          const { error } = await supabase.from('push_subscriptions').upsert({
             username: user,
             subscription_data: JSON.parse(JSON.stringify(subscription))
           });
-          logTelemetry('push_enabled');
-          alert('Notifiche di sistema attivate correttamente.');
+
+          if (error) {
+            alert(`ERRORE DATABASE: ${error.message}`);
+            console.error("Dettaglio errore Supabase:", error);
+          } else {
+            alert('Sincronizzazione completata! Dispositivo registrato con successo nel database centrale.');
+            logTelemetry('push_enabled');
+          }
         }
+      } else {
+        alert('Autorizzazione notifiche negata dall\'utente o bloccata dal sistema.');
       }
-    } catch (error) {
+    } catch (error: any) {
+      alert(`ERRORE DI SISTEMA: ${error.message}`);
       console.error('Errore attivazione Push:', error);
-      alert('Errore durante la configurazione delle notifiche.');
     }
   };
 
@@ -576,7 +589,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3">
           
-          {/* PULSANTE ABILITAZIONE PUSH (RICHIESTO DA IOS) */}
+          {/* PULSANTE ABILITAZIONE PUSH */}
           {pushStatus !== 'granted' && (
             <button 
               onClick={enablePushNotifications}
