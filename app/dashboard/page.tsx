@@ -217,7 +217,7 @@ export default function Dashboard() {
           const { error } = await supabase.from('push_subscriptions').upsert({
             username: user,
             subscription_data: JSON.parse(JSON.stringify(subscription))
-          });
+          }, { onConflict: 'username' });
 
           if (error) {
             alert(`ERRORE DATABASE: ${error.message}`);
