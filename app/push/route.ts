@@ -4,13 +4,13 @@ import webpush from 'web-push';
 
 webpush.setVapidDetails(
   'mailto:admin@ibiza2026.local',
-  process.env.NEXT_PUBLIC_VAPID_KEY || '',
-  process.env.PRIVATE_VAPID_KEY || ''
+  process.env.NEXT_PUBLIC_VAPID_KEY as string,
+  process.env.PRIVATE_VAPID_KEY as string
 );
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 export async function POST(request: Request) {
@@ -31,13 +31,13 @@ export async function POST(request: Request) {
 
     if (table === 'daily_sballato_votes' && type === 'INSERT') {
       title = '📢 Voto Sballato!';
-      body = `${record.voter_name} ha votato ${record.candidate_name} come sballato del giorno.`;
+      body = `${record.voter_name} ha votato ${record.candidate_name}.`;
     } else if (table === 'event_comments' && type === 'INSERT') {
       title = '💬 Nuova Recensione!';
-      body = `${record.author_name} ha lasciato una nota nel programma.`;
+      body = `${record.author_name} ha scritto una nota.`;
     } else if (table === 'shared_expenses' && type === 'INSERT') {
       title = '💸 Spesa Comune!';
-      body = `${record.payer_name} ha inserito a registro €${Number(record.amount).toFixed(2)} per: ${record.description}.`;
+      body = `${record.payer_name} ha inserito €${Number(record.amount).toFixed(2)}.`;
     }
 
     const pushPayload = JSON.stringify({ title, body, url: '/dashboard' });

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 // CHIAVE VAPID INSERITA CORRETTAMENTE
-const PUBLIC_VAPID_KEY = process.env.NEXT_PUBLIC_VAPID_KEY || 'sb_publishable_6PHNYoGyv9x7egF3AlkxwA_h2T_BbBa';
+const PUBLIC_VAPID_KEY = process.env.NEXT_PUBLIC_VAPID_KEY || 'BApMLPHYGCCS2OZNBGbUP6ClKnPXeAL8HK9CXE0peZgpeaFtL45Whgum_ftNUJWzPjAXgEo2ry_KFPGmegDTy78';
 
 const urlBase64ToUint8Array = (base64String: string) => {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
