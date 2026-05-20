@@ -12,12 +12,9 @@ export default function Login() {
 
   useEffect(() => {
     setMounted(true);
-    // Se l'utente è già salvato, lo reindirizza automaticamente alla dashboard
-    const savedUser = localStorage.getItem('ibiza_user');
-    if (savedUser) {
-      router.push('/dashboard');
-    }
-  }, [router]);
+    // Il reindirizzamento automatico è stato rimosso per consentire 
+    // la scelta del profilo a ogni apertura dell'applicazione.
+  }, []);
 
   if (!mounted) return <div className="min-h-screen bg-slate-950" />;
 
