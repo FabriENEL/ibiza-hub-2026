@@ -16,6 +16,26 @@ const urlBase64ToUint8Array = (base64String: string) => {
   return outputArray;
 };
 
+// --- CONFIGURAZIONE DOPPIO HUB ---
+type HubType = 'ibiza' | 'test' | null;
+
+const HUB_CONFIG = {
+  ibiza: {
+    id: '8ed48917-c73b-4d6f-a83e-c35e1dd0de52',
+    name: 'Ibiza 2026',
+    isArchived: true, 
+    requiresPassword: false,
+    password: ''
+  },
+  test: {
+    id: 'test-hub-0000-0000-0000-000000000000',
+    name: 'Hub Test',
+    isArchived: false,
+    requiresPassword: true,
+    password: 'Exc@l1bur0!'
+  }
+};
+
 // DATASET COMPLETO IBIZA 2026 - CABLATO CON 32 ASSET LOCALI WEBP
 const IBIZA_SCHEDULE = [
   { id: '1', date: '2026-06-02', time: '06:10', title: 'Decollo', location: 'Milano Malpensa', group: 'initial', imageUrl: '/images/01.webp' },
@@ -123,19 +143,28 @@ const getWeatherEmoji = (code: number) => {
 };
 
 export default function Dashboard() {
+  const router = useRouter();
+
+  // --- STATI HUB & PASSWORD ---
+  const [activeHub, setActiveHub] = useState<HubType>(null);
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
+  const [passwordInput, setPasswordInput] = useState<string>('');
+  const [passwordError, setPasswordError] = useState<boolean>(false);
+
+  // --- STATI GLOBALI ---
   const [user, setUser] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('calendar'); 
   const [selectedDay, setSelectedDay] = useState('2026-06-02');
   const [now, setNow] = useState(new Date());
   
-  // Stati Missione
+  // Missione
   const [activeCommentEvent, setActiveCommentEvent] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const [allComments, setAllComments] = useState<any[]>([]);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
 
-  // Stati Compari
+  // Compari
   const [compariSubTab, setCompariSubTab] = useState<'directory' | 'cassa'>('directory');
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [todayVotes, setTodayVotes] = useState<any[]>([]);
@@ -144,30 +173,50 @@ export default function Dashboard() {
   const [avatars, setAvatars] = useState<Record<string, string>>({});
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
-  // Stati Biglietti
+  // Biglietti
   const [myTickets, setMyTickets] = useState<{name: string, url: string}[]>([]);
   const [isUploadingTicket, setIsUploadingTicket] = useState(false);
 
-  // Stati Cassa
+  // Cassa
   const [sharedExpenses, setSharedExpenses] = useState<any[]>([]);
   const [expenseDesc, setExpenseDesc] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
 
-  // Stati Galleria
+  // Galleria
   const [galleryMedia, setGalleryMedia] = useState<any[]>([]);
   const [galleryFilter, setGalleryFilter] = useState<'mine' | 'others'>('mine');
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
-  // Stato Meteo
+  // Stato Meteo & Push
   const [weatherInfo, setWeatherInfo] = useState<{ type: 'current' | 'forecast', current?: any, forecast?: any[] } | null>(null);
-
-  // Stato Permessi Push
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied'>('default');
 
-  const router = useRouter();
+  // --- LOGICA DI CONTROLLO HUB ---
+  const isArchived = activeHub ? HUB_CONFIG[activeHub].isArchived : false;
+
+  const handleHubSelect = (hub: HubType) => {
+    if (hub && HUB_CONFIG[hub].requiresPassword) {
+      setActiveHub(hub);
+      setIsUnlocked(false);
+    } else {
+      setActiveHub(hub);
+      setIsUnlocked(true);
+    }
+  };
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (activeHub && passwordInput === HUB_CONFIG[activeHub].password) {
+      setIsUnlocked(true);
+      setPasswordError(false);
+    } else {
+      setPasswordError(true);
+    }
+  };
 
   // --- MOTORE TELEMETRICO ---
   const logTelemetry = async (actionType: string, detailsPayload: any = {}) => {
+    if (isArchived) return; // Non logga se siamo nell'archivio
     const currentUser = localStorage.getItem('ibiza_user');
     if (!currentUser) return;
     
@@ -180,62 +229,7 @@ export default function Dashboard() {
     });
   };
 
-  const checkPushPermission = () => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setPushStatus(Notification.permission as any);
-    }
-  };
-
-  const enablePushNotifications = async () => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      alert('Il tuo browser o dispositivo non supporta le notifiche push web.');
-      return;
-    }
-    if (!user) {
-      alert('Errore: Utente non identificato. Riavviare l\'app.');
-      return;
-    }
-
-    try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      await navigator.serviceWorker.ready;
-
-      const permission = await Notification.requestPermission();
-      setPushStatus(permission);
-
-      if (permission === 'granted') {
-        let subscription = await registration.pushManager.getSubscription();
-        
-        if (!subscription) {
-          subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
-          });
-        }
-
-        if (subscription) {
-          const { error } = await supabase.from('push_subscriptions').upsert({
-            username: user,
-            subscription_data: JSON.parse(JSON.stringify(subscription))
-          }, { onConflict: 'username' });
-
-          if (error) {
-            alert(`ERRORE DATABASE: ${error.message}`);
-            console.error("Dettaglio errore Supabase:", error);
-          } else {
-            alert('Sincronizzazione completata! Dispositivo registrato con successo nel database centrale.');
-            logTelemetry('push_enabled');
-          }
-        }
-      } else {
-        alert('Autorizzazione notifiche negata dall\'utente o bloccata dal sistema.');
-      }
-    } catch (error: any) {
-      alert(`ERRORE DI SISTEMA: ${error.message}`);
-      console.error('Errore attivazione Push:', error);
-    }
-  };
-
+  // --- FETCH DATI ---
   const fetchData = async () => {
     const { data: comments } = await supabase.from('event_comments').select('*').order('created_at', { ascending: true });
     if (comments) setAllComments(comments);
@@ -316,56 +310,74 @@ export default function Dashboard() {
     }
   };
 
+  // --- INITIALIZE & EFFECT ---
   useEffect(() => {
     const savedUser = localStorage.getItem('ibiza_user');
     if (!savedUser) {
       router.push('/');
     } else {
       setUser(savedUser);
-      logTelemetry('app_open', { timestamp: new Date().toISOString() }); 
-      checkPushPermission();
     }
 
-    fetchData();
-    fetchWeather();
+    if (activeHub && isUnlocked) {
+      logTelemetry('app_open', { timestamp: new Date().toISOString() }); 
+      fetchData();
+      fetchWeather();
+    }
 
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
-  }, [router]);
+  }, [router, activeHub, isUnlocked]);
 
-  if (!user) return <div className="bg-slate-950 min-h-screen" />;
-
-  const isGroup1 = GROUP_1.includes(user);
-  const isAle = user === 'Alessandro';
-
-  const handleTabSwitch = (tabId: string) => {
-    setActiveTab(tabId);
-    logTelemetry('tab_switch', { target_tab: tabId });
+  // --- AZIONI DI SCRITTURA (TUTTE PROTETTE DA isArchived) ---
+  const checkPushPermission = () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setPushStatus(Notification.permission as any);
+    }
   };
 
-  const handleFlareSOS = () => {
-    logTelemetry('flare_sos_triggered');
-    if (!navigator.geolocation) {
-      alert("Sensore GPS non rilevato o disabilitato dal dispositivo.");
+  const enablePushNotifications = async () => {
+    if (isArchived) return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert('Il tuo browser o dispositivo non supporta le notifiche push web.');
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const message = `Sono qui! Apri il link per visualizzare la mia posizione: https://maps.google.com/?q=${latitude},${longitude}`;
-        const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(message)}`;
-        window.location.href = whatsappUrl;
-      },
-      () => alert("Recupero coordinate fallito. Verifichi i permessi di localizzazione di Safari e dell'iPhone.")
-    );
-  };
+    if (!user) return;
 
-  const handleTaxiClick = () => {
-    logTelemetry('taxi_navigation_triggered');
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+
+      const permission = await Notification.requestPermission();
+      setPushStatus(permission);
+
+      if (permission === 'granted') {
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
+          });
+        }
+
+        if (subscription) {
+          const { error } = await supabase.from('push_subscriptions').upsert({
+            username: user,
+            subscription_data: JSON.parse(JSON.stringify(subscription))
+          });
+          if (!error) {
+            alert('Notifiche Push attivate con successo!');
+            logTelemetry('push_enabled');
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error('Errore attivazione Push:', error);
+    }
   };
 
   const handlePostComment = async (eventId: string) => {
-    if (!commentText.trim() || !user) return;
+    if (isArchived || !commentText.trim() || !user) return;
     const { error } = await supabase.from('event_comments').insert([{ event_id: eventId, author_name: user, content: commentText }]);
     if (!error) { 
       logTelemetry('post_comment', { event_id: eventId, length: commentText.length });
@@ -374,20 +386,21 @@ export default function Dashboard() {
   };
 
   const handleDeleteComment = async (commentId: string) => {
+    if (isArchived) return;
     await supabase.from('event_comments').delete().eq('id', commentId); 
     logTelemetry('delete_comment', { comment_id: commentId });
     fetchData();
   };
 
   const handleUpdateComment = async (commentId: string) => {
-    if (!editCommentText.trim()) return;
+    if (isArchived || !editCommentText.trim()) return;
     await supabase.from('event_comments').update({ content: editCommentText }).eq('id', commentId);
     logTelemetry('update_comment', { comment_id: commentId });
     setEditingCommentId(null); setEditCommentText(''); fetchData();
   };
 
   const handleVoteSballato = async (candidateName: string) => {
-    if (!user || hasVotedToday) return;
+    if (isArchived || !user || hasVotedToday) return;
     const todayISO = new Date().toISOString().split('T')[0];
     await supabase.from('daily_sballato_votes').insert([{ voter_name: user, candidate_name: candidateName, vote_date: todayISO }]);
     logTelemetry('vote_sballato', { candidate: candidateName });
@@ -395,7 +408,7 @@ export default function Dashboard() {
   };
 
   const handleRemoveVote = async () => {
-    if (!user) return;
+    if (isArchived || !user) return;
     const todayISO = new Date().toISOString().split('T')[0];
     await supabase.from('daily_sballato_votes').delete().match({ voter_name: user, vote_date: todayISO });
     logTelemetry('remove_vote');
@@ -403,6 +416,7 @@ export default function Dashboard() {
   };
 
   const handleUploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (isArchived) return;
     try {
       if (!event.target.files || event.target.files.length === 0 || !user) return;
       setIsUploadingAvatar(true);
@@ -423,6 +437,7 @@ export default function Dashboard() {
   };
 
   const handleUploadTicket = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (isArchived) return;
     try {
       if (!event.target.files || event.target.files.length === 0 || !user) return;
       setIsUploadingTicket(true);
@@ -440,7 +455,7 @@ export default function Dashboard() {
   };
 
   const handleDeleteTicket = async (fileName: string) => {
-    if (!user) return;
+    if (isArchived || !user) return;
     const confirmDelete = window.confirm("Eliminare definitivamente questo documento?");
     if (!confirmDelete) return;
     try {
@@ -453,7 +468,7 @@ export default function Dashboard() {
   };
 
   const handleAddExpense = async () => {
-    if (!expenseDesc.trim() || !expenseAmount || isNaN(Number(expenseAmount))) return;
+    if (isArchived || !expenseDesc.trim() || !expenseAmount || isNaN(Number(expenseAmount))) return;
     const { error } = await supabase.from('shared_expenses').insert([{ 
       payer_name: user, 
       description: expenseDesc, 
@@ -468,7 +483,7 @@ export default function Dashboard() {
   };
 
   const handleDeleteExpense = async (expenseId: string, payerName: string) => {
-    if (user !== payerName) return;
+    if (isArchived || user !== payerName) return;
     const confirm = window.confirm("Rimuovere questa spesa dal registro centrale?");
     if (!confirm) return;
     await supabase.from('shared_expenses').delete().eq('id', expenseId);
@@ -477,6 +492,7 @@ export default function Dashboard() {
   };
 
   const handleUploadMedia = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (isArchived) return;
     try {
       if (!event.target.files || event.target.files.length === 0 || !user) return;
       setIsUploadingMedia(true);
@@ -499,13 +515,16 @@ export default function Dashboard() {
       logTelemetry('upload_media', { type: mediaType });
       fetchData();
     } catch (error) {
-      alert("Errore durante il caricamento. Verificare il formato del file.");
+      alert("Errore durante il caricamento.");
     } finally {
       setIsUploadingMedia(false);
     }
   };
 
   const handleDeleteMedia = async (mediaId: string, mediaUrl: string) => {
+    // Blocco speciale per le foto: Fabri può sempre eliminare le SUE foto, l'archivio blocca tutti gli altri
+    if (isArchived && user !== 'Fabri') return; 
+    
     if (!user) return;
     const confirmDelete = window.confirm("Conferma l'eliminazione definitiva di questa immagine?");
     if (!confirmDelete) return;
@@ -538,11 +557,37 @@ export default function Dashboard() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      console.error('Errore durante il download:', error);
       alert('Errore durante il download. Verificare la connessione.');
     }
   };
 
+  const handleTabSwitch = (tabId: string) => {
+    setActiveTab(tabId);
+    logTelemetry('tab_switch', { target_tab: tabId });
+  };
+
+  const handleFlareSOS = () => {
+    logTelemetry('flare_sos_triggered');
+    if (!navigator.geolocation) {
+      alert("Sensore GPS non rilevato o disabilitato dal dispositivo.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const message = `Sono qui! Apri il link per visualizzare la mia posizione: https://maps.google.com/?q=${latitude},${longitude}`;
+        const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(message)}`;
+        window.location.href = whatsappUrl;
+      },
+      () => alert("Recupero coordinate fallito. Verifichi i permessi di localizzazione di Safari e dell'iPhone.")
+    );
+  };
+
+  const handleTaxiClick = () => {
+    logTelemetry('taxi_navigation_triggered');
+  };
+
+  // --- CALCOLI CASSA & VARIE ---
   const totalExpenses = sharedExpenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
   const quotaPerPerson = totalExpenses / 11; 
   
@@ -579,18 +624,102 @@ export default function Dashboard() {
   const dailyLeaders = calculateDailyLeaders();
   const ibizaDays = ['2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05'];
 
+  const isGroup1 = GROUP_1.includes(user || '');
+  const isAle = user === 'Alessandro';
+
+
+  // ==============================================
+  // RENDERING CONDITIONALE: 
+  // 1. Loading utente
+  // 2. Lobby di Selezione (Nuova UI)
+  // 3. Richiesta Password
+  // 4. Dashboard Principale
+  // ==============================================
+
+  if (!user) return <div className="bg-slate-950 min-h-screen" />;
+
+  // --- SCHERMATA 1: LOBBY ---
+  if (!activeHub) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 selection:bg-yellow-500/30">
+        <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 mb-2 uppercase tracking-widest text-center">
+          Seleziona Hub
+        </h1>
+        <p className="text-slate-400 text-sm mb-12 text-center max-w-xs">Scegli l'ambiente di lavoro o consulta gli archivi passati.</p>
+
+        <div className="w-full max-w-sm space-y-4">
+          <button 
+            onClick={() => handleHubSelect('ibiza')}
+            className="w-full bg-slate-900 border border-slate-700/50 hover:border-yellow-500/50 p-6 rounded-2xl flex flex-col items-center justify-center transition-all group"
+          >
+            <span className="text-2xl mb-2">🌴</span>
+            <span className="font-bold text-lg group-hover:text-yellow-500 transition-colors">Ibiza 2026</span>
+            <span className="text-[10px] uppercase font-black tracking-widest text-slate-500 mt-2 bg-slate-950 px-2 py-1 rounded">Archivio - Sola Lettura</span>
+          </button>
+
+          <button 
+            onClick={() => handleHubSelect('test')}
+            className="w-full bg-slate-900 border border-slate-700/50 hover:border-blue-500/50 p-6 rounded-2xl flex flex-col items-center justify-center transition-all group"
+          >
+            <span className="text-2xl mb-2">🧪</span>
+            <span className="font-bold text-lg group-hover:text-blue-500 transition-colors">Ambiente Test</span>
+            <span className="text-[10px] uppercase font-black tracking-widest text-blue-500 mt-2 bg-blue-900/20 px-2 py-1 rounded">Privato - Protetta</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- SCHERMATA 2: PASSWORD GATEKEEPER ---
+  if (activeHub && !isUnlocked) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-sm bg-slate-900 border border-white/5 p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+          
+          <h2 className="text-xl font-black mb-1 text-center relative z-10">Area Riservata</h2>
+          <p className="text-xs text-slate-400 text-center mb-6 relative z-10">Inserisci la password per {HUB_CONFIG[activeHub].name}</p>
+          
+          <form onSubmit={handlePasswordSubmit} className="space-y-4 relative z-10">
+            <input 
+              type="password" 
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              placeholder="Password di sblocco"
+              className={`w-full bg-slate-950 border ${passwordError ? 'border-red-500' : 'border-slate-700'} rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500`}
+            />
+            {passwordError && <p className="text-[10px] text-red-500 font-bold uppercase text-center">Password Errata</p>}
+            <button type="submit" className="w-full bg-gradient-to-r from-blue-500 to-blue-700 text-white font-black py-3 rounded-xl uppercase text-xs tracking-widest hover:scale-[1.02] transition-transform shadow-lg shadow-blue-500/20">
+              Sblocca Hub
+            </button>
+          </form>
+
+          <button onClick={() => setActiveHub(null)} className="w-full mt-4 text-[10px] text-slate-500 hover:text-white uppercase tracking-widest font-bold relative z-10">
+            ← Torna alla Lobby
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- SCHERMATA 3: DASHBOARD PRINCIPALE ---
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 pb-24 font-sans antialiased selection:bg-yellow-500/30">
       
+      {/* HEADER */}
       <header className="p-6 border-b border-white/5 bg-slate-950/80 sticky top-0 backdrop-blur-2xl z-50 flex justify-between items-center shadow-2xl shadow-black/50">
         <div>
-          <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 text-[10px] font-black uppercase tracking-[0.3em] drop-shadow-sm">Addio al Celibato Ale</h2>
+          <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 text-[10px] font-black uppercase tracking-[0.3em] drop-shadow-sm flex items-center gap-2">
+            {HUB_CONFIG[activeHub].name}
+            {isArchived && <span className="bg-red-500/10 text-red-500 border border-red-500/20 px-1.5 py-0.5 rounded text-[8px] uppercase font-black tracking-widest">Sola Lettura</span>}
+          </h2>
           <p className="text-lg font-bold tracking-tight text-white drop-shadow-md">Accesso: {user}</p>
         </div>
+        
         <div className="flex items-center gap-3">
+          <button onClick={() => setActiveHub(null)} className="flex items-center justify-center w-10 h-10 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white text-lg rounded-full border border-white/5 shadow-lg transition-all active:scale-95" title="Torna alla Lobby">🚪</button>
           
-          {/* PULSANTE ABILITAZIONE PUSH */}
-          {pushStatus !== 'granted' && (
+          {pushStatus !== 'granted' && !isArchived && (
             <button 
               onClick={enablePushNotifications}
               className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-900/40 to-blue-950/40 hover:from-blue-600 hover:to-blue-500 text-blue-500 hover:text-white text-xl rounded-full border border-blue-500/20 shadow-lg transition-all hover:scale-105 active:scale-95 animate-pulse"
@@ -700,10 +829,15 @@ export default function Dashboard() {
                           <div className="mt-6 pt-5 border-t border-slate-700/80">
                             <div className="flex justify-between items-center mb-4">
                               <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-black">Recensioni</span>
-                              <button onClick={() => { setActiveCommentEvent(activeCommentEvent === event.id ? null : event.id); logTelemetry('toggle_comment_box', { event_id: event.id }); }} className="text-[10px] bg-slate-700 hover:bg-slate-600 active:scale-95 px-4 py-2 rounded-lg text-white font-bold transition-all shadow-md border border-white/5">
-                                {activeCommentEvent === event.id ? 'Annulla' : '+ Aggiungi'}
-                              </button>
+                              
+                              {/* WRAP: Nessuna nuova recensione se archiviato */}
+                              {!isArchived && (
+                                <button onClick={() => { setActiveCommentEvent(activeCommentEvent === event.id ? null : event.id); logTelemetry('toggle_comment_box', { event_id: event.id }); }} className="text-[10px] bg-slate-700 hover:bg-slate-600 active:scale-95 px-4 py-2 rounded-lg text-white font-bold transition-all shadow-md border border-white/5">
+                                  {activeCommentEvent === event.id ? 'Annulla' : '+ Aggiungi'}
+                                </button>
+                              )}
                             </div>
+                            
                             {eventComments.length > 0 && (
                               <div className="mb-5 space-y-3">
                                 {eventComments.map(c => {
@@ -713,7 +847,9 @@ export default function Dashboard() {
                                     <div key={c.id} className="bg-slate-900/60 p-4 rounded-xl border border-white/5 shadow-inner">
                                       <div className="flex justify-between items-center mb-1.5">
                                         <span className="text-[10px] text-yellow-500 uppercase font-black tracking-widest">{c.author_name}</span>
-                                        {isMyComment && !isEditing && (
+                                        
+                                        {/* WRAP: Nessuna modifica/eliminazione se archiviato */}
+                                        {isMyComment && !isEditing && !isArchived && (
                                           <div className="flex gap-3">
                                             <button onClick={() => { setEditingCommentId(c.id); setEditCommentText(c.content); }} className="text-[9px] text-slate-400 hover:text-yellow-500 font-bold uppercase transition-colors">Modifica</button>
                                             <button onClick={() => handleDeleteComment(c.id)} className="text-[9px] text-slate-400 hover:text-red-500 font-bold uppercase transition-colors">Elimina</button>
@@ -731,7 +867,7 @@ export default function Dashboard() {
                                 })}
                               </div>
                             )}
-                            {activeCommentEvent === event.id && (
+                            {activeCommentEvent === event.id && !isArchived && (
                               <div className="flex gap-2 mt-2 animate-in slide-in-from-top-2">
                                 <input type="text" value={commentText} onChange={(e) => setCommentText(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 focus:border-yellow-500/50 focus:ring-2 focus:ring-yellow-500/20 rounded-xl px-4 py-2.5 text-sm text-white transition-all outline-none placeholder:text-slate-500" placeholder="Scrivi la tua recensione..." />
                                 <button onClick={() => handlePostComment(event.id)} className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-slate-950 px-5 rounded-xl font-black text-xs uppercase shadow-lg shadow-yellow-500/20 hover:scale-105 active:scale-95 transition-all">Invia</button>
@@ -751,7 +887,6 @@ export default function Dashboard() {
         {/* VIEW: HINTS & INTELLIGENCE */}
         {activeTab === 'news' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            
             {/* INIZIO BANNER METEO */}
             {weatherInfo && (
               <div className="bg-gradient-to-r from-blue-900/40 to-cyan-900/40 border border-cyan-500/20 rounded-3xl p-5 shadow-lg flex items-center justify-between">
@@ -913,42 +1048,59 @@ export default function Dashboard() {
 
                           {isMe ? (
                             <div className="space-y-4">
-                              <label className="flex items-center justify-center w-full p-4 border-2 border-dashed border-slate-700 rounded-2xl cursor-pointer hover:border-yellow-500/50 hover:bg-yellow-500/5 text-slate-400 transition-all group">
-                                <span className="text-[11px] uppercase font-black tracking-widest group-hover:text-yellow-500 transition-colors">{isUploadingAvatar ? 'Sincronizzazione...' : 'Aggiorna Fotografia'}</span>
-                                <input type="file" className="hidden" accept="image/*" disabled={isUploadingAvatar} onChange={handleUploadAvatar} />
-                              </label>
+                              
+                              {/* WRAP: Upload Avatar disattivato in archivio */}
+                              {!isArchived && (
+                                <label className="flex items-center justify-center w-full p-4 border-2 border-dashed border-slate-700 rounded-2xl cursor-pointer hover:border-yellow-500/50 hover:bg-yellow-500/5 text-slate-400 transition-all group">
+                                  <span className="text-[11px] uppercase font-black tracking-widest group-hover:text-yellow-500 transition-colors">{isUploadingAvatar ? 'Sincronizzazione...' : 'Aggiorna Fotografia'}</span>
+                                  <input type="file" className="hidden" accept="image/*" disabled={isUploadingAvatar} onChange={handleUploadAvatar} />
+                                </label>
+                              )}
                               
                               <div className="bg-slate-900 p-4 rounded-2xl border border-white/5 shadow-inner">
                                 <div className="flex justify-between items-center mb-4">
                                   <span className="text-[10px] uppercase text-slate-500 font-black tracking-widest">I Miei Biglietti (PDF/IMG)</span>
-                                  <label className="bg-slate-800 hover:bg-yellow-500 hover:text-slate-950 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all shadow-md">
-                                    {isUploadingTicket ? 'Caricamento...' : '+ Aggiungi'}
-                                    <input type="file" className="hidden" accept="application/pdf,image/*" disabled={isUploadingTicket} onChange={handleUploadTicket} />
-                                  </label>
+                                  
+                                  {/* WRAP: Upload Biglietti disattivato in archivio */}
+                                  {!isArchived && (
+                                    <label className="bg-slate-800 hover:bg-yellow-500 hover:text-slate-950 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all shadow-md">
+                                      {isUploadingTicket ? 'Caricamento...' : '+ Aggiungi'}
+                                      <input type="file" className="hidden" accept="application/pdf,image/*" disabled={isUploadingTicket} onChange={handleUploadTicket} />
+                                    </label>
+                                  )}
                                 </div>
                                 {myTickets.length > 0 ? (
                                   <div className="space-y-2">
                                     {myTickets.map((ticket, idx) => (
                                       <div key={idx} className="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-white/5">
                                         <a href={ticket.url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-white hover:text-yellow-500 truncate flex-1 pr-4">{ticket.name}</a>
-                                        <button onClick={() => handleDeleteTicket(ticket.name)} className="text-[9px] font-black text-red-500/80 hover:text-red-500 uppercase tracking-wider bg-red-500/10 px-2 py-1 rounded">Elimina</button>
+                                        
+                                        {/* WRAP: Elimina Biglietti disattivato in archivio */}
+                                        {!isArchived && (
+                                          <button onClick={() => handleDeleteTicket(ticket.name)} className="text-[9px] font-black text-red-500/80 hover:text-red-500 uppercase tracking-wider bg-red-500/10 px-2 py-1 rounded">Elimina</button>
+                                        )}
                                       </div>
                                     ))}
                                   </div>
                                 ) : (
-                                  <p className="text-[10px] text-slate-600 font-medium italic">Nessun documento di viaggio caricato.</p>
+                                  <p className="text-[10px] text-slate-600 font-medium italic">Nessun documento caricato.</p>
                                 )}
                               </div>
                             </div>
                           ) : (
-                            <div className="flex gap-3">
-                              <button onClick={() => handleVoteSballato(p)} disabled={hasVotedToday} className={`flex-1 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${hasVotedToday ? 'bg-slate-900 border-slate-800 text-slate-600 opacity-50 cursor-not-allowed' : 'bg-slate-800 border-slate-700 text-white hover:bg-yellow-500 hover:text-slate-950 hover:border-yellow-400 shadow-lg active:scale-95'}`}>
-                                {hasVotedToday ? 'Voto Registrato' : 'Vota come Sballato'}
-                              </button>
-                              {votedCandidate === p && (
-                                <button onClick={handleRemoveVote} className="bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 text-[10px] font-black py-3.5 px-5 rounded-2xl uppercase tracking-widest transition-colors active:scale-95">Ritira Voto</button>
+                            <>
+                              {/* WRAP: Votazioni disattivate in archivio */}
+                              {!isArchived && (
+                                <div className="flex gap-3">
+                                  <button onClick={() => handleVoteSballato(p)} disabled={hasVotedToday} className={`flex-1 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${hasVotedToday ? 'bg-slate-900 border-slate-800 text-slate-600 opacity-50 cursor-not-allowed' : 'bg-slate-800 border-slate-700 text-white hover:bg-yellow-500 hover:text-slate-950 hover:border-yellow-400 shadow-lg active:scale-95'}`}>
+                                    {hasVotedToday ? 'Voto Registrato' : 'Vota come Sballato'}
+                                  </button>
+                                  {votedCandidate === p && (
+                                    <button onClick={handleRemoveVote} className="bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 text-[10px] font-black py-3.5 px-5 rounded-2xl uppercase tracking-widest transition-colors active:scale-95">Ritira Voto</button>
+                                  )}
+                                </div>
                               )}
-                            </div>
+                            </>
                           )}
                         </div>
                       )}
@@ -975,28 +1127,31 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 p-6 rounded-3xl shadow-2xl">
-                  <h4 className="text-[10px] uppercase text-slate-400 font-black mb-4 tracking-[0.2em]">Registrazione Nuova Spesa</h4>
-                  <div className="flex gap-3">
-                    <input 
-                      type="text" 
-                      value={expenseDesc} 
-                      onChange={(e) => setExpenseDesc(e.target.value)} 
-                      placeholder="Descrizione (es. Spesa Villa)" 
-                      className="flex-1 min-w-0 bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all placeholder:text-slate-600"
-                    />
-                    <input 
-                      type="number" 
-                      value={expenseAmount} 
-                      onChange={(e) => setExpenseAmount(e.target.value)} 
-                      placeholder="€ 0.00" 
-                      className="w-24 shrink-0 bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-3 text-sm font-black text-white focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all placeholder:text-slate-600"
-                    />
+                {/* WRAP: Nessun inserimento spesa nell'archivio */}
+                {!isArchived && (
+                  <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 p-6 rounded-3xl shadow-2xl">
+                    <h4 className="text-[10px] uppercase text-slate-400 font-black mb-4 tracking-[0.2em]">Registrazione Nuova Spesa</h4>
+                    <div className="flex gap-3">
+                      <input 
+                        type="text" 
+                        value={expenseDesc} 
+                        onChange={(e) => setExpenseDesc(e.target.value)} 
+                        placeholder="Descrizione (es. Spesa Villa)" 
+                        className="flex-1 min-w-0 bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all placeholder:text-slate-600"
+                      />
+                      <input 
+                        type="number" 
+                        value={expenseAmount} 
+                        onChange={(e) => setExpenseAmount(e.target.value)} 
+                        placeholder="€ 0.00" 
+                        className="w-24 shrink-0 bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-3 text-sm font-black text-white focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all placeholder:text-slate-600"
+                      />
+                    </div>
+                    <button onClick={handleAddExpense} className="w-full mt-4 bg-gradient-to-r from-yellow-400 to-yellow-600 hover:scale-[1.01] active:scale-95 text-slate-950 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-yellow-500/20 transition-all">
+                      Processa Transazione
+                    </button>
                   </div>
-                  <button onClick={handleAddExpense} className="w-full mt-4 bg-gradient-to-r from-yellow-400 to-yellow-600 hover:scale-[1.01] active:scale-95 text-slate-950 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-yellow-500/20 transition-all">
-                    Processa Transazione
-                  </button>
-                </div>
+                )}
 
                 <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 p-6 rounded-3xl shadow-2xl">
                   <h4 className="text-[10px] uppercase text-slate-400 font-black mb-5 tracking-[0.2em] border-b border-slate-800 pb-3">Stato Bilanci Individuali</h4>
@@ -1061,7 +1216,9 @@ export default function Dashboard() {
                             </div>
                             <div className="flex flex-col items-end gap-1.5">
                               <span className="font-black text-xl text-white tracking-tight drop-shadow-md">€{Number(expense.amount).toFixed(2)}</span>
-                              {isMyExpense && (
+                              
+                              {/* WRAP: Elimina spesa disattivato in archivio */}
+                              {isMyExpense && !isArchived && (
                                 <button onClick={() => handleDeleteExpense(expense.id, expense.payer_name)} className="text-[9px] font-bold uppercase tracking-widest text-red-500/80 hover:text-red-500 transition-colors bg-red-500/10 px-2 py-0.5 rounded">
                                   Elimina
                                 </button>
@@ -1084,10 +1241,14 @@ export default function Dashboard() {
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex justify-between items-center mb-6 bg-slate-900/40 p-4 rounded-2xl border border-white/5 shadow-inner">
               <h3 className="text-xl font-black uppercase tracking-widest text-slate-200 drop-shadow-sm">Archivio Foto</h3>
-              <label className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-slate-950 px-5 py-2.5 rounded-xl font-black text-[10px] uppercase cursor-pointer shadow-lg shadow-yellow-500/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-2">
-                {isUploadingMedia ? 'Sincronizzazione...' : '+ Carica File'}
-                <input type="file" className="hidden" accept="image/*" disabled={isUploadingMedia} onChange={handleUploadMedia} />
-              </label>
+              
+              {/* WRAP: Caricamento foto disattivato in archivio */}
+              {!isArchived && (
+                <label className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-slate-950 px-5 py-2.5 rounded-xl font-black text-[10px] uppercase cursor-pointer shadow-lg shadow-yellow-500/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-2">
+                  {isUploadingMedia ? 'Sincronizzazione...' : '+ Carica File'}
+                  <input type="file" className="hidden" accept="image/*" disabled={isUploadingMedia} onChange={handleUploadMedia} />
+                </label>
+              )}
             </div>
 
             <div className="flex bg-slate-900 border border-white/5 rounded-xl p-1 mb-8 shadow-lg">
@@ -1124,7 +1285,8 @@ export default function Dashboard() {
                           </button>
                         </div>
 
-                        {galleryFilter === 'mine' && (
+                        {/* WRAP: Regola speciale per Eliminazione Foto -> Visibile se NON archiviato, OPPURE se sei Fabri */}
+                        {(galleryFilter === 'mine' && (!isArchived || user === 'Fabri')) && (
                           <button 
                             onClick={() => handleDeleteMedia(media.id, media.media_url)}
                             className="w-full mt-1 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 text-[10px] font-black py-2.5 rounded-xl uppercase tracking-[0.2em] transition-all active:scale-95 shadow-sm"
