@@ -621,6 +621,54 @@ export default function Dashboard() {
     const maxVotes = Math.max(...Object.values(voteCounts), 0);
     return Object.keys(voteCounts).filter(k => voteCounts[k] === maxVotes);
   };
+  const calculateOptimizedTransfers = () => {
+    const debtors: { name: string, amount: number }[] = [];
+    const creditors: { name: string, amount: number }[] = [];
+
+    // 1. Separa debitori e creditori (ignoriamo lo Sposo e chi è in pari)
+    for (const [name, data] of Object.entries(balances)) {
+      if (data.isGroom) continue;
+      if (data.balance < -0.01) debtors.push({ name, amount: Math.abs(data.balance) });
+      if (data.balance > 0.01) creditors.push({ name, amount: data.balance });
+    }
+
+    // 2. Ordina dal più grande al più piccolo
+    debtors.sort((a, b) => b.amount - a.amount);
+    creditors.sort((a, b) => b.amount - a.amount);
+
+    const transfers: { from: string, to: string, amount: number }[] = [];
+    let i = 0; // Indice debitori
+    let j = 0; // Indice creditori
+
+    // 3. Algoritmo di compensazione incrociata
+    while (i < debtors.length && j < creditors.length) {
+      const debtor = debtors[i];
+      const creditor = creditors[j];
+      
+      // L'importo da trasferire è il minimo tra il debito rimasto e il credito rimasto
+      const transferAmount = Math.min(debtor.amount, creditor.amount);
+
+      transfers.push({
+        from: debtor.name,
+        to: creditor.name,
+        amount: transferAmount
+      });
+
+      // Aggiorna i bilanci rimanenti
+      debtor.amount -= transferAmount;
+      creditor.amount -= transferAmount;
+
+      // Se il debito è saldato, passa al prossimo debitore. Idem per il creditore.
+      if (debtor.amount < 0.01) i++;
+      if (creditor.amount < 0.01) j++;
+    }
+
+    return transfers;
+  };
+  
+  const optimizedTransfers = calculateOptimizedTransfers();
+  // --- FINE NUOVO ALGORITMO ---
+
   const dailyLeaders = calculateDailyLeaders();
   const ibizaDays = ['2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05'];
 
@@ -728,25 +776,6 @@ export default function Dashboard() {
               🔔
             </button>
           )}
-
-          <button 
-            onClick={handleFlareSOS}
-            className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-red-900/40 to-red-950/40 hover:from-red-600 hover:to-red-500 text-red-500 hover:text-white text-xl rounded-full border border-red-500/20 shadow-lg shadow-red-900/20 transition-all hover:scale-105 active:scale-95"
-            title="Invia Posizione SOS"
-          >
-            🎯
-          </button>
-          
-          <a 
-            href="https://www.google.com/maps/dir/?api=1&destination=8,+Carrer+del+Cap,+Ibiza,+Islas+Baleares" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            onClick={handleTaxiClick}
-            className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-slate-800 to-slate-900 hover:from-yellow-400 hover:to-yellow-500 hover:text-black text-xl rounded-full border border-white/5 shadow-lg shadow-black/20 transition-all hover:scale-105 active:scale-95"
-            title="Naviga verso la Villa"
-          >
-            🚕
-          </a>
           
           <div className="w-10 h-10 rounded-full bg-slate-800 border-2 border-slate-700/50 shadow-inner flex items-center justify-center font-black overflow-hidden ml-1">
             {avatars[user] ? (
@@ -757,6 +786,33 @@ export default function Dashboard() {
           </div>
         </div>
       </header>
+      {/* HEADER FINISCE QUI SOPRA: </header> */}
+
+      {/* --- NUOVA BARRA AZIONI RAPIDE (NASCOSTA IN ARCHIVIO) --- */}
+      {!isArchived && (
+        <div className="px-4 pt-5 pb-1 animate-in slide-in-from-top-4 duration-500">
+          <div className="flex gap-3">
+            <button 
+              onClick={handleFlareSOS}
+              className="flex-1 flex flex-col items-center justify-center gap-1 bg-gradient-to-br from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white py-3 rounded-2xl shadow-lg shadow-red-900/40 active:scale-95 transition-all border border-red-500/50"
+            >
+              <span className="text-xl drop-shadow-md">🎯</span>
+              <span className="text-[9px] font-black uppercase tracking-widest">SOS Posizione</span>
+            </button>
+
+            <a 
+              href="https://www.google.com/maps/dir/?api=1&destination=8,+Carrer+del+Cap,+Ibiza,+Islas+Baleares" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              onClick={handleTaxiClick}
+              className="flex-1 flex flex-col items-center justify-center gap-1 bg-gradient-to-br from-yellow-400 to-yellow-600 hover:from-yellow-300 hover:to-yellow-500 text-slate-950 py-3 rounded-2xl shadow-lg shadow-yellow-600/30 active:scale-95 transition-all border border-yellow-300/50"
+            >
+              <span className="text-xl drop-shadow-md">🚕</span>
+              <span className="text-[9px] font-black uppercase tracking-widest">Naviga in Villa</span>
+            </a>
+          </div>
+        </div>
+      )}
 
       <div className="p-4 space-y-6">
         
@@ -1198,6 +1254,34 @@ export default function Dashboard() {
                     })}
                   </div>
                 </div>
+                {/* --- NUOVA UI: PIANO BONIFICI OTTIMIZZATO --- */}
+                <div className="bg-gradient-to-b from-blue-900/20 to-slate-950 border border-blue-500/20 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                  <h4 className="text-[10px] uppercase text-blue-400 font-black mb-1 tracking-[0.2em] relative z-10">Piano Bonifici Ottimizzato</h4>
+                  <p className="text-[10px] text-slate-500 mb-5 font-bold relative z-10">Algoritmo di minimizzazione transazioni bancarie.</p>
+                  
+                  {optimizedTransfers.length === 0 ? (
+                    <p className="text-sm text-slate-500 font-medium italic text-center py-4 bg-slate-950/50 rounded-xl border border-white/5 relative z-10">
+                      Nessun bonifico necessario. I conti sono in pari.
+                    </p>
+                  ) : (
+                    <div className="space-y-3 relative z-10">
+                      {optimizedTransfers.map((transfer, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-slate-950/80 p-3.5 rounded-xl border border-blue-500/10 shadow-inner">
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-black text-red-400 uppercase tracking-tight">{transfer.from}</span>
+                            <span className="text-slate-600 text-xs">➔</span>
+                            <span className="text-sm font-black text-emerald-400 uppercase tracking-tight">{transfer.to}</span>
+                          </div>
+                          <span className="font-black text-lg text-white tracking-tight drop-shadow-md">
+                            €{transfer.amount.toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* --- FINE NUOVA UI --- */}
 
                 <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 p-6 rounded-3xl shadow-2xl">
                   <h4 className="text-[10px] uppercase text-slate-400 font-black mb-5 tracking-[0.2em] border-b border-slate-800 pb-3">Registro Attività Finanziarie</h4>
@@ -1239,15 +1323,28 @@ export default function Dashboard() {
         {/* VIEW: GALLERIA FOTOGRAFICA */}
         {activeTab === 'gallery' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex justify-between items-center mb-6 bg-slate-900/40 p-4 rounded-2xl border border-white/5 shadow-inner">
-              <h3 className="text-xl font-black uppercase tracking-widest text-slate-200 drop-shadow-sm">Archivio Foto</h3>
+         <div className="flex justify-between items-center mb-6 bg-slate-900/40 p-4 rounded-2xl border border-white/5 shadow-inner">
+              <h3 className="text-xl font-black uppercase tracking-widest text-slate-200 drop-shadow-sm">Archivio</h3>
               
-              {/* WRAP: Caricamento foto disattivato in archivio */}
+              {/* WRAP: Nessun caricamento nell'archivio */}
               {!isArchived && (
-                <label className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-slate-950 px-5 py-2.5 rounded-xl font-black text-[10px] uppercase cursor-pointer shadow-lg shadow-yellow-500/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-2">
-                  {isUploadingMedia ? 'Sincronizzazione...' : '+ Carica File'}
-                  <input type="file" className="hidden" accept="image/*" disabled={isUploadingMedia} onChange={handleUploadMedia} />
-                </label>
+                <div className="flex gap-2">
+                  {/* TASTO 1: FOTOCAMERA DIRETTA */}
+                  <label 
+                    className="bg-slate-800 hover:bg-slate-700 text-yellow-500 border border-yellow-500/30 px-3 py-2.5 rounded-xl font-black text-lg cursor-pointer shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center justify-center"
+                    title="Scatta Foto"
+                  >
+                    {isUploadingMedia ? '...' : '📸'}
+                    {/* L'attributo capture="environment" forza l'apertura della fotocamera posteriore */}
+                    <input type="file" className="hidden" accept="image/*" capture="environment" disabled={isUploadingMedia} onChange={handleUploadMedia} />
+                  </label>
+
+                  {/* TASTO 2: GALLERIA STANDARD */}
+                  <label className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-slate-950 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase cursor-pointer shadow-lg shadow-yellow-500/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-2">
+                    {isUploadingMedia ? 'Caricamento...' : '+ Rullino'}
+                    <input type="file" className="hidden" accept="image/*" disabled={isUploadingMedia} onChange={handleUploadMedia} />
+                  </label>
+                </div>
               )}
             </div>
 
