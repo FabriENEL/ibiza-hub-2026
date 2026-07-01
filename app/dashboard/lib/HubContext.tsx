@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 type Membership = {
   hub_id: string;
   role: string;
-  hub: { id: string; name: string; category: string; status: string; vote_label: string };
+  hub: { id: string; name: string; category: string; status: string; vote_label: string; votes_enabled: boolean };
 };
 
 type HubContextValue = {
@@ -42,7 +42,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
 
     const { data: rows } = await supabase
       .from('hub_members')
-      .select('hub_id, role, hub:hubs ( id, name, category, status, vote_label )')
+      .select('hub_id, role, hub:hubs ( id, name, category, status, vote_label, votes_enabled )')
       .eq('user_id', user.id);
 
     setMemberships((rows as any) ?? []);

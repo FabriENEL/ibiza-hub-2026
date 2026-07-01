@@ -6,7 +6,7 @@ import { useHub } from '../lib/HubContext';
 type Theme = { text: string; gradient: string; border: string };
 type Member = { user_id: string; username: string; role: string; avatar: string | null };
 
-export default function Group({ hubId, theme, isOwner, archived }: { hubId: string; theme: Theme; isOwner: boolean; archived: boolean }) {
+export default function Group({ hubId, theme, isOwner, archived, votesEnabled }: { hubId: string; theme: Theme; isOwner: boolean; archived: boolean; votesEnabled: boolean }) {
   const { userId, refresh, avatarUrl } = useHub();
   const [members, setMembers] = useState<Member[]>([]);
   const [passcode, setPasscode] = useState<string | null>(null);
@@ -14,6 +14,7 @@ export default function Group({ hubId, theme, isOwner, archived }: { hubId: stri
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [stats, setStats] = useState({ comments: 0, votesGiven: 0, votesReceived: 0 });
 
   const load = async () => {
     const { data: mem } = await supabase
@@ -25,6 +26,16 @@ export default function Group({ hubId, theme, isOwner, archived }: { hubId: stri
       const { data: hub } = await supabase.from('hubs').select('passcode').eq('id', hubId).single();
       setPasscode(hub?.passcode ?? null);
     }
+    if (userId) loadStats();
+  };
+
+  const loadStats = async () => {
+    const [{ count: comments }, { count: given }, { count: received }] = await Promise.all([
+      supabase.from('event_comments').select('*', { count: 'exact', head: true }).eq('hub_id', hubId).eq('user_id', userId),
+      supabase.from('daily_votes').select('*', { count: 'exact', head: true }).eq('hub_id', hubId).eq('voter_id', userId),
+      supabase.from('daily_votes').select('*', { count: 'exact', head: true }).eq('hub_id', hubId).eq('candidate_id', userId),
+    ]);
+    setStats({ comments: comments ?? 0, votesGiven: given ?? 0, votesReceived: received ?? 0 });
   };
 
   useEffect(() => { load(); }, [hubId, userId]);
@@ -36,12 +47,10 @@ export default function Group({ hubId, theme, isOwner, archived }: { hubId: stri
     const path = userId + '/avatar.' + (file.name.split('.').pop() || 'jpg');
     const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
     if (upErr) { setUploadingAvatar(false); alert('Errore: ' + upErr.message); return; }
-    // Cache-busting: aggiungo un timestamp cosi il browser ricarica la nuova foto.
     const url = supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl + '?t=' + Date.now();
     await supabase.from('profiles').update({ avatar_url: url }).eq('id', userId);
     setUploadingAvatar(false);
-    await refresh();
-    load();
+    await refresh(); load();
   };
 
   const handleJoin = async () => {
@@ -68,9 +77,21 @@ export default function Group({ hubId, theme, isOwner, archived }: { hubId: stri
     if (!error) await refresh();
   };
 
+  const toggleVotes = async () => {
+    const { error } = await supabase.from('hubs').update({ votes_enabled: !votesEnabled }).eq('id', hubId);
+    if (!error) await refresh();
+  };
+
   const Avatar = ({ url, name, size }: { url: string | null; name: string; size: string }) => (
     <div className={size + ' rounded-full bg-slate-800 flex items-center justify-center overflow-hidden font-black ' + theme.text}>
       {url ? <img src={url} className="w-full h-full object-cover" alt="" /> : name.charAt(0).toUpperCase()}
+    </div>
+  );
+
+  const StatBox = ({ n, label }: { n: number; label: string }) => (
+    <div className="flex-1 text-center">
+      <p className={'text-xl font-black ' + theme.text}>{n}</p>
+      <p className="text-[8px] uppercase text-slate-500 font-black tracking-wider">{label}</p>
     </div>
   );
 
@@ -82,18 +103,25 @@ export default function Group({ hubId, theme, isOwner, archived }: { hubId: stri
         </div>
       )}
 
-      {!archived && (
-        <div className={'bg-slate-900 border ' + theme.border + ' rounded-2xl p-4 flex items-center gap-4'}>
+      <div className={'bg-slate-900 border ' + theme.border + ' rounded-2xl p-4'}>
+        <div className="flex items-center gap-4">
           <Avatar url={avatarUrl} name="?" size="w-14 h-14" />
           <div className="flex-1">
             <p className="text-[10px] uppercase text-slate-400 font-black mb-1">La mia foto profilo</p>
-            <label className={'inline-block bg-slate-800 text-white text-[10px] px-3 py-1.5 rounded-lg font-bold cursor-pointer ' + theme.text}>
-              {uploadingAvatar ? 'Carico...' : 'Cambia foto'}
-              <input type="file" accept="image/*" className="hidden" disabled={uploadingAvatar} onChange={handleAvatar} />
-            </label>
+            {!archived && (
+              <label className={'inline-block bg-slate-800 text-white text-[10px] px-3 py-1.5 rounded-lg font-bold cursor-pointer ' + theme.text}>
+                {uploadingAvatar ? 'Carico...' : 'Cambia foto'}
+                <input type="file" accept="image/*" className="hidden" disabled={uploadingAvatar} onChange={handleAvatar} />
+              </label>
+            )}
           </div>
         </div>
-      )}
+        <div className="flex mt-4 pt-4 border-t border-slate-800">
+          <StatBox n={stats.comments} label="Commenti" />
+          <StatBox n={stats.votesGiven} label="Voti dati" />
+          <StatBox n={stats.votesReceived} label="Voti ricevuti" />
+        </div>
+      </div>
 
       <div>
         <h3 className="font-black uppercase text-white tracking-wider mb-3">Membri</h3>
@@ -116,6 +144,19 @@ export default function Group({ hubId, theme, isOwner, archived }: { hubId: stri
           <div className="bg-slate-950 rounded-xl p-3 text-center">
             <span className={'text-2xl font-black tracking-[0.3em] ' + theme.text}>{passcode}</span>
           </div>
+        </div>
+      )}
+
+      {isOwner && !archived && (
+        <div className="bg-slate-900 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] uppercase text-slate-400 font-black">Modulo Voto</p>
+            <p className="text-[10px] text-slate-500">{votesEnabled ? 'Attivo per questo Hub' : 'Disattivato'}</p>
+          </div>
+          <button onClick={toggleVotes}
+            className={'text-[10px] uppercase font-black px-3 py-2 rounded-lg ' + (votesEnabled ? 'bg-slate-800 text-slate-300 border border-slate-600' : 'bg-gradient-to-r ' + theme.gradient + ' text-slate-950')}>
+            {votesEnabled ? 'Disattiva' : 'Attiva'}
+          </button>
         </div>
       )}
 

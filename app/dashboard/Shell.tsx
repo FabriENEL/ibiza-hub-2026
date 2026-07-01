@@ -14,14 +14,6 @@ const THEME: Record<string, { text: string; gradient: string; border: string }> 
   corporate: { text: 'text-blue-500',   gradient: 'from-blue-400 to-indigo-600',   border: 'border-blue-500/30' },
 };
 
-const TABS = [
-  { id: 'calendar', icon: '\u{1F4C5}', label: 'Eventi' },
-  { id: 'cassa',    icon: '\u{1F4B0}', label: 'Cassa' },
-  { id: 'votes',    icon: '\u{1F3C6}', label: 'Voto' },
-  { id: 'gallery',  icon: '\u{1F4F8}', label: 'Foto' },
-  { id: 'group',    icon: '\u{1F465}', label: 'Gruppo' },
-];
-
 export default function Shell() {
   const { memberships, activeHubId, setActiveHubId, username } = useHub();
   const [tab, setTab] = useState('calendar');
@@ -32,6 +24,18 @@ export default function Shell() {
   const isOwner = active.role === 'OWNER';
   const archived = active.hub.status === 'archived';
   const voteLabel = active.hub.vote_label ?? 'Voto del giorno';
+  const votesEnabled = active.hub.votes_enabled ?? true;
+
+  // Se il voto e spento e sono su quel tab, rimando agli eventi.
+  const currentTab = (tab === 'votes' && !votesEnabled) ? 'calendar' : tab;
+
+  const TABS = [
+    { id: 'calendar', icon: '\u{1F4C5}', label: 'Eventi' },
+    { id: 'cassa',    icon: '\u{1F4B0}', label: 'Cassa' },
+    ...(votesEnabled ? [{ id: 'votes', icon: '\u{1F3C6}', label: 'Voto' }] : []),
+    { id: 'gallery',  icon: '\u{1F4F8}', label: 'Foto' },
+    { id: 'group',    icon: '\u{1F465}', label: 'Gruppo' },
+  ];
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 pb-24">
@@ -44,16 +48,16 @@ export default function Shell() {
       </header>
 
       <div className="p-4">
-        {tab === 'calendar' && <Calendar hubId={active.hub_id} theme={t} isOwner={isOwner} archived={archived} />}
-        {tab === 'cassa'    && <Cassa hubId={active.hub_id} theme={t} archived={archived} />}
-        {tab === 'votes'    && <Votes hubId={active.hub_id} theme={t} archived={archived} isOwner={isOwner} voteLabel={voteLabel} />}
-        {tab === 'gallery'  && <Gallery hubId={active.hub_id} theme={t} archived={archived} />}
-        {tab === 'group'    && <Group hubId={active.hub_id} theme={t} isOwner={isOwner} archived={archived} />}
+        {currentTab === 'calendar' && <Calendar hubId={active.hub_id} theme={t} isOwner={isOwner} archived={archived} />}
+        {currentTab === 'cassa'    && <Cassa hubId={active.hub_id} theme={t} archived={archived} />}
+        {currentTab === 'votes'    && <Votes hubId={active.hub_id} theme={t} archived={archived} isOwner={isOwner} voteLabel={voteLabel} />}
+        {currentTab === 'gallery'  && <Gallery hubId={active.hub_id} theme={t} archived={archived} />}
+        {currentTab === 'group'    && <Group hubId={active.hub_id} theme={t} isOwner={isOwner} archived={archived} votesEnabled={votesEnabled} />}
       </div>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-slate-950/90 backdrop-blur border-t border-slate-800 p-3 flex justify-around">
         {TABS.map((tb) => (
-          <button key={tb.id} onClick={() => setTab(tb.id)} className={'flex flex-col items-center gap-1 transition-colors ' + (tab === tb.id ? t.text : 'text-slate-500')}>
+          <button key={tb.id} onClick={() => setTab(tb.id)} className={'flex flex-col items-center gap-1 transition-colors ' + (currentTab === tb.id ? t.text : 'text-slate-500')}>
             <span className="text-xl">{tb.icon}</span>
             <span className="text-[9px] font-black uppercase">{tb.label}</span>
           </button>
