@@ -12,6 +12,8 @@ export default function Gallery({ hubId, theme }: { hubId: string; theme: Theme 
   const [filter, setFilter] = useState<'all' | 'mine'>('all');
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [viewer, setViewer] = useState<Media | null>(null);   // foto aperta a schermo intero
+  const [downloading, setDownloading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -28,13 +30,10 @@ export default function Gallery({ hubId, theme }: { hubId: string; theme: Theme 
     const file = e.target.files?.[0];
     if (!file || !userId || uploading) return;
     setUploading(true);
-    // Cartella = codice utente (richiesto dalle serrature Storage).
     const path = userId + '/' + Date.now() + '-' + file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
     const { error: upErr } = await supabase.storage.from('gallery').upload(path, file);
     if (upErr) { setUploading(false); alert('Caricamento non riuscito: ' + upErr.message); return; }
-    // Indirizzo pubblico del file caricato (bucket privato: valido per la lettura autenticata).
     const url = supabase.storage.from('gallery').getPublicUrl(path).data.publicUrl;
-    // Registra il "biglietto" nella tabella media.
     const isVideo = file.type.startsWith('video/');
     const { error: dbErr } = await supabase.from('media').insert({
       hub_id: hubId, url, type: isVideo ? 'video' : 'image', user_id: userId,
@@ -43,6 +42,27 @@ export default function Gallery({ hubId, theme }: { hubId: string; theme: Theme 
     setUploading(false);
     if (!dbErr) load();
     else alert('Errore salvataggio: ' + dbErr.message);
+  };
+
+  // Download vero: scarica il file (bucket privato), crea un link temporaneo e lo attiva.
+  const handleDownload = async (m: Media) => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(m.url);
+      const blob = await res.blob();
+      const objUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = 'junction-' + m.id + (m.type === 'video' ? '.mp4' : '.jpg');
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(objUrl);
+    } catch {
+      alert('Download non riuscito. Riprova.');
+    }
+    setDownloading(false);
   };
 
   const shown = items.filter((m) => filter === 'mine' ? m.user_id === userId : true);
@@ -71,14 +91,35 @@ export default function Gallery({ hubId, theme }: { hubId: string; theme: Theme 
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {shown.map((m) => (
-            <div key={m.id} className="bg-slate-900 rounded-xl overflow-hidden border border-white/5">
+            <div key={m.id} onClick={() => setViewer(m)}
+              className="bg-slate-900 rounded-xl overflow-hidden border border-white/5 cursor-pointer active:scale-95 transition-transform">
               <div className="aspect-square bg-slate-950">
                 {m.type === 'video'
-                  ? <video src={m.url} className="w-full h-full object-cover" controls />
+                  ? <video src={m.url} className="w-full h-full object-cover" />
                   : <img src={m.url} className="w-full h-full object-cover" alt="" />}
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* VISUALIZZATORE A SCHERMO INTERO */}
+      {viewer && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center p-4"
+          onClick={() => setViewer(null)}>
+          <div className="max-w-full max-h-[80vh] flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            {viewer.type === 'video'
+              ? <video src={viewer.url} className="max-w-full max-h-[80vh]" controls autoPlay />
+              : <img src={viewer.url} className="max-w-full max-h-[80vh] object-contain" alt="" />}
+          </div>
+          <div className="flex gap-3 mt-6" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => handleDownload(viewer)} disabled={downloading}
+              className={'bg-gradient-to-r ' + theme.gradient + ' text-slate-950 px-6 py-3 rounded-2xl font-black text-xs uppercase disabled:opacity-40'}>
+              {downloading ? 'Scarico...' : 'Scarica'}
+            </button>
+            <button onClick={() => setViewer(null)}
+              className="bg-slate-800 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase">Chiudi</button>
+          </div>
         </div>
       )}
     </div>
