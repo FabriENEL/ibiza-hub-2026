@@ -5,6 +5,7 @@ import Calendar from './modules/Calendar';
 import Cassa from './modules/Cassa';
 import Group from './modules/Group';
 import Votes from './modules/Votes';
+import Gallery from './modules/Gallery';
 
 const THEME: Record<string, { text: string; gradient: string; border: string }> = {
   travel:    { text: 'text-yellow-500', gradient: 'from-yellow-400 to-yellow-600', border: 'border-yellow-500/30' },
@@ -44,7 +45,7 @@ export default function Shell() {
         {tab === 'calendar' && <Calendar hubId={active.hub_id} theme={t} isOwner={isOwner} />}
         {tab === 'cassa'    && <Cassa hubId={active.hub_id} theme={t} />}
         {tab === 'votes'    && <Votes hubId={active.hub_id} theme={t} />}
-        {tab === 'gallery'  && <div className="text-center text-slate-500 text-sm py-20">Galleria - prossimo modulo</div>}
+        {tab === 'gallery'  && <Gallery hubId={active.hub_id} theme={t} />}
         {tab === 'group'    && <Group hubId={active.hub_id} theme={t} />}
       </div>
 
