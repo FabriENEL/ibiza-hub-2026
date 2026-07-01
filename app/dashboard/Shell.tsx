@@ -9,7 +9,7 @@ import Gallery from './modules/Gallery';
 
 const THEME: Record<string, { text: string; gradient: string; border: string }> = {
   travel:    { text: 'text-yellow-500', gradient: 'from-yellow-400 to-yellow-600', border: 'border-yellow-500/30' },
-  party:     { text: 'text-rose-500',   gradient: 'from-rose-400 to-pink-600',     border: 'border-rose-500/30' },
+  party:     { text: 'text-pink-500',   gradient: 'from-pink-400 to-fuchsia-600',  border: 'border-pink-500/30' },
   social:    { text: 'text-emerald-500',gradient: 'from-emerald-400 to-teal-600',  border: 'border-emerald-500/30' },
   corporate: { text: 'text-blue-500',   gradient: 'from-blue-400 to-indigo-600',   border: 'border-blue-500/30' },
 };
@@ -30,23 +30,25 @@ export default function Shell() {
   const t = THEME[cat] ?? THEME.travel;
   if (!active) return null;
   const isOwner = active.role === 'OWNER';
+  const archived = active.hub.status === 'archived';
+  const voteLabel = active.hub.vote_label ?? 'Voto del giorno';
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 pb-24">
       <header className="p-4 border-b border-white/5 bg-slate-950/80 sticky top-0 backdrop-blur-xl z-50 flex justify-between items-center">
         <div>
-          <h2 className={'text-transparent bg-clip-text bg-gradient-to-r ' + t.gradient + ' text-[10px] font-black uppercase tracking-widest'}>{active.hub.name}</h2>
+          <h2 className={'text-transparent bg-clip-text bg-gradient-to-r ' + t.gradient + ' text-[10px] font-black uppercase tracking-widest'}>{active.hub.name}{archived ? ' - RICORDO' : ''}</h2>
           <p className="font-bold text-white text-sm">Ciao {username ?? ''}{isOwner ? ' (organizzatore)' : ''}</p>
         </div>
         <button onClick={() => setActiveHubId(null)} className="w-10 h-10 bg-slate-900 border border-white/5 rounded-full text-sm">X</button>
       </header>
 
       <div className="p-4">
-        {tab === 'calendar' && <Calendar hubId={active.hub_id} theme={t} isOwner={isOwner} />}
-        {tab === 'cassa'    && <Cassa hubId={active.hub_id} theme={t} />}
-        {tab === 'votes'    && <Votes hubId={active.hub_id} theme={t} />}
-        {tab === 'gallery'  && <Gallery hubId={active.hub_id} theme={t} />}
-        {tab === 'group'    && <Group hubId={active.hub_id} theme={t} />}
+        {tab === 'calendar' && <Calendar hubId={active.hub_id} theme={t} isOwner={isOwner} archived={archived} />}
+        {tab === 'cassa'    && <Cassa hubId={active.hub_id} theme={t} archived={archived} />}
+        {tab === 'votes'    && <Votes hubId={active.hub_id} theme={t} archived={archived} isOwner={isOwner} voteLabel={voteLabel} />}
+        {tab === 'gallery'  && <Gallery hubId={active.hub_id} theme={t} archived={archived} />}
+        {tab === 'group'    && <Group hubId={active.hub_id} theme={t} isOwner={isOwner} archived={archived} />}
       </div>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-slate-950/90 backdrop-blur border-t border-slate-800 p-3 flex justify-around">
