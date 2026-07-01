@@ -15,6 +15,7 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled }:
   const [msg, setMsg] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [stats, setStats] = useState({ comments: 0, votesGiven: 0, votesReceived: 0 });
+  const [locBusy, setLocBusy] = useState(false);
 
   const load = async () => {
     const { data: mem } = await supabase
@@ -39,6 +40,23 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled }:
   };
 
   useEffect(() => { load(); }, [hubId, userId]);
+
+  // Invia posizione: prende le coordinate GPS e apre WhatsApp col link mappa.
+  const shareLocation = () => {
+    if (!navigator.geolocation) { alert('Geolocalizzazione non disponibile su questo dispositivo.'); return; }
+    setLocBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const maps = 'https://www.google.com/maps?q=' + latitude + ',' + longitude;
+        const text = encodeURIComponent('La mia posizione: ' + maps);
+        window.open('https://wa.me/?text=' + text, '_blank');
+        setLocBusy(false);
+      },
+      () => { alert('Non ho ottenuto la posizione. Controlla di aver dato il permesso.'); setLocBusy(false); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const handleAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -121,6 +139,10 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled }:
           <StatBox n={stats.votesGiven} label="Voti dati" />
           <StatBox n={stats.votesReceived} label="Voti ricevuti" />
         </div>
+        <button onClick={shareLocation} disabled={locBusy}
+          className="w-full mt-4 bg-slate-800 border border-slate-600 text-white py-2.5 rounded-xl font-black text-[11px] uppercase disabled:opacity-40">
+          {locBusy ? 'Individuo...' : '\u{1F4CD} Invia la mia posizione'}
+        </button>
       </div>
 
       <div>

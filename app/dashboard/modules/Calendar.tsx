@@ -40,20 +40,22 @@ export default function Calendar({ hubId, theme, isOwner, archived }: { hubId: s
   const handleAddEvent = async () => {
     if (!title.trim() || !when || busy) return;
     setBusy(true);
-    const { error } = await supabase.from('events').insert({
-      hub_id: hubId, title: title.trim(), scheduled_at: when, location: where.trim() || null,
-    });
+    const { error } = await supabase.from('events').insert({ hub_id: hubId, title: title.trim(), scheduled_at: when, location: where.trim() || null });
     setBusy(false);
     if (!error) { setTitle(''); setWhen(''); setWhere(''); setAdding(false); load(); }
+  };
+
+  // Naviga: apre le mappe verso il luogo dell'evento (link universale Android/iOS).
+  const navigateTo = (place: string) => {
+    const url = 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(place);
+    window.open(url, '_blank');
   };
 
   const myCommentOn = (eventId: string) => comments.find((c) => c.event_id === eventId && c.user_id === userId);
 
   const handlePostComment = async (eventId: string) => {
     if (!draft.trim() || !userId) return;
-    const { error } = await supabase.from('event_comments').insert({
-      hub_id: hubId, event_id: eventId, user_id: userId, content: draft.trim(),
-    });
+    const { error } = await supabase.from('event_comments').insert({ hub_id: hubId, event_id: eventId, user_id: userId, content: draft.trim() });
     if (!error) { setDraft(''); load(); }
   };
 
@@ -63,10 +65,7 @@ export default function Calendar({ hubId, theme, isOwner, archived }: { hubId: s
     if (!error) { setEditing(null); setEditText(''); load(); }
   };
 
-  const handleDeleteComment = async (id: string) => {
-    await supabase.from('event_comments').delete().eq('id', id);
-    load();
-  };
+  const handleDeleteComment = async (id: string) => { await supabase.from('event_comments').delete().eq('id', id); load(); };
 
   const fmt = (iso: string) => {
     const d = new Date(iso);
@@ -122,7 +121,12 @@ export default function Calendar({ hubId, theme, isOwner, archived }: { hubId: s
                   </div>
                   <div className="border-l border-slate-700 pl-4 flex-1">
                     <h4 className="font-black text-white uppercase text-sm">{ev.title}</h4>
-                    {ev.location && <p className="text-[11px] text-slate-400">{ev.location}</p>}
+                    {ev.location && (
+                      <button onClick={() => navigateTo(ev.location!)}
+                        className={'inline-flex items-center gap-1 mt-1 text-[11px] ' + theme.text + ' hover:underline'}>
+                        {'\u{1F4CD}'} {ev.location} <span className="text-[9px] opacity-70">(naviga)</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
