@@ -2,16 +2,17 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useHub } from '../lib/HubContext';
-import type { Persona } from '../lib/personas';
+import { eventVisual } from '../lib/eventVisuals';
+import type { Words } from '../lib/blueprints';
 
 type Theme = { text: string; gradient: string; border: string };
 type EventRow = { id: string; title: string; scheduled_at: string; location: string | null; created_by: string | null };
 type Comment = { id: string; event_id: string; user_id: string; content: string; author: string };
 
-export default function Calendar({ hubId, theme, isOwner, archived, persona }: { hubId: string; theme: Theme; isOwner: boolean; archived: boolean; persona: Persona }) {
+export default function Calendar({ hubId, theme, isOwner, archived, words, rounded }: { hubId: string; theme: Theme; isOwner: boolean; archived: boolean; words: Words; rounded: string }) {
   const { userId } = useHub();
-  const w = persona.words;
-  const r = persona.vibe.rounded;
+  const w = words;
+  const r = rounded;
   const [events, setEvents] = useState<EventRow[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [myRole, setMyRole] = useState<string>('MEMBER');
@@ -49,8 +50,6 @@ export default function Calendar({ hubId, theme, isOwner, archived, persona }: {
     setOwnerIds(owners);
     const me = (mem ?? []).find((m: any) => m.user_id === userId);
     setMyRole(me?.role ?? 'MEMBER');
-
-    // Giornate uniche dell'Hub.
     const days = Array.from(new Set(evs.map((e) => dayOf(e.scheduled_at)))).sort();
     if (days.length > 0) {
       const today = new Date().toISOString().split('T')[0];
@@ -63,7 +62,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, persona }: {
 
   const canManageEvent = (ev: EventRow) => {
     if (myRole === 'OWNER') return true;
-    if (myRole === 'COOWNER') return !(ev.created_by && ownerIds.has(ev.created_by)); // non tocca eventi del fondatore
+    if (myRole === 'COOWNER') return !!ev.created_by && !ownerIds.has(ev.created_by);
     return false;
   };
   const canCreate = myRole === 'OWNER' || myRole === 'COOWNER';
@@ -146,10 +145,11 @@ export default function Calendar({ hubId, theme, isOwner, archived, persona }: {
             const mine = myCommentOn(ev.id);
             const isOpen = openEvent === ev.id;
             const editable = canManageEvent(ev) && !archived;
+            const vis = eventVisual(ev.title);
             return (
-              <div key={ev.id} className={'bg-slate-900 border ' + theme.border + ' p-4 ' + r}>
+              <div key={ev.id} className={'bg-slate-900 border ' + theme.border + ' overflow-hidden ' + r}>
                 {editId === ev.id ? (
-                  <div className="space-y-2">
+                  <div className="space-y-2 p-4">
                     <input value={eTitle} onChange={(e) => setETitle(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white outline-none" />
                     <input type="datetime-local" value={eWhen} onChange={(e) => setEWhen(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white outline-none" />
                     <input value={eWhere} onChange={(e) => setEWhere(e.target.value)} placeholder="Luogo" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white outline-none" />
@@ -160,51 +160,58 @@ export default function Calendar({ hubId, theme, isOwner, archived, persona }: {
                   </div>
                 ) : (
                   <>
-                    <div className="flex gap-4 items-center">
-                      <div className="text-center shrink-0"><div className={'text-lg font-black ' + theme.text}>{timeOf(ev.scheduled_at)}</div></div>
-                      <div className="border-l border-slate-700 pl-4 flex-1">
-                        <h4 className="font-black text-white uppercase text-sm">{ev.title}</h4>
-                        {ev.location && <button onClick={() => navigateTo(ev.location!)} className={'inline-flex items-center gap-1 mt-1 text-[11px] ' + theme.text + ' hover:underline'}>{'\u{1F4CD}'} {ev.location} <span className="text-[9px] opacity-70">(naviga)</span></button>}
+                    {/* Banda visiva keyword-based: gradiente + icona + orario/titolo */}
+                    <div className={'flex items-center gap-3 p-4 bg-gradient-to-r ' + vis.gradient}>
+                      <span className="text-3xl drop-shadow">{vis.icon}</span>
+                      <div className="flex-1">
+                        <div className="text-lg font-black text-white leading-none drop-shadow">{timeOf(ev.scheduled_at)}</div>
+                        <h4 className="font-black text-white uppercase text-sm drop-shadow">{ev.title}</h4>
                       </div>
                       {editable && (
-                        <div className="flex flex-col gap-1 shrink-0">
-                          <button onClick={() => startEdit(ev)} className="text-[9px] uppercase text-slate-400 font-black">Modifica</button>
-                          <button onClick={() => deleteEvent(ev.id)} className="text-[9px] uppercase text-red-500 font-black">Elimina</button>
+                        <div className="flex flex-col gap-1 shrink-0 text-right">
+                          <button onClick={() => startEdit(ev)} className="text-[9px] uppercase text-white/90 font-black drop-shadow">Modifica</button>
+                          <button onClick={() => deleteEvent(ev.id)} className="text-[9px] uppercase text-white font-black bg-red-600/70 px-2 py-0.5 rounded">Elimina</button>
                         </div>
                       )}
                     </div>
-                    <div className="mt-3 pt-3 border-t border-slate-800">
-                      <button onClick={() => { setOpenEvent(isOpen ? null : ev.id); setDraft(''); }} className="text-[10px] uppercase font-black text-slate-400">Commenti ({evComments.length}) {isOpen ? '\u25B2' : '\u25BC'}</button>
-                      {isOpen && (
-                        <div className="mt-3 space-y-2">
-                          {evComments.map((c) => (
-                            <div key={c.id} className="bg-slate-950 rounded-lg p-2.5 border border-white/5">
-                              <div className="flex justify-between items-center">
-                                <span className={'text-[10px] font-black ' + theme.text}>{c.author}</span>
-                                {c.user_id === userId && !archived && editingC !== c.id && (
-                                  <div className="flex gap-2">
-                                    <button onClick={() => { setEditingC(c.id); setEditCText(c.content); }} className="text-[9px] text-slate-400">Modifica</button>
-                                    <button onClick={() => handleDeleteComment(c.id)} className="text-[9px] text-red-500">Elimina</button>
-                                  </div>
-                                )}
-                              </div>
-                              {editingC === c.id ? (
-                                <div className="flex gap-2 mt-1">
-                                  <input value={editCText} onChange={(e) => setEditCText(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded p-1.5 text-xs text-white outline-none" />
-                                  <button onClick={() => handleUpdateComment(c.id)} className={'text-xs font-black ' + theme.text}>OK</button>
-                                </div>
-                              ) : <p className="text-xs text-slate-200 mt-1">{c.content}</p>}
-                            </div>
-                          ))}
-                          {!mine && !archived && (
-                            <div className="flex gap-2 mt-2">
-                              <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Il tuo commento..." className="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white outline-none" />
-                              <button onClick={() => handlePostComment(ev.id)} disabled={!draft.trim()} className={'bg-gradient-to-r ' + theme.gradient + ' text-slate-950 px-4 rounded-lg font-black text-xs disabled:opacity-40'}>Invia</button>
-                            </div>
-                          )}
-                          {archived && <p className="text-[10px] text-slate-500 text-center pt-1">Archiviato - sola lettura</p>}
-                        </div>
+
+                    <div className="p-4 pt-3">
+                      {ev.location && (
+                        <button onClick={() => navigateTo(ev.location!)} className={'inline-flex items-center gap-1 text-[11px] ' + theme.text + ' hover:underline'}>{'\u{1F4CD}'} {ev.location} <span className="text-[9px] opacity-70">(naviga)</span></button>
                       )}
+                      <div className={'pt-3 ' + (ev.location ? 'mt-3 border-t border-slate-800' : '')}>
+                        <button onClick={() => { setOpenEvent(isOpen ? null : ev.id); setDraft(''); }} className="text-[10px] uppercase font-black text-slate-400">Commenti ({evComments.length}) {isOpen ? '\u25B2' : '\u25BC'}</button>
+                        {isOpen && (
+                          <div className="mt-3 space-y-2">
+                            {evComments.map((c) => (
+                              <div key={c.id} className="bg-slate-950 rounded-lg p-2.5 border border-white/5">
+                                <div className="flex justify-between items-center">
+                                  <span className={'text-[10px] font-black ' + theme.text}>{c.author}</span>
+                                  {c.user_id === userId && !archived && editingC !== c.id && (
+                                    <div className="flex gap-2">
+                                      <button onClick={() => { setEditingC(c.id); setEditCText(c.content); }} className="text-[9px] text-slate-400">Modifica</button>
+                                      <button onClick={() => handleDeleteComment(c.id)} className="text-[9px] text-red-500">Elimina</button>
+                                    </div>
+                                  )}
+                                </div>
+                                {editingC === c.id ? (
+                                  <div className="flex gap-2 mt-1">
+                                    <input value={editCText} onChange={(e) => setEditCText(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded p-1.5 text-xs text-white outline-none" />
+                                    <button onClick={() => handleUpdateComment(c.id)} className={'text-xs font-black ' + theme.text}>OK</button>
+                                  </div>
+                                ) : <p className="text-xs text-slate-200 mt-1">{c.content}</p>}
+                              </div>
+                            ))}
+                            {!mine && !archived && (
+                              <div className="flex gap-2 mt-2">
+                                <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Il tuo commento..." className="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white outline-none" />
+                                <button onClick={() => handlePostComment(ev.id)} disabled={!draft.trim()} className={'bg-gradient-to-r ' + theme.gradient + ' text-slate-950 px-4 rounded-lg font-black text-xs disabled:opacity-40'}>Invia</button>
+                              </div>
+                            )}
+                            {archived && <p className="text-[10px] text-slate-500 text-center pt-1">Archiviato - sola lettura</p>}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </>
                 )}
@@ -216,3 +223,4 @@ export default function Calendar({ hubId, theme, isOwner, archived, persona }: {
     </div>
   );
 }
+

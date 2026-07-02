@@ -2,15 +2,15 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useHub } from '../lib/HubContext';
-import type { Persona } from '../lib/personas';
+import type { Words } from '../lib/blueprints';
 
 type Theme = { text: string; gradient: string; border: string };
 type Member = { user_id: string; username: string; role: string; avatar: string | null };
 
-export default function Group({ hubId, theme, isOwner, archived, votesEnabled, persona }: { hubId: string; theme: Theme; isOwner: boolean; archived: boolean; votesEnabled: boolean; persona: Persona }) {
+export default function Group({ hubId, theme, isOwner, archived, votesEnabled, words, rounded }: { hubId: string; theme: Theme; isOwner: boolean; archived: boolean; votesEnabled: boolean; words: Words; rounded: string }) {
   const { userId, refresh, avatarUrl } = useHub();
-  const w = persona.words;
-  const r = persona.vibe.rounded;
+  const w = words;
+  const r = rounded;
   const [members, setMembers] = useState<Member[]>([]);
   const [passcode, setPasscode] = useState<string | null>(null);
   const [joinCode, setJoinCode] = useState('');
@@ -187,3 +187,4 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, p
     </div>
   );
 }
+

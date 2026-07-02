@@ -1,7 +1,6 @@
 ﻿'use client'
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Persona } from '../lib/personas';
 
 type Theme = { text: string; gradient: string; border: string };
 type EventRow = { id: string; title: string; scheduled_at: string; location: string | null };
@@ -56,8 +55,8 @@ const TIPS: Record<string, { name: string; type: string; rating: string; sponsor
   ],
 };
 
-export default function Consigli({ hubId, theme, category, persona }: { hubId: string; theme: Theme; category: string; persona: Persona }) {
-  const r = persona.vibe.rounded;
+export default function Consigli({ hubId, theme, category, rounded }: { hubId: string; theme: Theme; category: string; rounded: string }) {
+  const r = rounded;
   const [events, setEvents] = useState<EventRow[]>([]);
   const [weather, setWeather] = useState<Record<string, { temp: number; code: number; forecast: boolean } | null>>({});
   const [loading, setLoading] = useState(true);
@@ -148,3 +147,4 @@ export default function Consigli({ hubId, theme, category, persona }: { hubId: s
     </div>
   );
 }
+
