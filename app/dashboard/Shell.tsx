@@ -1,5 +1,5 @@
 ﻿'use client'
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import { useHub } from './lib/HubContext';
 import { getConfig } from './lib/blueprints';
 import type { ModuleId } from './lib/blueprints';
@@ -33,7 +33,7 @@ export default function Shell() {
   const currentTab: ModuleId = mods.includes(tab) ? tab : 'calendar';
   const greeting = w.greeting(username ?? '') + (isOwner ? w.ownerTag : '');
 
-  const render: Record<ModuleId, JSX.Element> = {
+  const render: Record<ModuleId, ReactElement> = {
     calendar: <Calendar hubId={active.hub_id} theme={t} isOwner={isOwner} archived={archived} words={w} rounded={p.vibe.rounded} />,
     cassa:    <Cassa hubId={active.hub_id} theme={t} archived={archived} />,
     votes:    <Votes hubId={active.hub_id} theme={t} archived={archived} isOwner={isOwner} voteLabel={voteLabel} />,
@@ -65,3 +65,4 @@ export default function Shell() {
     </main>
   );
 }
+
