@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 type Theme = { text: string; gradient: string; border: string };
-type EventRow = { id: string; title: string; scheduled_at: string; location: string | null };
+type EventRow = { id: string; title: string | null; scheduled_at: string; location: string | null };
 
 const CITIES: Record<string, { lat: number; lon: number }> = {
   'milano': { lat: 45.4642, lon: 9.19 }, 'piacenza': { lat: 45.0526, lon: 9.6929 },
@@ -63,8 +63,8 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from('events').select('id, title, scheduled_at, location').eq('hub_id', hubId).order('scheduled_at', { ascending: true });
-    const evs = data ?? [];
+    const { data } = await supabase.from('events_view').select('id, title, scheduled_at, location, revealed').eq('hub_id', hubId).order('scheduled_at', { ascending: true });
+    const evs = (data ?? []).filter((e: any) => e.revealed);
     setEvents(evs);
     const wx: Record<string, { temp: number; code: number; forecast: boolean } | null> = {};
     for (const ev of evs) {
@@ -147,4 +147,8 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
     </div>
   );
 }
+
+
+
+
 
