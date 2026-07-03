@@ -176,17 +176,6 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     });
   }
 
-  // Indice variante per-evento: conta occorrenze della stessa firma-regola nel giorno.
-  const variantMap = new Map<string, number>();
-  const seenRule = new Map<string, number>();
-  dayEvents.forEach((e) => {
-    const key = (e.revealed && e.title) ? e.title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[0-9]/g,'') : '__hidden__';
-    const sig = key;
-    const idx = seenRule.get(sig) ?? 0;
-    variantMap.set(e.id, idx);
-    seenRule.set(sig, idx + 1);
-  });
-
   // Altezza cartolina adattiva: pochi eventi -> scenografici; molti -> compatti (min 4 in viewport).
   const n = dayEvents.length;
   const bannerH = n <= 1 ? 'h-56' : n === 2 ? 'h-44' : n === 3 ? 'h-36' : 'h-24';
@@ -278,7 +267,6 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                 ) : (
                   <>
                     <div className={'relative flex flex-col justify-end p-4 bg-slate-800 ' + bannerH}>
-                      <img src={vis.image} alt="" className="absolute inset-0 w-full h-full object-cover" />
                       {vis.image && <img src={vis.image} alt="" className="absolute inset-0 w-full h-full object-cover" />}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
                       <span className="absolute top-3 right-3 text-4xl drop-shadow-lg opacity-90 z-10">{vis.icon}</span>
@@ -364,15 +352,3 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
