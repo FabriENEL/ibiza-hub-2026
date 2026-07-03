@@ -239,7 +239,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
             const mine = myCommentOn(ev.id);
             const isOpen = openEvent === ev.id;
             const editable = canManageEvent(ev) && !archived;
-            const vis = ev.revealed && ev.title ? eventVisual(ev.title, variantMap.get(ev.id) ?? 0) : { gradient: 'from-slate-700 to-slate-900', icon: '\u{1F512}', matched: true };
+            const vis = ev.revealed && ev.title ? eventVisual(ev.title, variantMap.get(ev.id) ?? 0) : { image: undefined, gradient: 'from-slate-700 to-slate-900', icon: '\u{1F512}', matched: true };
             const isSurprise = !!ev.reveal_at || ev.revealed_override !== null;
 
             return (
@@ -352,3 +352,4 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     </div>
   );
 }
+
