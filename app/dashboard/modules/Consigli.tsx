@@ -8,6 +8,7 @@ type Wx = { temp: number; code: number; forecast: boolean };
 
 const CITIES: Record<string, { lat: number; lon: number }> = {
   'malpensa': { lat: 45.6306, lon: 8.7281 }, 'linate': { lat: 45.4451, lon: 9.2767 },
+  'orio': { lat: 45.6739, lon: 9.7042 }, 'bergamo': { lat: 45.6983, lon: 9.6773 },
   'milano': { lat: 45.4642, lon: 9.19 }, 'piacenza': { lat: 45.0526, lon: 9.6929 },
   'vedano': { lat: 45.5905, lon: 9.2716 }, 'monza': { lat: 45.5845, lon: 9.2744 },
   'roma': { lat: 41.9028, lon: 12.4964 }, 'fiumicino': { lat: 41.8003, lon: 12.2389 },
@@ -121,13 +122,13 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
           <div className={'bg-slate-900 border ' + theme.border + ' p-4 flex items-center justify-between ' + r}>
             <div>
               <p className="font-bold text-white text-sm">{focus.title}</p>
-              <p className="text-[11px] text-slate-400">{focus.location ?? 'Luogo non indicato'} \u00B7 {fmtDay(focus.scheduled_at)}</p>
+              <p className="text-[11px] text-slate-400">{focus.location ?? 'Luogo non indicato'} · {fmtDay(focus.scheduled_at)}</p>
             </div>
             {wx ? (
               <div className="flex items-center gap-2">
                 <span className="text-2xl">{emoji(wx.code)}</span>
                 <div className="text-right">
-                  <p className={'text-xl font-black ' + theme.text}>{wx.temp}\u00B0</p>
+                  <p className={'text-xl font-black ' + theme.text}>{wx.temp}°</p>
                   <p className="text-[8px] uppercase text-slate-500 font-bold">{wx.forecast ? 'previsione' : 'attuale'}</p>
                 </div>
               </div>
@@ -148,7 +149,7 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
                 </div>
                 <p className="text-[11px] text-slate-400">{tip.type}</p>
               </div>
-              <span className={'text-sm font-black ' + theme.text}>\u2605 {tip.rating}</span>
+              <span className={'text-sm font-black ' + theme.text}>★ {tip.rating}</span>
             </div>
           ))}
         </div>
@@ -157,3 +158,5 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
     </div>
   );
 }
+
+
