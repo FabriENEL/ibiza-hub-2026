@@ -159,7 +159,11 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     return Math.floor(h / 24) + ' giorni';
   };
 
-  if (loading) return <p className="text-slate-500 text-center py-10">Carico...</p>;
+  if (loading) return (
+    <div className="space-y-3">
+      {[0, 1, 2].map((i) => <div key={i} className={'h-36 bg-slate-900 border border-white/5 animate-pulse ' + r} />)}
+    </div>
+  );
 
   const days = Array.from(new Set(events.map((e) => dayOf(e.scheduled_at)))).sort();
   const dayEvents = events.filter((e) => dayOf(e.scheduled_at) === selectedDay);
@@ -269,6 +273,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                     <div className={'relative flex flex-col justify-end p-4 bg-slate-800 ' + bannerH}>
                       {vis.image && <img src={vis.image} alt="" className="absolute inset-0 w-full h-full object-cover" />}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+                      {!ev.revealed && <div aria-hidden className="absolute inset-0 overflow-hidden"><div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2.4s_ease-in-out_infinite]" /></div>}
                       <span className="absolute top-3 right-3 text-4xl drop-shadow-lg opacity-90 z-10">{vis.icon}</span>
                       <span className="absolute top-3 left-3 bg-black/50 text-white text-xs font-black px-2 py-1 rounded-lg z-10">{timeOf(ev.scheduled_at)}</span>
                       <div className="relative z-10">
@@ -352,4 +357,5 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     </div>
   );
 }
+
 
