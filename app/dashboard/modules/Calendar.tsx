@@ -337,7 +337,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
           <div onClick={(e) => e.stopPropagation()}>
             <div className="relative h-72">
               {xpVis.image && <img src={xpVis.image} alt="" className="absolute inset-0 w-full h-full object-cover" />}
-              {!xpVis.image && <div className={'absolute inset-0 bg-gradient-to-br ' + xpVis.gradient} />}
+              {!xpVis.image && <div className={'absolute inset-0 bg-gradient-to-br ' + ('gradient' in xpVis ? xpVis.gradient : '')} />}
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-black/30 to-black/20" />
               {!xp.revealed && <div aria-hidden className="absolute inset-0 overflow-hidden"><div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2.4s_ease-in-out_infinite]" /></div>}
               <button onClick={() => { setOpenEvent(null); setDraft(''); setEditingC(null); }} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-black/50 text-white font-black text-sm backdrop-blur z-10 active:scale-95 transition-transform">{'\u2190'}</button>
@@ -414,3 +414,4 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     </div>
   );
 }
+
