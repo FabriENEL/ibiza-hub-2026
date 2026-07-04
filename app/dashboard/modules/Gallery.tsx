@@ -54,7 +54,11 @@ export default function Gallery({ hubId, theme, archived }: { hubId: string; the
   };
 
   const shown = items.filter((m) => filter === 'mine' ? m.user_id === userId : true);
-  if (loading) return <p className="text-slate-500 text-center py-10">Carico la galleria...</p>;
+  if (loading) return (
+    <div className="grid grid-cols-2 gap-3">
+      {[0, 1, 2, 3].map((i) => <div key={i} className="aspect-square bg-slate-900 border border-white/5 rounded-xl animate-pulse" />)}
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -73,12 +77,16 @@ export default function Gallery({ hubId, theme, archived }: { hubId: string; the
         <button onClick={() => setFilter('mine')} className={'flex-1 py-2 text-xs font-bold rounded-lg ' + (filter === 'mine' ? 'bg-slate-800 ' + theme.text : 'bg-slate-900 text-slate-400')}>Le mie</button>
       </div>
 
-      {shown.length === 0 ? <p className="text-slate-500 text-center py-10 text-sm">Nessuna foto ancora.</p> : (
+      {shown.length === 0 ? <div className="text-center py-12 bg-slate-900 border border-dashed border-white/10 rounded-2xl">
+          <p className="text-2xl mb-2">{'\u{1F4F8}'}</p>
+          <p className="text-slate-300 text-sm font-bold">Il primo ricordo manca ancora.</p>
+          <p className="text-slate-500 text-xs mt-1">Carichi una foto o un video con + Foto.</p>
+        </div> : (
         <div className="grid grid-cols-2 gap-3">
           {shown.map((m) => (
             <div key={m.id} onClick={() => setViewer(m)} className="bg-slate-900 rounded-xl overflow-hidden border border-white/5 cursor-pointer active:scale-95 transition-transform">
               <div className="aspect-square bg-slate-950">
-                {m.type === 'video' ? <video src={m.url} className="w-full h-full object-cover" /> : <img src={m.url} className="w-full h-full object-cover" alt="" />}
+                {m.type === 'video' ? <div className="relative w-full h-full"><video src={m.url} className="w-full h-full object-cover" /><span className="absolute inset-0 flex items-center justify-center text-white/90 text-2xl drop-shadow bg-black/20">{'\u25B6'}</span></div> : <img src={m.url} className="w-full h-full object-cover" alt="" />}
               </div>
             </div>
           ))}
@@ -99,3 +107,4 @@ export default function Gallery({ hubId, theme, archived }: { hubId: string; the
     </div>
   );
 }
+

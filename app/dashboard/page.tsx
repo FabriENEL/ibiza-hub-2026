@@ -21,29 +21,41 @@ function Lobby() {
   if (view === 'join')   return <JoinHub onClose={() => setView('list')} />;
 
   if (loading) {
-    return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400">Carico i tuoi Hub...</p></div>;
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-3 p-6">
+        <div className="w-full max-w-sm space-y-4">
+          {[0, 1].map((i) => <div key={i} className="h-20 bg-slate-900 border border-white/5 rounded-3xl animate-pulse" />)}
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center p-6 pt-12">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center p-6 pt-14">
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
-          <h1 className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-yellow-600 uppercase tracking-widest">I Miei Hub</h1>
+          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500 mb-2">Junction</p>
+          <h1 className="text-3xl font-black text-white">I miei Hub</h1>
           <p className="text-slate-400 text-sm mt-2">Ciao {username ?? ''}. Scegli un evento o entrane in uno.</p>
         </div>
 
         {memberships.length === 0 ? (
-          <div className="text-center text-slate-500 text-sm bg-slate-900 border border-white/5 p-6 rounded-3xl">Non fai ancora parte di nessun Hub.</div>
+          <div className="text-center bg-slate-900 border border-white/5 p-8 rounded-3xl">
+            <p className="text-2xl mb-2">{'\u{2728}'}</p>
+            <p className="text-slate-300 text-sm font-bold">Il suo primo evento inizia qui.</p>
+            <p className="text-slate-500 text-xs mt-1">Crei un Hub o entri con un codice invito.</p>
+          </div>
         ) : (
           <div className="space-y-4">
             {memberships.map(({ hub, role }) => {
               const th = THEME[hub.category] ?? THEME.travel;
               return (
                 <button key={hub.id} onClick={() => setActiveHubId(hub.id)}
-                  className="w-full bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 p-5 rounded-3xl flex items-center justify-between transition-all shadow-xl">
+                  className="relative w-full bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 p-5 pl-6 rounded-3xl flex items-center justify-between transition-all shadow-xl overflow-hidden active:scale-[0.98]">
+                  <div aria-hidden className={'absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ' + th.gradient} />
                   <div className="text-left">
-                    <span className={'font-black text-lg block text-white'}>{hub.name}</span>
-                    <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">{hub.category}</span>
+                    <span className="font-black text-lg block text-white">{hub.name}</span>
+                    <span className={'text-[10px] uppercase font-black tracking-widest ' + th.text}>{hub.category}</span>
                   </div>
                   {role === 'OWNER' && <span className="text-[9px] uppercase font-black text-slate-400 bg-slate-950 px-2 py-1 rounded border border-white/5">Owner</span>}
                 </button>
@@ -53,11 +65,11 @@ function Lobby() {
         )}
 
         <button onClick={() => setView('create')}
-          className="w-full mt-8 bg-gradient-to-r from-yellow-400 to-yellow-600 text-slate-950 p-4 rounded-3xl font-black uppercase tracking-[0.2em] text-[11px]">
-          + Crea Nuovo Hub
+          className="w-full mt-8 bg-white text-slate-950 p-4 rounded-3xl font-black uppercase tracking-[0.2em] text-[11px] active:scale-[0.98] transition-transform">
+          + Crea nuovo Hub
         </button>
         <button onClick={() => setView('join')}
-          className="w-full mt-3 bg-slate-900 border border-white/10 text-white p-4 rounded-3xl font-black uppercase tracking-[0.2em] text-[11px]">
+          className="w-full mt-3 bg-slate-900 border border-white/10 text-white p-4 rounded-3xl font-black uppercase tracking-[0.2em] text-[11px] active:scale-[0.98] transition-transform">
           Entra con codice
         </button>
       </div>
