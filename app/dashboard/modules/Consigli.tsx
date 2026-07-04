@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase';
 type Theme = { text: string; gradient: string; border: string };
 type EventRow = { id: string; title: string | null; scheduled_at: string; location: string | null; revealed: boolean };
 type Wx = { temp: number; code: number; forecast: boolean };
+type Tip = { name: string; type: string; rating: string; price: 1 | 2 | 3; sponsor: boolean };
+type Section = { id: string; title: string; image: string; tips: Tip[] };
 
 const CITIES: Record<string, { lat: number; lon: number }> = {
   'malpensa': { lat: 45.6306, lon: 8.7281 }, 'linate': { lat: 45.4451, lon: 9.2767 },
@@ -38,7 +40,6 @@ const emoji = (code: number) => {
   return '\u{1F321}\uFE0F';
 };
 
-// Tonalita ambientale della card in base al codice meteo: sole=ambra, pioggia=blu, temporale=indaco.
 const wxTone = (code: number) => {
   if (code === 0) return 'from-amber-500/25 to-orange-600/5';
   if (code <= 3) return 'from-sky-500/20 to-slate-800/5';
@@ -47,26 +48,64 @@ const wxTone = (code: number) => {
   return 'from-slate-600/20 to-slate-800/5';
 };
 
-const TIPS: Record<string, { name: string; type: string; rating: string; sponsor: boolean }[]> = {
-  party: [
-    { name: 'Rooftop Sunset Bar', type: 'Aperitivo con vista', rating: '4.7', sponsor: true },
-    { name: 'Club Nyx', type: 'Discoteca', rating: '4.5', sponsor: true },
-    { name: 'Trattoria da Gino', type: 'Cena di gruppo', rating: '4.6', sponsor: false },
-  ],
+// Macro-Hub per categoria: le sezioni derivano dal blueprint, non da un modello travel-first.
+const SECTIONS: Record<string, Section[]> = {
   travel: [
-    { name: 'Spiaggia della Cala', type: 'Spiaggia', rating: '4.8', sponsor: true },
-    { name: 'Noleggio Gommoni Blu', type: 'Attivita in mare', rating: '4.6', sponsor: true },
-    { name: 'Osteria del Porto', type: 'Ristorante', rating: '4.5', sponsor: false },
+    { id: 'move', title: 'Viaggi e spostamenti', image: '/events/takeoff.webp', tips: [
+      { name: 'Transfer Aeroporto Blu', type: 'Navetta privata 8 posti', rating: '4.7', price: 2, sponsor: true },
+      { name: 'Rent a Scooter Isla', type: 'Noleggio scooter e quad', rating: '4.5', price: 1, sponsor: false },
+    ]},
+    { id: 'beach', title: 'Spiagge e relax', image: '/events/beach.webp', tips: [
+      { name: 'Beach Club Salinas', type: 'Lettini e cabana \u00B7 meno affollato al mattino', rating: '4.8', price: 3, sponsor: true },
+      { name: 'Cala Escondida', type: 'Caletta libera \u00B7 tramonto', rating: '4.6', price: 1, sponsor: false },
+    ]},
+    { id: 'food', title: 'Ristorazione', image: '/events/groupdinner.webp', tips: [
+      { name: 'Osteria del Porto', type: 'Pesce \u00B7 tavolate fino a 20', rating: '4.5', price: 2, sponsor: false },
+      { name: 'El Chiringuito', type: 'Cucina mediterranea in spiaggia', rating: '4.7', price: 3, sponsor: true },
+    ]},
+    { id: 'night', title: 'Nightlife e intrattenimento', image: '/events/club.webp', tips: [
+      { name: 'Club Pacha', type: 'Guest list e tavoli \u00B7 line-up internazionale', rating: '4.6', price: 3, sponsor: true },
+      { name: 'Sunset Rooftop', type: 'Pre-serata con vista', rating: '4.7', price: 2, sponsor: false },
+    ]},
+  ],
+  party: [
+    { id: 'pre', title: 'Pre-serata', image: '/events/cocktails.webp', tips: [
+      { name: 'Rooftop Sunset Bar', type: 'Aperitivo con vista', rating: '4.7', price: 2, sponsor: true },
+      { name: 'Vermuteria Centrale', type: 'Cicchetti e spritz', rating: '4.5', price: 1, sponsor: false },
+    ]},
+    { id: 'food', title: 'Ristorazione', image: '/events/predinner.webp', tips: [
+      { name: 'Trattoria da Gino', type: 'Cena di gruppo \u00B7 menu fisso', rating: '4.6', price: 2, sponsor: false },
+      { name: 'Braceria Fuoco Vivo', type: 'Griglia \u00B7 tavolate numerose', rating: '4.7', price: 2, sponsor: true },
+    ]},
+    { id: 'night', title: 'Nightlife', image: '/events/club2.webp', tips: [
+      { name: 'Club Nyx', type: 'Discoteca \u00B7 prevendite disponibili', rating: '4.5', price: 3, sponsor: true },
+      { name: 'Live Arena', type: 'Concerti ed eventi', rating: '4.6', price: 2, sponsor: false },
+    ]},
   ],
   corporate: [
-    { name: 'Parcheggio Centro P1', type: 'Parcheggio a pagamento', rating: '4.3', sponsor: true },
-    { name: 'Hotel Executive', type: 'Pernottamento business', rating: '4.6', sponsor: true },
-    { name: 'Caffe Stazione', type: 'Hotspot Wi-Fi & coworking', rating: '4.4', sponsor: false },
+    { id: 'move', title: 'Logistica e transfer', image: '/events/uber.webp', tips: [
+      { name: 'NCC Executive', type: 'Auto con conducente \u00B7 fatturazione', rating: '4.6', price: 3, sponsor: true },
+      { name: 'Parcheggio Centro P1', type: 'Convenzione giornaliera', rating: '4.3', price: 2, sponsor: false },
+    ]},
+    { id: 'food', title: 'Business dining', image: '/events/groupdinner.webp', tips: [
+      { name: 'Ristorante Meridiana', type: 'Sala riservata \u00B7 Wi-Fi', rating: '4.6', price: 3, sponsor: true },
+      { name: 'Caffe Stazione', type: 'Coworking e light lunch', rating: '4.4', price: 1, sponsor: false },
+    ]},
+    { id: 'after', title: 'After-work', image: '/events/cocktails.webp', tips: [
+      { name: 'Terrazza Duomo 21', type: 'Aperitivo di team', rating: '4.7', price: 2, sponsor: false },
+    ]},
   ],
   social: [
-    { name: 'Enoteca del Borgo', type: 'Degustazione', rating: '4.7', sponsor: true },
-    { name: 'Ristorante Le Terrazze', type: 'Cena', rating: '4.6', sponsor: true },
-    { name: 'Gelateria Artigianale', type: 'Dopocena', rating: '4.8', sponsor: false },
+    { id: 'food', title: 'Ristorazione', image: '/events/groupdinner.webp', tips: [
+      { name: 'Ristorante Le Terrazze', type: 'Cena \u00B7 tavolate numerose', rating: '4.6', price: 2, sponsor: true },
+      { name: 'Enoteca del Borgo', type: 'Degustazione guidata', rating: '4.7', price: 2, sponsor: false },
+    ]},
+    { id: 'exp', title: 'Esperienze', image: '/events/sealunch.webp', tips: [
+      { name: 'Tour in Barca al Tramonto', type: 'Gruppi fino a 12', rating: '4.8', price: 3, sponsor: true },
+    ]},
+    { id: 'after', title: 'Dopocena', image: '/events/cocktails.webp', tips: [
+      { name: 'Gelateria Artigianale', type: 'Dopocena', rating: '4.8', price: 1, sponsor: false },
+    ]},
   ],
 };
 
@@ -100,7 +139,6 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
     setLoading(true);
     const { data } = await supabase.from('events_view').select('id, title, scheduled_at, location, revealed').eq('hub_id', hubId).order('scheduled_at', { ascending: true });
     const evs = (data ?? []) as EventRow[];
-    // Prossimo evento cronologico; se oscurato, fallback all'ultimo passato rivelato (non sveliamo la sorpresa).
     const next = evs.find((e) => new Date(e.scheduled_at).getTime() > now) ?? null;
     let target: EventRow | null = null;
     if (next && next.revealed) target = next;
@@ -118,8 +156,9 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
 
   useEffect(() => { load(); }, [hubId, now]);
 
-  const tips = TIPS[category] ?? TIPS.social;
+  const sections = SECTIONS[category] ?? SECTIONS.social;
   const fmtDay = (iso: string) => { const d = new Date(iso); const p = (n: number) => String(n).padStart(2, '0'); return p(d.getUTCDate()) + '/' + p(d.getUTCMonth() + 1) + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()); };
+  const priceTag = (p: 1 | 2 | 3) => '\u20AC'.repeat(p);
 
   return (
     <div className="space-y-6">
@@ -149,24 +188,33 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
         }
       </div>
 
-      <div>
-        <h3 className="font-black uppercase text-white tracking-wider mb-3">Consigli in zona</h3>
-        <div className="space-y-2">
-          {tips.map((tip, i) => (
-            <div key={i} className={'bg-slate-900 border ' + theme.border + ' p-4 flex items-center justify-between transition-transform active:scale-[0.98] ' + r}>
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="font-bold text-white text-sm">{tip.name}</p>
-                  {tip.sponsor && <span className={'text-[7px] uppercase font-black px-1.5 py-0.5 rounded bg-gradient-to-r ' + theme.gradient + ' text-slate-950'}>Sponsor</span>}
+      {sections.map((s) => (
+        <div key={s.id}>
+          <div className={'relative h-24 overflow-hidden mb-2 ' + r}>
+            <img src={s.image} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+            <h3 className="absolute bottom-3 left-4 font-black uppercase text-white tracking-wider drop-shadow-lg">{s.title}</h3>
+          </div>
+          <div className="space-y-2">
+            {s.tips.map((tip, i) => (
+              <div key={i} className={'bg-slate-900 border ' + theme.border + ' p-4 flex items-center justify-between transition-transform active:scale-[0.98] ' + r}>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-white text-sm">{tip.name}</p>
+                    {tip.sponsor && <span className={'text-[7px] uppercase font-black px-1.5 py-0.5 rounded bg-gradient-to-r ' + theme.gradient + ' text-slate-950'}>Sponsor</span>}
+                  </div>
+                  <p className="text-[11px] text-slate-400">{tip.type}</p>
                 </div>
-                <p className="text-[11px] text-slate-400">{tip.type}</p>
+                <div className="text-right shrink-0 ml-3">
+                  <span className={'text-sm font-black block ' + theme.text}>★ {tip.rating}</span>
+                  <span className="text-[10px] font-bold text-slate-500">{priceTag(tip.price)}</span>
+                </div>
               </div>
-              <span className={'text-sm font-black ' + theme.text}>★ {tip.rating}</span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-        <p className="text-[9px] text-slate-600 text-center mt-3">Le attivita partner compaiono qui in base alla categoria dell Hub.</p>
-      </div>
+      ))}
+      <p className="text-[9px] text-slate-600 text-center">Le attivita partner compaiono in base alla categoria dell Hub.</p>
     </div>
   );
 }
