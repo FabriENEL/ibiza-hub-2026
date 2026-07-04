@@ -207,9 +207,9 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
       </div>
 
       {days.length > 1 && (
-        <select value={selectedDay} onChange={(e) => setSelectedDay(e.target.value)} className="w-full bg-slate-900 text-white border border-white/10 p-3 rounded-xl font-bold uppercase text-xs outline-none">
-          {days.map((d) => <option key={d} value={d}>{dayLabel(d)}</option>)}
-        </select>
+        <div className="flex gap-2 overflow-x-auto pb-1 snap-x">
+          {days.map((d) => <button key={d} onClick={() => setSelectedDay(d)} className={'shrink-0 snap-start px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wide transition-all active:scale-95 ' + (selectedDay === d ? 'bg-gradient-to-r ' + theme.gradient + ' text-slate-950' : 'bg-slate-900 text-slate-400 border border-white/10')}>{dayLabel(d)}</button>)}
+        </div>
       )}
 
       {canCreate && !archived && adding && (
@@ -357,5 +357,6 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     </div>
   );
 }
+
 
 

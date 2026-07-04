@@ -38,6 +38,15 @@ const emoji = (code: number) => {
   return '\u{1F321}\uFE0F';
 };
 
+// Tonalita ambientale della card in base al codice meteo: sole=ambra, pioggia=blu, temporale=indaco.
+const wxTone = (code: number) => {
+  if (code === 0) return 'from-amber-500/25 to-orange-600/5';
+  if (code <= 3) return 'from-sky-500/20 to-slate-800/5';
+  if (code >= 51 && code <= 82) return 'from-blue-600/25 to-slate-800/5';
+  if (code >= 95) return 'from-indigo-700/30 to-slate-900/5';
+  return 'from-slate-600/20 to-slate-800/5';
+};
+
 const TIPS: Record<string, { name: string; type: string; rating: string; sponsor: boolean }[]> = {
   party: [
     { name: 'Rooftop Sunset Bar', type: 'Aperitivo con vista', rating: '4.7', sponsor: true },
@@ -91,8 +100,7 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
     setLoading(true);
     const { data } = await supabase.from('events_view').select('id, title, scheduled_at, location, revealed').eq('hub_id', hubId).order('scheduled_at', { ascending: true });
     const evs = (data ?? []) as EventRow[];
-    // Prossimo evento cronologico (scheduled_at > now). Se oscurato: fallback all'ultimo passato rivelato,
-    // per non svelare l'esistenza/luogo della sorpresa mantenendo comunque un meteo utile.
+    // Prossimo evento cronologico; se oscurato, fallback all'ultimo passato rivelato (non sveliamo la sorpresa).
     const next = evs.find((e) => new Date(e.scheduled_at).getTime() > now) ?? null;
     let target: EventRow | null = null;
     if (next && next.revealed) target = next;
@@ -117,22 +125,26 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
     <div className="space-y-6">
       <div>
         <h3 className="font-black uppercase text-white tracking-wider mb-3">Meteo del programma</h3>
-        {loading ? <p className="text-slate-500 text-center py-6 text-sm">Carico il meteo...</p> :
-          !focus ? <p className="text-slate-500 text-sm">Il meteo comparira al primo evento svelato con un luogo.</p> :
-          <div className={'bg-slate-900 border ' + theme.border + ' p-4 flex items-center justify-between ' + r}>
-            <div>
-              <p className="font-bold text-white text-sm">{focus.title}</p>
-              <p className="text-[11px] text-slate-400">{focus.location ?? 'Luogo non indicato'} · {fmtDay(focus.scheduled_at)}</p>
-            </div>
-            {wx ? (
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">{emoji(wx.code)}</span>
-                <div className="text-right">
-                  <p className={'text-xl font-black ' + theme.text}>{wx.temp}°</p>
-                  <p className="text-[8px] uppercase text-slate-500 font-bold">{wx.forecast ? 'previsione' : 'attuale'}</p>
-                </div>
+        {loading ? <div className={'h-32 bg-slate-900 border border-white/5 animate-pulse ' + r} /> :
+          !focus ? <p className="text-slate-500 text-sm">Il meteo comparira qui al primo evento svelato con un luogo. Aggiunga un evento al programma.</p> :
+          <div className={'relative overflow-hidden bg-slate-900 border ' + theme.border + ' p-5 ' + r}>
+            {wx && <div aria-hidden className={'absolute inset-0 bg-gradient-to-br ' + wxTone(wx.code)} />}
+            <div className="relative flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black mb-1">Prossimo evento</p>
+                <p className="font-black text-white text-lg leading-tight">{focus.title}</p>
+                <p className="text-[11px] text-slate-400 mt-1">{focus.location ?? 'Luogo non indicato'} · {fmtDay(focus.scheduled_at)}</p>
               </div>
-            ) : <span className="text-[10px] text-slate-600">meteo n/d</span>}
+              {wx ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-5xl drop-shadow">{emoji(wx.code)}</span>
+                  <div className="text-right">
+                    <p className={'text-4xl font-black ' + theme.text}>{wx.temp}°</p>
+                    <p className="text-[8px] uppercase text-slate-400 font-bold tracking-wider">{wx.forecast ? 'previsione' : 'attuale'}</p>
+                  </div>
+                </div>
+              ) : <span className="text-[10px] text-slate-600">meteo n/d</span>}
+            </div>
           </div>
         }
       </div>
@@ -141,7 +153,7 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
         <h3 className="font-black uppercase text-white tracking-wider mb-3">Consigli in zona</h3>
         <div className="space-y-2">
           {tips.map((tip, i) => (
-            <div key={i} className={'bg-slate-900 border ' + theme.border + ' p-4 flex items-center justify-between ' + r}>
+            <div key={i} className={'bg-slate-900 border ' + theme.border + ' p-4 flex items-center justify-between transition-transform active:scale-[0.98] ' + r}>
               <div>
                 <div className="flex items-center gap-2">
                   <p className="font-bold text-white text-sm">{tip.name}</p>
@@ -158,5 +170,3 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
     </div>
   );
 }
-
-
