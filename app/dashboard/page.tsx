@@ -13,6 +13,14 @@ const THEME: Record<string, { text: string; gradient: string; border: string }> 
   corporate: { text: 'text-blue-500',   gradient: 'from-blue-400 to-indigo-600',   border: 'border-blue-500/30' },
 };
 
+// Ogni categoria ha un volto: banner + icona. Il carattere dell'Hub inizia dalla selezione.
+const VISUAL: Record<string, { image: string; icon: string }> = {
+  travel:    { image: '/events/boat.webp',        icon: '\u{1F30D}' },
+  party:     { image: '/events/club.webp',        icon: '\u{1F389}' },
+  social:    { image: '/events/cocktails.webp',   icon: '\u{1F942}' },
+  corporate: { image: '/events/groupdinner.webp', icon: '\u{1F4BC}' },
+};
+
 function Lobby() {
   const { username, memberships, setActiveHubId, loading } = useHub();
   const [view, setView] = useState<'list' | 'create' | 'join'>('list');
@@ -22,9 +30,9 @@ function Lobby() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-3 p-6">
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-sm space-y-4">
-          {[0, 1].map((i) => <div key={i} className="h-20 bg-slate-900 border border-white/5 rounded-3xl animate-pulse" />)}
+          {[0, 1].map((i) => <div key={i} className="h-28 bg-slate-900 border border-white/5 rounded-3xl animate-pulse" />)}
         </div>
       </div>
     );
@@ -49,15 +57,20 @@ function Lobby() {
           <div className="space-y-4">
             {memberships.map(({ hub, role }) => {
               const th = THEME[hub.category] ?? THEME.travel;
+              const v = VISUAL[hub.category] ?? VISUAL.travel;
+              const archived = hub.status === 'archived';
               return (
                 <button key={hub.id} onClick={() => setActiveHubId(hub.id)}
-                  className="relative w-full bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 p-5 pl-6 rounded-3xl flex items-center justify-between transition-all shadow-xl overflow-hidden active:scale-[0.98]">
+                  className="relative w-full h-28 rounded-3xl overflow-hidden border border-white/10 text-left shadow-xl transition-transform active:scale-[0.98]">
+                  <img src={v.image} alt="" className={'absolute inset-0 w-full h-full object-cover' + (archived ? ' saturate-[0.35] sepia-[0.3]' : '')} />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 to-black/25" />
                   <div aria-hidden className={'absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ' + th.gradient} />
-                  <div className="text-left">
-                    <span className="font-black text-lg block text-white">{hub.name}</span>
-                    <span className={'text-[10px] uppercase font-black tracking-widest ' + th.text}>{hub.category}</span>
+                  <span className="absolute top-3 right-3 text-2xl drop-shadow">{v.icon}</span>
+                  <div className="relative h-full flex flex-col justify-center pl-6 pr-12">
+                    <span className="font-black text-xl text-white drop-shadow [font-family:var(--font-display)]">{hub.name}</span>
+                    <span className={'text-[10px] uppercase font-black tracking-widest ' + th.text}>{hub.category}{archived ? ' \u00B7 Ricordo' : ''}</span>
                   </div>
-                  {role === 'OWNER' && <span className="text-[9px] uppercase font-black text-slate-400 bg-slate-950 px-2 py-1 rounded border border-white/5">Owner</span>}
+                  {role === 'OWNER' && <span className="absolute bottom-3 right-3 text-[9px] uppercase font-black text-white/80 bg-black/50 px-2 py-1 rounded border border-white/10">Owner</span>}
                 </button>
               );
             })}
