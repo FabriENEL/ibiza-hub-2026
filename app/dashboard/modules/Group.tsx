@@ -116,7 +116,7 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
 
       <div className={'bg-slate-900 border ' + theme.border + ' p-4 ' + r}>
         <div className="flex items-center gap-4">
-          <Avatar url={avatarUrl} name="?" size="w-14 h-14" />
+          <div className={'rounded-full p-[2.5px] bg-gradient-to-br ' + theme.gradient}><Avatar url={avatarUrl} name="?" size="w-16 h-16" /></div>
           <div className="flex-1">
             <p className="text-[10px] uppercase text-slate-400 font-black mb-1">La mia foto profilo</p>
             {!archived && <label className={'inline-block bg-slate-800 text-white text-[10px] px-3 py-1.5 rounded-lg font-bold cursor-pointer ' + theme.text}>{uploadingAvatar ? 'Carico...' : 'Cambia foto'}<input type="file" accept="image/*" className="hidden" disabled={uploadingAvatar} onChange={handleAvatar} /></label>}
@@ -163,7 +163,7 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
       {isOwner && passcode && !archived && (
         <div className={'bg-slate-900 border ' + theme.border + ' p-4 ' + r}>
           <p className="text-[10px] uppercase text-slate-400 font-black mb-2">Codice invito</p>
-          <div className="bg-slate-950 rounded-xl p-3 text-center"><span className={'text-2xl font-black tracking-[0.3em] ' + theme.text}>{passcode}</span></div>
+          <div className="bg-slate-950 rounded-xl p-4 text-center border border-dashed border-white/15"><span className={'text-2xl font-black tracking-[0.3em] ' + theme.text}>{passcode}</span></div>
         </div>
       )}
 
@@ -187,4 +187,5 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
     </div>
   );
 }
+
 
