@@ -13,8 +13,9 @@ export default function DateTimePicker({ value, onChange }: { value: string; onC
 
   return (
     <div className="flex gap-2">
-      <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={fld + ' flex-1'} />
-      <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={fld} />
+      <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={fld + ' flex-1 min-w-0'} />
+      <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={fld + ' w-28 shrink-0'} />
     </div>
   );
 }
+
