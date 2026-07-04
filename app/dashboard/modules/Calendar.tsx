@@ -159,6 +159,17 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     return Math.floor(h / 24) + ' giorni';
   };
 
+  // Countdown all'inizio evento (distinto da quello di svelamento).
+  const eventCountdown = (iso: string) => {
+    const diff = new Date(iso).getTime() - now;
+    if (diff <= 0) return null;
+    const m = Math.floor(diff / 60000);
+    if (m < 60) return m + ' min';
+    const h = Math.floor(m / 60);
+    if (h < 48) return h + 'h ' + (m % 60) + 'min';
+    return Math.floor(h / 24) + ' giorni';
+  };
+
   if (loading) return (
     <div className="space-y-3">
       {[0, 1, 2].map((i) => <div key={i} className={'h-36 bg-slate-900 border border-white/5 animate-pulse ' + r} />)}
@@ -184,6 +195,13 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
   const n = dayEvents.length;
   const bannerH = n <= 1 ? 'h-56' : n === 2 ? 'h-44' : n === 3 ? 'h-36' : 'h-24';
   const titleSize = n <= 2 ? 'text-2xl' : n === 3 ? 'text-xl' : 'text-base';
+
+  // Evento espanso (overlay). vis ricalcolato qui perche' fuori dal map.
+  const xp = openEvent ? events.find((e) => e.id === openEvent) ?? null : null;
+  const xpVis = xp ? (xp.revealed && xp.title ? eventVisual(xp.title, variantMap.get(xp.id) ?? 0) : { image: undefined, gradient: 'from-slate-700 to-slate-900', icon: '\u{1F512}', matched: true }) : null;
+  const xpComments = xp ? comments.filter((c) => c.event_id === xp.id) : [];
+  const xpMine = xp ? myCommentOn(xp.id) : undefined;
+  const xpCd = xp ? eventCountdown(xp.scheduled_at) : null;
 
   const AudiencePicker = ({ selected, onToggle }: { selected: Set<string>; onToggle: (uid: string) => void }) => (
     <div className="bg-slate-950 border border-slate-700 rounded-lg p-2 space-y-1 max-h-40 overflow-y-auto">
@@ -240,8 +258,6 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
         <div className="space-y-3">
           {dayEvents.map((ev) => {
             const evComments = comments.filter((c) => c.event_id === ev.id);
-            const mine = myCommentOn(ev.id);
-            const isOpen = openEvent === ev.id;
             const editable = canManageEvent(ev) && !archived;
             const vis = ev.revealed && ev.title ? eventVisual(ev.title, variantMap.get(ev.id) ?? 0) : { image: undefined, gradient: 'from-slate-700 to-slate-900', icon: '\u{1F512}', matched: true };
             const isSurprise = !!ev.reveal_at || ev.revealed_override !== null;
@@ -270,7 +286,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                   </div>
                 ) : (
                   <>
-                    <div className={'relative flex flex-col justify-end p-4 bg-slate-800 ' + bannerH}>
+                    <div onClick={() => setOpenEvent(ev.id)} className={'relative flex flex-col justify-end p-4 bg-slate-800 cursor-pointer active:scale-[0.99] transition-transform ' + bannerH}>
                       {vis.image && <img src={vis.image} alt="" className="absolute inset-0 w-full h-full object-cover" />}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
                       {!ev.revealed && <div aria-hidden className="absolute inset-0 overflow-hidden"><div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2.4s_ease-in-out_infinite]" /></div>}
@@ -284,11 +300,12 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                         {!ev.revealed && !ev.reveal_at && (
                           <p className="text-[11px] text-white/90 font-bold mt-1 drop-shadow">In attesa di svelamento</p>
                         )}
+                        <p className="text-[10px] text-white/80 font-bold mt-1 drop-shadow">{'\u{1F4AC}'} {evComments.length} {evComments.length === 1 ? 'commento' : 'commenti'}</p>
                       </div>
                       {editable && (
                         <div className="absolute bottom-3 right-3 flex gap-2 z-10">
-                          <button onClick={() => startEdit(ev)} className="text-[9px] uppercase text-white font-black bg-black/50 px-2 py-1 rounded drop-shadow">Modifica</button>
-                          <button onClick={() => deleteEvent(ev.id)} className="text-[9px] uppercase text-white font-black bg-red-600/70 px-2 py-1 rounded">Elimina</button>
+                          <button onClick={(e) => { e.stopPropagation(); startEdit(ev); }} className="text-[9px] uppercase text-white font-black bg-black/50 px-2 py-1 rounded drop-shadow">Modifica</button>
+                          <button onClick={(e) => { e.stopPropagation(); deleteEvent(ev.id); }} className="text-[9px] uppercase text-white font-black bg-red-600/70 px-2 py-1 rounded">Elimina</button>
                         </div>
                       )}
                     </div>
@@ -306,47 +323,6 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                         )}
                       </div>
                     )}
-
-                    {ev.revealed && (
-                      <div className="p-4 pt-3">
-                        {ev.location && (
-                          <button onClick={() => navigateTo(ev.location!)} className={'inline-flex items-center gap-1 text-[11px] ' + theme.text + ' hover:underline'}>{'\u{1F4CD}'} {ev.location} <span className="text-[9px] opacity-70">(naviga)</span></button>
-                        )}
-                        <div className={'pt-3 ' + (ev.location ? 'mt-3 border-t border-slate-800' : '')}>
-                          <button onClick={() => { setOpenEvent(isOpen ? null : ev.id); setDraft(''); }} className="text-[10px] uppercase font-black text-slate-400">Commenti ({evComments.length}) {isOpen ? '\u25B2' : '\u25BC'}</button>
-                          {isOpen && (
-                            <div className="mt-3 space-y-2">
-                              {evComments.map((c) => (
-                                <div key={c.id} className="bg-slate-950 rounded-lg p-2.5 border border-white/5">
-                                  <div className="flex justify-between items-center">
-                                    <span className={'text-[10px] font-black ' + theme.text}>{c.author}</span>
-                                    {c.user_id === userId && !archived && editingC !== c.id && (
-                                      <div className="flex gap-2">
-                                        <button onClick={() => { setEditingC(c.id); setEditCText(c.content); }} className="text-[9px] text-slate-400">Modifica</button>
-                                        <button onClick={() => handleDeleteComment(c.id)} className="text-[9px] text-red-500">Elimina</button>
-                                      </div>
-                                    )}
-                                  </div>
-                                  {editingC === c.id ? (
-                                    <div className="flex gap-2 mt-1">
-                                      <input value={editCText} onChange={(e) => setEditCText(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded p-1.5 text-xs text-white outline-none" />
-                                      <button onClick={() => handleUpdateComment(c.id)} className={'text-xs font-black ' + theme.text}>OK</button>
-                                    </div>
-                                  ) : <p className="text-xs text-slate-200 mt-1">{c.content}</p>}
-                                </div>
-                              ))}
-                              {!mine && !archived && (
-                                <div className="flex gap-2 mt-2">
-                                  <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Il tuo commento..." className="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white outline-none" />
-                                  <button onClick={() => handlePostComment(ev.id)} disabled={!draft.trim()} className={'bg-gradient-to-r ' + theme.gradient + ' text-slate-950 px-4 rounded-lg font-black text-xs disabled:opacity-40'}>Invia</button>
-                                </div>
-                              )}
-                              {archived && <p className="text-[10px] text-slate-500 text-center pt-1">Archiviato - sola lettura</p>}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </>
                 )}
               </div>
@@ -354,9 +330,87 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
           })}
         </div>
       )}
+
+      {/* SCHERMATA EVENTO ESPANSA - stile post social */}
+      {xp && xpVis && (
+        <div className="fixed inset-0 bg-slate-950 z-[100] overflow-y-auto" onClick={() => { setOpenEvent(null); setDraft(''); setEditingC(null); }}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <div className="relative h-72">
+              {xpVis.image && <img src={xpVis.image} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+              {!xpVis.image && <div className={'absolute inset-0 bg-gradient-to-br ' + xpVis.gradient} />}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-black/30 to-black/20" />
+              {!xp.revealed && <div aria-hidden className="absolute inset-0 overflow-hidden"><div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2.4s_ease-in-out_infinite]" /></div>}
+              <button onClick={() => { setOpenEvent(null); setDraft(''); setEditingC(null); }} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-black/50 text-white font-black text-sm backdrop-blur z-10 active:scale-95 transition-transform">{'\u2190'}</button>
+              <span className="absolute top-4 right-4 text-5xl drop-shadow-lg z-10">{xpVis.icon}</span>
+              <div className="absolute bottom-4 left-5 right-5 z-10">
+                <p className="text-[10px] uppercase tracking-widest text-white/70 font-black">{dayLabel(dayOf(xp.scheduled_at))} \u00B7 {timeOf(xp.scheduled_at)}</p>
+                <h2 className="text-3xl font-black text-white uppercase leading-tight drop-shadow-lg [font-family:var(--font-display)]">{xp.revealed ? xp.title : 'DATI OSCURATI'}</h2>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-4 pb-16">
+              {xpCd && xp.revealed && (
+                <div className={'bg-slate-900 border ' + theme.border + ' p-4 text-center ' + r}>
+                  <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black mb-1">Inizia tra</p>
+                  <p className={'text-3xl font-black ' + theme.text}>{xpCd}</p>
+                </div>
+              )}
+              {!xpCd && xp.revealed && (
+                <div className={'bg-slate-900 border border-white/10 p-3 text-center ' + r}>
+                  <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black">Evento iniziato</p>
+                </div>
+              )}
+              {!xp.revealed && (
+                <div className={'bg-slate-900 border border-white/10 p-4 text-center ' + r}>
+                  <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black mb-1">{xp.reveal_at ? 'Sblocco tra' : 'In attesa di svelamento'}</p>
+                  {xp.reveal_at && <p className="text-2xl font-black text-white">{countdown(xp.reveal_at)}</p>}
+                </div>
+              )}
+
+              {xp.revealed && xp.location && (
+                <button onClick={() => navigateTo(xp.location!)} className={'w-full bg-gradient-to-r ' + theme.gradient + ' text-slate-950 py-4 rounded-2xl font-black text-sm uppercase tracking-wide active:scale-[0.98] transition-transform'}>
+                  {'\u{1F4CD}'} Portami a {xp.location}
+                </button>
+              )}
+
+              {xp.revealed && (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-widest text-slate-400 font-black mb-3">Commenti ({xpComments.length})</h3>
+                  <div className="space-y-2">
+                    {xpComments.length === 0 && <p className="text-xs text-slate-500">Nessun commento. Rompa il ghiaccio.</p>}
+                    {xpComments.map((c) => (
+                      <div key={c.id} className="bg-slate-900 rounded-xl p-3 border border-white/5">
+                        <div className="flex justify-between items-center">
+                          <span className={'text-[10px] font-black ' + theme.text}>{c.author}</span>
+                          {c.user_id === userId && !archived && editingC !== c.id && (
+                            <div className="flex gap-2">
+                              <button onClick={() => { setEditingC(c.id); setEditCText(c.content); }} className="text-[9px] text-slate-400">Modifica</button>
+                              <button onClick={() => handleDeleteComment(c.id)} className="text-[9px] text-red-500">Elimina</button>
+                            </div>
+                          )}
+                        </div>
+                        {editingC === c.id ? (
+                          <div className="flex gap-2 mt-1">
+                            <input value={editCText} onChange={(e) => setEditCText(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 rounded p-1.5 text-xs text-white outline-none" />
+                            <button onClick={() => handleUpdateComment(c.id)} className={'text-xs font-black ' + theme.text}>OK</button>
+                          </div>
+                        ) : <p className="text-xs text-slate-200 mt-1">{c.content}</p>}
+                      </div>
+                    ))}
+                    {!xpMine && !archived && (
+                      <div className="flex gap-2 mt-2">
+                        <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Il tuo commento..." className="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white outline-none" />
+                        <button onClick={() => handlePostComment(xp.id)} disabled={!draft.trim()} className={'bg-gradient-to-r ' + theme.gradient + ' text-slate-950 px-4 rounded-lg font-black text-xs disabled:opacity-40'}>Invia</button>
+                      </div>
+                    )}
+                    {archived && <p className="text-[10px] text-slate-500 text-center pt-1">Archiviato - sola lettura</p>}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-
-
