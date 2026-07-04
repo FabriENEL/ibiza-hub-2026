@@ -1,14 +1,14 @@
-import { MetadataRoute } from 'next'
+﻿import { MetadataRoute } from 'next'
  
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Addio al Celibato Ale',
-    short_name: 'Ibiza 2026',
-    description: 'Protocollo Operativo Ibiza 2026',
+    name: 'Junction',
+    short_name: 'Junction',
+    description: 'Junction - Il tuo evento di gruppo, un solo posto.',
     start_url: '/dashboard',
     display: 'standalone',
     background_color: '#020617',
-    theme_color: '#eab308',
+    theme_color: '#020617',
     icons: [
       {
         src: '/icon-192.png',
