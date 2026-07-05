@@ -15,6 +15,17 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
   const { userId, memberships } = useHub();
   const [leaves, setLeaves] = useState<Leaf[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [showHidden, setShowHidden] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try { setHidden(new Set(JSON.parse(localStorage.getItem('eg_hidden_leaves') ?? '[]'))); } catch {}
+  }, []);
+  const toggleHide = (key: string) => setHidden((prev) => {
+    const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key);
+    localStorage.setItem('eg_hidden_leaves', JSON.stringify([...n]));
+    return n;
+  });
 
   useEffect(() => {
     const build = async () => {
@@ -45,8 +56,9 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
   };
   const leafScale = (c: number) => 0.7 + Math.sqrt(c) * 0.13;
 
-  const clustered = leaves.length > 12;
-  const shown = clustered ? leaves.slice(0, 12) : leaves;
+  const visible = leaves.filter((l) => !hidden.has(l.key));
+  const clustered = visible.length > 12;
+  const shown = clustered ? visible.slice(0, 12) : visible;
   const stem = 'M' + P0.x + ' ' + P0.y + ' Q' + P1.x + ' ' + P1.y + ' ' + P2.x + ' ' + P2.y;
 
   // Foglia come path: due archi speculari + nervatura centrale. Disegnata a origine (0,0), orientata via transform.
@@ -107,9 +119,28 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
             })}
           </svg>
         )}
-        {clustered && <p className="text-center text-[10px] text-slate-500 mt-2">+{leaves.length - 12} eventi non mostrati</p>}
+        {clustered && <p className="text-center text-[10px] text-slate-500 mt-2">+{visible.length - 12} eventi non mostrati</p>}
+
+        {leaves.length > 0 && (
+          <div className="mt-6">
+            <button onClick={() => setShowHidden((s) => !s)} className="w-full text-[10px] uppercase tracking-wider text-slate-400 font-black py-2">
+              {showHidden ? 'Nascondi gestione' : 'Gestisci foglie' + (hidden.size ? ' (' + hidden.size + ' nascoste)' : '')}
+            </button>
+            {showHidden && (
+              <div className="space-y-1 mt-2">
+                {leaves.map((lf) => (
+                  <div key={lf.key} className="flex items-center justify-between bg-slate-900 border border-white/5 rounded-lg px-3 py-2">
+                    <span className={'text-xs ' + (hidden.has(lf.key) ? 'text-slate-600 line-through' : 'text-slate-200')}>{lf.name} \u00B7 {lf.count}</span>
+                    <button onClick={() => toggleHide(lf.key)} className="text-[9px] uppercase font-black text-slate-400">{hidden.has(lf.key) ? 'Ripristina' : 'Nascondi'}</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
       <style>{'@keyframes grow { to { stroke-dashoffset: 0 } } @keyframes pop { from { opacity:0; transform: scale(0) } to { opacity:1; transform: scale(1) } }'}</style>
     </div>
   );
 }
+
