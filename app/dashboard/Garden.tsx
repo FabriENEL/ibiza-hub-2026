@@ -5,12 +5,11 @@ import { useHub } from './lib/HubContext';
 
 type Leaf = { key: string; hubId: string | null; name: string; category: string; count: number; mature: boolean };
 
-// Fiore per categoria; foglia e stelo verde salvia (identita EventGarden).
 const FLOWER: Record<string, string> = {
   travel: '#f59e0b', party: '#a855f7', social: '#ec4899', corporate: '#3b82f6',
 };
 const SAGE = '#84a98c';
-const SAGE_DARK = '#52796f';
+const SAGE_DK = '#52796f';
 
 export default function Garden({ onClose, onOpenHub }: { onClose: () => void; onOpenHub: (id: string) => void }) {
   const { userId, memberships } = useHub();
@@ -33,28 +32,41 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
     build();
   }, [userId, memberships]);
 
-  // Punto su curva di Bezier quadratica: stelo del ramo. t in [0,1].
-  const P0 = { x: 200, y: 470 }, P1 = { x: 90, y: 250 }, P2 = { x: 250, y: 60 };
+  const P0 = { x: 200, y: 470 }, P1 = { x: 95, y: 250 }, P2 = { x: 250, y: 55 };
   const bezier = (t: number) => {
     const u = 1 - t;
-    return {
-      x: u * u * P0.x + 2 * u * t * P1.x + t * t * P2.x,
-      y: u * u * P0.y + 2 * u * t * P1.y + t * t * P2.y,
-    };
+    return { x: u*u*P0.x + 2*u*t*P1.x + t*t*P2.x, y: u*u*P0.y + 2*u*t*P1.y + t*t*P2.y };
   };
-  // Normale alla curva: direzione di uscita di foglia/fiore dallo stelo.
-  const normal = (t: number) => {
+  const tangentAngle = (t: number) => {
     const u = 1 - t;
-    const dx = 2 * u * (P1.x - P0.x) + 2 * t * (P2.x - P1.x);
-    const dy = 2 * u * (P1.y - P0.y) + 2 * t * (P2.y - P1.y);
-    const len = Math.hypot(dx, dy) || 1;
-    return { x: -dy / len, y: dx / len };
+    const dx = 2*u*(P1.x-P0.x) + 2*t*(P2.x-P1.x);
+    const dy = 2*u*(P1.y-P0.y) + 2*t*(P2.y-P1.y);
+    return Math.atan2(dy, dx) * 180 / Math.PI;
   };
-  const leafSize = (c: number) => 10 + Math.sqrt(c) * 5;
+  const leafScale = (c: number) => 0.7 + Math.sqrt(c) * 0.13;
 
   const clustered = leaves.length > 12;
   const shown = clustered ? leaves.slice(0, 12) : leaves;
-  const stemPath = 'M' + P0.x + ' ' + P0.y + ' Q' + P1.x + ' ' + P1.y + ' ' + P2.x + ' ' + P2.y;
+  const stem = 'M' + P0.x + ' ' + P0.y + ' Q' + P1.x + ' ' + P1.y + ' ' + P2.x + ' ' + P2.y;
+
+  // Foglia come path: due archi speculari + nervatura centrale. Disegnata a origine (0,0), orientata via transform.
+  const LeafShape = ({ x, y, angle, scale, fill, op }: { x: number; y: number; angle: number; scale: number; fill: string; op: number }) => (
+    <g transform={'translate(' + x + ' ' + y + ') rotate(' + angle + ') scale(' + scale + ')'}>
+      <path d="M0 0 Q14 -10 26 0 Q14 10 0 0 Z" fill={fill} opacity={op} />
+      <path d="M2 0 L24 0" stroke={SAGE_DK} strokeWidth="0.8" opacity={op * 0.6} />
+    </g>
+  );
+
+  // Fiore: 5 petali (cerchi in cerchio) + pistillo. Origine al centro.
+  const FlowerShape = ({ x, y, color, r }: { x: number; y: number; color: string; r: number }) => (
+    <g transform={'translate(' + x + ' ' + y + ')'}>
+      {[0, 72, 144, 216, 288].map((a) => {
+        const rad = a * Math.PI / 180;
+        return <circle key={a} cx={Math.cos(rad) * r} cy={Math.sin(rad) * r} r={r * 0.7} fill={color} opacity={0.9} />;
+      })}
+      <circle cx={0} cy={0} r={r * 0.55} fill="#fde68a" />
+    </g>
+  );
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center p-6 pt-10">
@@ -75,26 +87,20 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
           </div>
         ) : (
           <svg viewBox="0 0 400 500" className="w-full">
-            {/* stelo: crescita animata via stroke-dasharray */}
-            <path d={stemPath} fill="none" stroke={SAGE_DARK} strokeWidth="7" strokeLinecap="round"
-              style={{ strokeDasharray: 700, strokeDashoffset: 700, animation: 'grow 1.4s ease-out forwards' }} />
+            <path d={stem} fill="none" stroke={SAGE_DK} strokeWidth="8" strokeLinecap="round"
+              style={{ strokeDasharray: 720, strokeDashoffset: 720, animation: 'grow 1.4s ease-out forwards' }} />
             {shown.map((lf, i) => {
-              const t = 0.18 + (0.72 * i) / Math.max(1, shown.length - 1);
-              const base = bezier(t);
-              const dir = normal(t);
+              const t = 0.16 + (0.76 * i) / Math.max(1, shown.length - 1);
+              const b = bezier(t);
               const side = i % 2 === 0 ? 1 : -1;
-              const s = leafSize(lf.count);
-              const lx = base.x + dir.x * side * (s + 6);
-              const ly = base.y + dir.y * side * (s + 6);
-              const ang = Math.atan2(ly - base.y, lx - base.x) * 180 / Math.PI;
-              const delay = 1.2 + i * 0.12;
+              const ang = tangentAngle(t) + (side === 1 ? -42 : 42);
+              const sc = leafScale(lf.count);
+              const delay = 1.2 + i * 0.13;
               return (
                 <g key={lf.key} onClick={() => lf.hubId && onOpenHub(lf.hubId)} className="cursor-pointer"
-                   style={{ opacity: 0, animation: 'pop .5s ease-out ' + delay + 's forwards', transformOrigin: base.x + 'px ' + base.y + 'px' }}>
-                  <line x1={base.x} y1={base.y} x2={lx} y2={ly} stroke={SAGE_DARK} strokeWidth="2" />
-                  <ellipse cx={lx} cy={ly} rx={s} ry={s * 1.7} fill={lf.mature ? '#b8a049' : SAGE}
-                    opacity={lf.mature ? 0.7 : 0.92} transform={'rotate(' + ang + ' ' + lx + ' ' + ly + ')'} />
-                  <circle cx={base.x} cy={base.y} r={Math.max(4, s * 0.4)} fill={FLOWER[lf.category] ?? '#f59e0b'} />
+                   style={{ opacity: 0, animation: 'pop .5s ease-out ' + delay + 's forwards', transformOrigin: b.x + 'px ' + b.y + 'px' }}>
+                  <LeafShape x={b.x} y={b.y} angle={ang} scale={sc} fill={lf.mature ? '#b8a049' : SAGE} op={lf.mature ? 0.7 : 0.95} />
+                  <FlowerShape x={b.x} y={b.y} color={FLOWER[lf.category] ?? '#f59e0b'} r={3 + sc * 1.6} />
                   <title>{lf.name} \u00B7 {lf.count} {lf.count === 1 ? 'persona' : 'persone'}{lf.mature ? ' (ricordo)' : ''}</title>
                 </g>
               );
