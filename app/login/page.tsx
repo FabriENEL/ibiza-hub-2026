@@ -25,8 +25,11 @@ export default function LoginPage() {
     });
     if (error || !data.user) { setErr(error?.message ?? 'Registrazione non riuscita.'); setBusy(false); return; }
     // Sessione presente solo se confirm-email e' OFF; altrimenti l'utente deve confermare via mail.
-    if (!data.session) { setErr('Controlli la mail per confermare l\'accesso, poi rientri.'); setBusy(false); return; }
+    // Confirm-email ON: nessuna sessione al signup. L'username attende il primo signin post-conferma.
+    localStorage.setItem('eg_pending_username', username.trim());
+    if (!data.session) { setErr('Le abbiamo inviato una mail. Confermi il link, poi rientri con email e PIN.'); setBusy(false); return; }
     await supabase.from('profiles').update({ username: username.trim() }).eq('id', data.user.id);
+    localStorage.removeItem('eg_pending_username');
     router.push('/dashboard');
   };
 
@@ -37,6 +40,11 @@ export default function LoginPage() {
       email: email.trim(), password: pinToPassword(pin),
     });
     if (error) { setErr('Email o PIN non corretti.'); setBusy(false); return; }
+    const pending = localStorage.getItem('eg_pending_username');
+    if (pending) {
+      const { data: u } = await supabase.auth.getUser();
+      if (u.user) { await supabase.from('profiles').update({ username: pending }).eq('id', u.user.id); localStorage.removeItem('eg_pending_username'); }
+    }
     router.push('/dashboard');
   };
 
@@ -73,3 +81,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
