@@ -1,72 +1,79 @@
 ﻿'use client'
-import { useState, type ReactElement } from 'react';
+
+import { useState } from 'react';
 import { useHub } from './lib/HubContext';
-import { getConfig } from './lib/blueprints';
-import type { ModuleId } from './lib/blueprints';
+import { getBlueprint } from './lib/blueprints';
 import Calendar from './modules/Calendar';
 import Cassa from './modules/Cassa';
-import Group from './modules/Group';
-import Votes from './modules/Votes';
-import Gallery from './modules/Gallery';
-import Consigli from './modules/Consigli';
+import { EGMonogram } from '@/components/brand/EGMonogram';
 
-const ICONS: Record<ModuleId, string> = {
-  calendar: '\u{1F4C5}', cassa: '\u{1F4B0}', votes: '\u{1F3C6}',
-  gallery: '\u{1F4F8}', consigli: '\u{1F4A1}', group: '\u{1F465}',
+const THEME: Record<string, { text: string; gradient: string; border: string }> = {
+  travel:    { text: 'text-yellow-500', gradient: 'from-yellow-400 to-yellow-600', border: 'border-yellow-500/30' },
+  party:     { text: 'text-rose-500',   gradient: 'from-rose-400 to-pink-600',     border: 'border-rose-500/30' },
+  social:    { text: 'text-emerald-500',gradient: 'from-emerald-400 to-teal-600',  border: 'border-emerald-500/30' },
+  corporate: { text: 'text-blue-500',   gradient: 'from-blue-400 to-indigo-600',   border: 'border-blue-500/30' },
 };
+
+const ROUNDED = 'rounded-3xl';
+
+const TABS = [
+  { id: 'calendar', icon: '\u{1F4C5}', label: 'Eventi' },
+  { id: 'cassa',    icon: '\u{1F4B0}', label: 'Cassa' },
+  { id: 'gallery',  icon: '\u{1F4F8}', label: 'Foto' },
+  { id: 'group',    icon: '\u{1F465}', label: 'Gruppo' },
+];
 
 export default function Shell() {
   const { memberships, activeHubId, setActiveHubId, username } = useHub();
-  const [tab, setTab] = useState<ModuleId>('calendar');
+  const [tab, setTab] = useState('calendar');
+
   const active = memberships.find((m) => m.hub_id === activeHubId);
+  const cat = active?.hub.category ?? 'travel';
+  const t = THEME[cat] ?? THEME.travel;
+
   if (!active) return null;
 
-  const { persona: p, blueprint: bp } = getConfig(active.hub.category);
-  const t = p.theme;
-  const w = bp.words;
   const isOwner = active.role === 'OWNER';
   const archived = active.hub.status === 'archived';
-  const voteLabel = active.hub.vote_label ?? bp.defaults.voteLabel;
-  const votesEnabled = active.hub.votes_enabled ?? bp.defaults.votesEnabled;
-
-  const mods = bp.modules.filter((m) => m !== 'votes' || votesEnabled);
-  const currentTab: ModuleId = mods.includes(tab) ? tab : 'calendar';
-  const greeting = w.greeting(username ?? '') + (isOwner ? w.ownerTag : '');
-
-  const render: Record<ModuleId, ReactElement> = {
-    calendar: <Calendar hubId={active.hub_id} theme={t} isOwner={isOwner} archived={archived} words={w} rounded={p.vibe.rounded} />,
-    cassa:    <Cassa hubId={active.hub_id} theme={t} archived={archived} />,
-    votes:    <Votes hubId={active.hub_id} theme={t} archived={archived} isOwner={isOwner} voteLabel={voteLabel} />,
-    gallery:  <Gallery hubId={active.hub_id} theme={t} archived={archived} />,
-    consigli: <Consigli hubId={active.hub_id} theme={t} category={active.hub.category} rounded={p.vibe.rounded} />,
-    group:    <Group hubId={active.hub_id} theme={t} isOwner={isOwner} archived={archived} votesEnabled={votesEnabled} words={w} rounded={p.vibe.rounded} />,
-  };
+  const words = getBlueprint(cat).words;
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 pb-28">
-      {/* Glow ambientale: la categoria colora l'atmosfera dell'intera pagina */}
-      <div aria-hidden className={'pointer-events-none fixed inset-x-0 top-0 h-96 bg-gradient-to-b ' + t.gradient + ' opacity-[0.08] blur-3xl'} />
-
+    <main className="min-h-screen bg-slate-950 text-slate-100 pb-24">
       <header className="p-4 border-b border-white/5 bg-slate-950/80 sticky top-0 backdrop-blur-xl z-50 flex justify-between items-center">
-        <div>
-          <h2 className={'text-transparent bg-clip-text bg-gradient-to-r ' + t.gradient + ' text-[10px] font-black uppercase tracking-widest'}>{active.hub.name}{archived ? ' - RICORDO' : ''}</h2>
-          <p className="font-bold text-white text-sm">{greeting}</p>
+        <div className="flex items-center gap-3">
+          <EGMonogram className="h-9 w-auto shrink-0" />
+          <div>
+          <h2 className={`text-transparent bg-clip-text bg-gradient-to-r ${t.gradient} text-[10px] font-black uppercase tracking-widest`}>
+            {active.hub.name}
+          </h2>
+          <p className="font-bold text-white text-sm">Ciao {username ?? ''}</p>
+          </div>
         </div>
-        <button onClick={() => setActiveHubId(null)} className={'w-10 h-10 bg-slate-900 border border-white/5 text-sm active:scale-95 transition-transform ' + p.vibe.rounded}>X</button>
+        <button onClick={() => setActiveHubId(null)}
+          className="w-10 h-10 bg-slate-900 border border-white/5 rounded-full text-sm">🚪</button>
       </header>
 
-      {/* key={currentTab}: rimonta il contenitore al cambio tab e fa ripartire l'animazione */}
-      <div key={currentTab} className="relative p-4 animate-[moduleIn_.25s_ease-out]">{render[currentTab]}</div>
+      <div className="p-4">
+        {tab === 'calendar' && <Calendar hubId={active.hub_id} theme={t} isOwner={isOwner} archived={archived} words={words} rounded={ROUNDED} />}
+        {tab === 'cassa' && <Cassa hubId={active.hub_id} theme={t} archived={archived} />}
+        {tab === 'gallery'  && <Placeholder label="Galleria — prossimo modulo" />}
+        {tab === 'group'    && <Placeholder label="Gruppo — prossimo modulo" />}
+      </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-slate-950/70 backdrop-blur-xl border-t border-white/10 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] flex justify-around z-50">
-        {mods.map((id) => (
-          <button key={id} onClick={() => { navigator.vibrate?.(8); setTab(id); }} className={'flex flex-col items-center gap-1 shrink-0 px-3 py-1.5 rounded-xl transition-all duration-150 active:scale-95 ' + (currentTab === id ? t.text + ' bg-white/5' : 'text-slate-500')}>
-            <span className="text-xl">{ICONS[id]}</span>
-            <span className="text-[9px] font-black uppercase">{w.tabs[id]}</span>
+      <nav className="fixed bottom-0 left-0 right-0 bg-slate-950/90 backdrop-blur border-t border-slate-800 p-3 flex justify-around">
+        {TABS.map((tb) => (
+          <button key={tb.id} onClick={() => setTab(tb.id)}
+            className={`flex flex-col items-center gap-1 transition-colors ${tab === tb.id ? t.text : 'text-slate-500'}`}>
+            <span className="text-xl">{tb.icon}</span>
+            <span className="text-[9px] font-black uppercase">{tb.label}</span>
           </button>
         ))}
       </nav>
     </main>
   );
+}
+
+function Placeholder({ label }: { label: string }) {
+  return <div className="text-center text-slate-500 text-sm py-20">{label}</div>;
 }
 
