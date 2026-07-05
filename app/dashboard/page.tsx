@@ -23,7 +23,7 @@ const VISUAL: Record<string, { image: string; icon: string }> = {
 
 function Lobby() {
   const { username, memberships, setActiveHubId, loading } = useHub();
-  const [view, setView] = useState<'list' | 'create' | 'join'>('list');
+  const [view, setView] = useState<'list' | 'create' | 'join' | 'garden'>('list');
 
   if (view === 'create') return <CreateHub onClose={() => setView('list')} />;
   if (view === 'join')   return <JoinHub onClose={() => setView('list')} />;
@@ -105,4 +105,5 @@ export default function DashboardPage() {
     </AuthGuard>
   );
 }
+
 
