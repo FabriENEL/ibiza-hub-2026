@@ -17,6 +17,7 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
   const [loading, setLoading] = useState(true);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [showHidden, setShowHidden] = useState(false);
+  const [selected, setSelected] = useState<Leaf | null>(null);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try { setHidden(new Set(JSON.parse(localStorage.getItem('eg_hidden_leaves') ?? '[]'))); } catch {}
@@ -54,7 +55,8 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
     const dy = 2*u*(P1.y-P0.y) + 2*t*(P2.y-P1.y);
     return Math.atan2(dy, dx) * 180 / Math.PI;
   };
-  const leafScale = (c: number) => 0.7 + Math.sqrt(c) * 0.13;
+  // Range ampio per differenza visibile: 1p->0.75, 10p->1.35, 50p->2.4 circa.
+  const leafScale = (c: number) => 0.6 + Math.sqrt(c) * 0.26;
 
   const visible = leaves.filter((l) => !hidden.has(l.key));
   const clustered = visible.length > 12;
@@ -109,7 +111,7 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
               const sc = leafScale(lf.count);
               const delay = 1.2 + i * 0.13;
               return (
-                <g key={lf.key} onClick={() => lf.hubId && onOpenHub(lf.hubId)} className="cursor-pointer"
+                <g key={lf.key} onClick={() => setSelected(lf)} className="cursor-pointer"
                    style={{ opacity: 0, animation: 'pop .5s ease-out ' + delay + 's forwards', transformOrigin: b.x + 'px ' + b.y + 'px' }}>
                   <LeafShape x={b.x} y={b.y} angle={ang} scale={sc} fill={lf.mature ? '#b8a049' : SAGE} op={lf.mature ? 0.7 : 0.95} />
                   <FlowerShape x={b.x} y={b.y} color={FLOWER[lf.category] ?? '#f59e0b'} r={3 + sc * 1.6} />
@@ -139,8 +141,33 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
           </div>
         )}
       </div>
+      {selected && (() => {
+        const CAT_LABEL: Record<string, string> = { travel: 'Viaggio', party: 'Festa', social: 'Sociale', corporate: 'Corporate' };
+        const FLOWER_C: Record<string, string> = { travel: '#f59e0b', party: '#a855f7', social: '#ec4899', corporate: '#3b82f6' };
+        return (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-6" onClick={() => setSelected(null)}>
+            <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xs bg-slate-900 border border-white/10 rounded-3xl overflow-hidden">
+              <div className="h-2" style={{ background: FLOWER_C[selected.category] ?? '#f59e0b' }} />
+              <div className="p-5">
+                <p className="text-[10px] uppercase tracking-widest font-black mb-1" style={{ color: FLOWER_C[selected.category] ?? '#f59e0b' }}>{CAT_LABEL[selected.category] ?? selected.category}{selected.mature ? ' \u00B7 Ricordo' : ' \u00B7 Attivo'}</p>
+                <h3 className="text-2xl font-black text-white leading-tight">{selected.name}</h3>
+                <div className="flex items-center gap-2 mt-4">
+                  <span className="text-3xl font-black text-white">{selected.count}</span>
+                  <span className="text-xs text-slate-400">{selected.count === 1 ? 'partecipante' : 'partecipanti'}</span>
+                </div>
+                <button onClick={() => { if (selected.hubId) onOpenHub(selected.hubId); setSelected(null); }}
+                  className="w-full mt-5 bg-white text-slate-950 py-3 rounded-2xl font-black text-xs uppercase tracking-wider active:scale-[0.98] transition-transform">
+                  Vai all'Hub
+                </button>
+                <button onClick={() => setSelected(null)} className="w-full mt-2 text-slate-500 text-xs py-2">Chiudi</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       <style>{'@keyframes grow { to { stroke-dashoffset: 0 } } @keyframes pop { from { opacity:0; transform: scale(0) } to { opacity:1; transform: scale(1) } }'}</style>
     </div>
   );
 }
+
 
