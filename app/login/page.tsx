@@ -1,58 +1,73 @@
-'use client'
-
+﻿'use client'
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
+// PIN 4 cifre -> password Supabase (>=6 char): suffisso fisso non segreto, solo per soglia lunghezza.
+const pinToPassword = (pin: string) => pin + '#Jq';
+
 export default function LoginPage() {
   const router = useRouter();
-  const [name, setName] = useState('');
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
-  const handleLogin = async () => {
-    if (!name.trim() || busy) return;
-    setBusy(true);
-    setErr('');
+  const validPin = /^\d{4}$/.test(pin);
 
-    // 1) Chiedi al portiere un BADGE OSPITE (accesso anonimo).
-    //    Genera un utente reale con codice-identità vero, senza password.
-    const { data, error } = await supabase.auth.signInAnonymously();
-    if (error || !data.user) {
-      setErr('Accesso non riuscito. Riprova.');
-      setBusy(false);
-      return;
-    }
-
-    // 2) Salva il nome scelto come etichetta leggibile del profilo
-    //    (il profilo è già stato creato in automatico dal trigger del gradino 1).
-    await supabase
-      .from('profiles')
-      .update({ username: name.trim() })
-      .eq('id', data.user.id);
-
-    // 3) Entra.
+  const handleSignup = async () => {
+    if (!email.trim() || !username.trim() || !validPin || busy) return;
+    setBusy(true); setErr('');
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(), password: pinToPassword(pin),
+    });
+    if (error || !data.user) { setErr(error?.message ?? 'Registrazione non riuscita.'); setBusy(false); return; }
+    // Sessione presente solo se confirm-email e' OFF; altrimenti l'utente deve confermare via mail.
+    if (!data.session) { setErr('Controlli la mail per confermare l\'accesso, poi rientri.'); setBusy(false); return; }
+    await supabase.from('profiles').update({ username: username.trim() }).eq('id', data.user.id);
     router.push('/dashboard');
   };
+
+  const handleSignin = async () => {
+    if (!email.trim() || !validPin || busy) return;
+    setBusy(true); setErr('');
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(), password: pinToPassword(pin),
+    });
+    if (error) { setErr('Email o PIN non corretti.'); setBusy(false); return; }
+    router.push('/dashboard');
+  };
+
+  const submit = mode === 'signup' ? handleSignup : handleSignin;
+  const fld = 'rounded-lg px-4 py-3 bg-slate-800 text-white placeholder-slate-400 outline-none';
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
       <div className="w-full max-w-sm flex flex-col gap-4">
-        <h1 className="text-white text-2xl font-semibold text-center">Junction</h1>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-          placeholder="Il tuo nome"
-          className="rounded-lg px-4 py-3 bg-slate-800 text-white placeholder-slate-400 outline-none"
-        />
-        <button
-          onClick={handleLogin}
-          disabled={busy || !name.trim()}
-          className="rounded-lg px-4 py-3 bg-indigo-600 text-white font-medium disabled:opacity-40"
-        >
-          {busy ? 'Accesso…' : 'Entra'}
+        <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500 text-center">Junction</p>
+        <h1 className="text-white text-2xl font-black text-center [font-family:var(--font-display)]">{mode === 'signup' ? 'Crea account' : 'Bentornato'}</h1>
+
+        <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" inputMode="email" placeholder="Email" className={fld} />
+        {mode === 'signup' && (
+          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Nome utente" className={fld} />
+        )}
+        <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+          type="password" inputMode="numeric" placeholder="PIN (4 cifre)"
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          className={fld + ' tracking-[0.5em] text-center'} />
+
+        <button onClick={submit} disabled={busy || !email.trim() || !validPin || (mode === 'signup' && !username.trim())}
+          className="rounded-lg px-4 py-3 bg-white text-slate-950 font-black uppercase text-xs tracking-wider disabled:opacity-40 active:scale-[0.98] transition-transform">
+          {busy ? 'Attendere...' : mode === 'signup' ? 'Registrati' : 'Entra'}
         </button>
+
+        <button onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setErr(''); }}
+          className="text-slate-400 text-xs text-center">
+          {mode === 'signup' ? 'Ho gia un account - Accedi' : 'Nuovo? Crea un account'}
+        </button>
+
         {err && <p className="text-red-400 text-sm text-center">{err}</p>}
       </div>
     </div>
