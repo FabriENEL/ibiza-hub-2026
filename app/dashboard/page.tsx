@@ -5,6 +5,7 @@ import { useState } from 'react';
 import CreateHub from './CreateHub';
 import JoinHub from './JoinHub';
 import Shell from './Shell';
+import Garden from './Garden';
 
 const THEME: Record<string, { text: string; gradient: string; border: string }> = {
   travel:    { text: 'text-yellow-500', gradient: 'from-yellow-400 to-yellow-600', border: 'border-yellow-500/30' },
@@ -27,6 +28,7 @@ function Lobby() {
 
   if (view === 'create') return <CreateHub onClose={() => setView('list')} />;
   if (view === 'join')   return <JoinHub onClose={() => setView('list')} />;
+  if (view === 'garden') return <Garden onClose={() => setView('list')} onOpenHub={(id) => setActiveHubId(id)} />;
 
   if (loading) {
     return (
@@ -111,6 +113,7 @@ export default function DashboardPage() {
     </AuthGuard>
   );
 }
+
 
 
 
