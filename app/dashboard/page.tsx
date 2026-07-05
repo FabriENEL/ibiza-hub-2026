@@ -43,7 +43,13 @@ function Lobby() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
           <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500 mb-2">Junction</p>
-          <h1 className="text-3xl font-black text-white">I miei Hub <button onClick={() => setView("garden")} className="text-2xl align-middle" title="Il mio giardino">{String.fromCodePoint(0x1F331)}</button></h1>
+          <div className="flex items-center justify-center gap-3">
+            <h1 className="text-3xl font-black text-white">I miei Hub</h1>
+            <button onClick={() => setView("garden")} title="Il mio giardino"
+              className="w-11 h-11 flex items-center justify-center rounded-full bg-slate-900 border border-white/15 text-xl active:scale-90 transition-transform hover:border-white/40">
+              {String.fromCodePoint(0x1F331)}
+            </button>
+          </div>
           <p className="text-slate-400 text-sm mt-2">Ciao {username ?? ''}. Scegli un evento o entrane in uno.</p>
         </div>
 
@@ -105,5 +111,6 @@ export default function DashboardPage() {
     </AuthGuard>
   );
 }
+
 
 
