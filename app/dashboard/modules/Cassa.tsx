@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useHub } from '../lib/HubContext';
 
 type Theme = { text: string; gradient: string; border: string };
-type Expense = { id: string; payer_id: string; description: string; amount: number };
+type Expense = { id: string; payer_id: string; description: string; amount: number; split_with: string[] | null };
 type Member = { user_id: string; username: string };
 
 export default function Cassa({ hubId, theme, archived }: { hubId: string; theme: Theme; archived: boolean }) {
@@ -14,16 +14,17 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState(false);
+  const [splitSel, setSplitSel] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
     setLoading(true);
     const { data: exp } = await supabase
-      .from('expenses').select('id, payer_id, description, amount')
+      .from('expenses').select('id, payer_id, description, amount, split_with')
       .eq('hub_id', hubId).order('created_at', { ascending: false });
     const { data: mem } = await supabase
       .from('hub_members').select('user_id, profiles ( username )').eq('hub_id', hubId);
-    setExpenses((exp ?? []).map((e) => ({ ...e, amount: Number(e.amount) })));
+    setExpenses((exp ?? []).map((e: any) => ({ ...e, amount: Number(e.amount), split_with: e.split_with ?? null })));
     setMembers((mem ?? []).map((m: any) => ({ user_id: m.user_id, username: m.profiles?.username ?? '???' })));
     setLoading(false);
   };
@@ -34,9 +35,11 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
     const val = Number(amount);
     if (!desc.trim() || !val || val <= 0 || busy || !userId) return;
     setBusy(true);
-    const { error } = await supabase.from('expenses').insert({ hub_id: hubId, payer_id: userId, description: desc.trim(), amount: val });
+    // split_with = null quando includono tutti (default), altrimenti array esplicito degli inclusi.
+    const incl = splitSel.size === 0 || splitSel.size === members.length ? null : [...splitSel];
+    const { error } = await supabase.from('expenses').insert({ hub_id: hubId, payer_id: userId, description: desc.trim(), amount: val, split_with: incl });
     setBusy(false);
-    if (!error) { setDesc(''); setAmount(''); load(); }
+    if (!error) { setDesc(''); setAmount(''); setSplitSel(new Set()); load(); }
   };
 
   const handleDelete = async (id: string) => {
@@ -48,11 +51,15 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
   const nameOf = (uid: string) => members.find((m) => m.user_id === uid)?.username ?? '???';
 
   const total = expenses.reduce((s, e) => s + e.amount, 0);
-  const perHead = members.length > 0 ? total / members.length : 0;
+  // Split asimmetrico: ogni spesa grava solo sui suoi inclusi (split_with) o su tutti (null).
+  // dovuto[m] = somma delle quote pro-capite delle sole spese in cui m e' incluso.
   const balance: Record<string, number> = {};
-  members.forEach((m) => {
-    const paid = expenses.filter((e) => e.payer_id === m.user_id).reduce((s, e) => s + e.amount, 0);
-    balance[m.user_id] = paid - perHead;
+  members.forEach((m) => { balance[m.user_id] = 0; });
+  expenses.forEach((e) => {
+    const incl = e.split_with && e.split_with.length > 0 ? e.split_with : members.map((m) => m.user_id);
+    const share = e.amount / incl.length;
+    incl.forEach((uid) => { if (balance[uid] !== undefined) balance[uid] -= share; });
+    if (balance[e.payer_id] !== undefined) balance[e.payer_id] += e.amount;
   });
   const transfers: { from: string; to: string; amount: number }[] = [];
   const debtors = members.map((m) => ({ id: m.user_id, amt: balance[m.user_id] })).filter((x) => x.amt < -0.01).sort((a, b) => a.amt - b.amt);
@@ -97,8 +104,8 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
           <p className="text-lg font-black text-white">{total.toFixed(2)} €</p>
         </div>
         <div className={'bg-slate-900 p-3 rounded-xl text-center border ' + theme.border}>
-          <span className="text-[9px] uppercase text-slate-500 font-bold tracking-wider">A testa</span>
-          <p className={'text-lg font-black ' + theme.text}>{perHead.toFixed(2)} €</p>
+          <span className="text-[9px] uppercase text-slate-500 font-bold tracking-wider">Media/persona</span>
+          <p className={'text-lg font-black ' + theme.text}>{(members.length ? total / members.length : 0).toFixed(2)} €</p>
         </div>
       </div>
 
@@ -109,6 +116,25 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
               className="flex-1 bg-slate-950 p-2.5 rounded-lg text-sm text-white border border-slate-700 outline-none focus:border-slate-500 transition-colors" />
             <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="€"
               className="w-24 bg-slate-950 p-2.5 rounded-lg text-sm text-white border border-slate-700 font-black outline-none focus:border-slate-500 transition-colors" />
+          </div>
+          <div>
+            <p className="text-[9px] uppercase text-slate-500 font-black mb-1.5 tracking-wider">Chi partecipa {splitSel.size === 0 ? '(tutti)' : '(' + splitSel.size + ')'}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {members.map((m) => {
+                const on = splitSel.size === 0 || splitSel.has(m.user_id);
+                return (
+                  <button key={m.user_id} type="button" onClick={() => setSplitSel((prev) => {
+                    // Set vuoto = tutti. Primo tocco materializza la lista piena, poi toglie il deselezionato.
+                    const base = prev.size === 0 ? new Set(members.map((x) => x.user_id)) : new Set(prev);
+                    base.has(m.user_id) ? base.delete(m.user_id) : base.add(m.user_id);
+                    return base.size === members.length ? new Set<string>() : base;
+                  })}
+                    className={'text-[10px] font-black px-2.5 py-1 rounded-full ' + (on ? 'bg-gradient-to-r ' + theme.gradient + ' text-slate-950' : 'bg-slate-800 text-slate-500 line-through')}>
+                    {m.username}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <button onClick={handleAdd} disabled={busy || !desc.trim() || !amount}
             className={'w-full bg-gradient-to-r ' + theme.gradient + ' text-slate-950 py-2.5 rounded-lg font-black text-xs uppercase disabled:opacity-40 active:scale-[0.98] transition-transform'}>
@@ -145,3 +171,6 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
     </div>
   );
 }
+
+
+
