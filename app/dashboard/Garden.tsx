@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useHub } from './lib/HubContext';
 
-type LeafData = { key: string; hubId: string | null; name: string; category: string; count: number; duration: number; mature: boolean };
+type LeafData = { key: string; hubId: string | null; name: string; category: string; count: number; duration: number; isOwner: boolean; mature: boolean };
 
 const FLOWER: Record<string, string> = {
   travel: '#f59e0b', party: '#a855f7', social: '#ec4899', corporate: '#3b82f6',
@@ -30,22 +30,22 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
   useEffect(() => {
     const build = async () => {
       setLoading(true);
-      const owned = memberships.filter((m) => m.role === 'OWNER' && m.hub.status === 'active');
-      const live = await Promise.all(owned.map(async (m) => {
+      // Zero-state: TUTTE le membership attive diventano ramoscelli, non solo OWNER. Il ruolo determina la tinta.
+      const active = memberships.filter((m) => m.hub.status === 'active');
+      const live = await Promise.all(active.map(async (m) => {
         const { count } = await supabase.from('hub_members').select('*', { count: 'exact', head: true }).eq('hub_id', m.hub_id);
         const { data: h } = await supabase.from('hubs').select('start_date, end_date').eq('id', m.hub_id).single();
         const dur = h ? Math.max(1, Math.round((+new Date(h.end_date) - +new Date(h.start_date)) / 86400000) + 1) : 1;
-        return { key: 'live-' + m.hub_id, hubId: m.hub_id, name: m.hub.name, category: m.hub.category, count: count ?? 1, duration: dur, mature: false };
+        return { key: 'live-' + m.hub_id, hubId: m.hub_id, name: m.hub.name, category: m.hub.category, count: count ?? 1, duration: dur, isOwner: m.role === 'OWNER', mature: false };
       }));
       const { data: mat } = await supabase.from('garden_leaves').select('hub_id, hub_name, category, participant_count, duration_days').eq('owner_id', userId);
-      const matured: LeafData[] = (mat ?? []).map((l: any, i: number) => ({ key: 'mat-' + i, hubId: l.hub_id, name: l.hub_name, category: l.category, count: l.participant_count, duration: l.duration_days ?? 1, mature: true }));
+      const matured: LeafData[] = (mat ?? []).map((l: any, i: number) => ({ key: 'mat-' + i, hubId: l.hub_id, name: l.hub_name, category: l.category, count: l.participant_count, duration: l.duration_days ?? 1, isOwner: true, mature: true }));
       setLeaves([...live, ...matured]);
       setLoading(false);
     };
     build();
   }, [userId, memberships]);
 
-  // Ramo sinuoso: Bezier cubica (A,B,C,D) -> curva a S con flesso, piu organica di un arco.
   const A = { x: 55, y: 445 }, B = { x: 130, y: 250 }, C = { x: 300, y: 260 }, D = { x: 375, y: 95 };
   const bez = (t: number) => {
     const u = 1 - t;
@@ -60,25 +60,22 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
     const dy = 3*u*u*(B.y-A.y) + 6*u*t*(C.y-B.y) + 3*t*t*(D.y-C.y);
     return Math.atan2(dy, dx);
   };
-  // Hash sinusoidale deterministico [0,1): irregolarita stabile tra render, evita sfarfallio di Math.random.
   const jit = (i: number, k: number) => {
     const v = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
     return v - Math.floor(v);
   };
 
-  const leafColor = (dur: number) => {
-    const k = Math.min(1, dur / 10);
-    const l = 28 + k * 30, s = 22 + k * 30;
-    return 'hsl(135 ' + s.toFixed(0) + '% ' + l.toFixed(0) + '%)';
-  };
+  // Luminosita foglia = ruolo. Owner: verde brillante. Guest/Coowner: verde scuro.
+  const leafColor = (isOwner: boolean) => isOwner ? 'hsl(130 45% 55%)' : 'hsl(140 30% 30%)';
   const leafLen = (c: number) => 16 + Math.sqrt(c) * 6;
+  // Lunghezza ramoscello proporzionale ai giorni, con clamp: evita ramoscelli impercettibili o fuori-margine.
+  const twigLen = (days: number, leaf: number) => Math.max(28, Math.min(72, 22 + days * 5)) + leaf * 0.4;
 
   const visible = leaves.filter((l) => !hidden.has(l.key));
   const clustered = visible.length > 14;
   const shown = clustered ? visible.slice(0, 14) : visible;
   const stemPath = 'M' + A.x + ' ' + A.y + ' C' + B.x + ' ' + B.y + ' ' + C.x + ' ' + C.y + ' ' + D.x + ' ' + D.y;
 
-  // Foglia asimmetrica: arco dorsale != ventrale, punta con curl -> sagoma organica, nervatura curva.
   const LeafShape = ({ x, y, ang, len, fill, op, curl }: any) => {
     const w = len * 0.5, w2 = len * 0.62, cx = len * 0.55, tip = len, dip = curl * len * 0.14;
     return (
@@ -119,17 +116,17 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
               const side = i % 2 === 0 ? -1 : 1;
               const spread = (Math.PI / 2.6) + jit(i, 1) * 0.5;
               const perp = tan(t) + side * spread;
-              const twLen = (26 + leafLen(lf.count) * 0.6) * (0.8 + jit(i, 2) * 0.5);
-              const tx = b.x + Math.cos(perp) * twLen, ty = b.y + Math.sin(perp) * twLen;
+              const tw = twigLen(lf.duration, leafLen(lf.count)) * (0.85 + jit(i, 2) * 0.3);
+              const tx = b.x + Math.cos(perp) * tw, ty = b.y + Math.sin(perp) * tw;
               const curl = jit(i, 3) * 2 - 1;
-              const ctrlX = b.x + Math.cos(perp) * twLen * 0.5 - side * 8;
-              const ctrlY = b.y + Math.sin(perp) * twLen * 0.5;
+              const ctrlX = b.x + Math.cos(perp) * tw * 0.5 - side * 8;
+              const ctrlY = b.y + Math.sin(perp) * tw * 0.5;
               const delay = 1.3 + i * 0.14;
               return (
                 <g key={lf.key} onClick={() => setSelected(lf)} className="cursor-pointer"
                    style={{ opacity: 0, animation: 'pop .5s ease-out ' + delay + 's forwards', transformOrigin: b.x + 'px ' + b.y + 'px' }}>
                   <path d={'M' + b.x + ' ' + b.y + ' Q' + ctrlX + ' ' + ctrlY + ' ' + tx + ' ' + ty} stroke={STEM} strokeWidth="2.4" fill="none" strokeLinecap="round" />
-                  <LeafShape x={tx} y={ty} ang={perp} len={leafLen(lf.count)} fill={lf.mature ? '#a8935a' : leafColor(lf.duration)} op={lf.mature ? 0.8 : 1} curl={curl} />
+                  <LeafShape x={tx} y={ty} ang={perp} len={leafLen(lf.count)} fill={lf.mature ? '#a8935a' : leafColor(lf.isOwner)} op={lf.mature ? 0.8 : 1} curl={curl} />
                   <FlowerShape x={b.x} y={b.y} color={FLOWER[lf.category] ?? '#f59e0b'} r={3.5 + Math.sqrt(lf.count) * 0.5} />
                 </g>
               );
@@ -167,7 +164,7 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
             <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xs bg-slate-900 border border-white/10 rounded-3xl overflow-hidden">
               <div className="h-2" style={{ background: col }} />
               <div className="p-5">
-                <p className="text-[10px] uppercase tracking-widest font-black mb-1" style={{ color: col }}>{CAT[selected.category] ?? selected.category}{selected.mature ? ' \u00B7 Ricordo' : ' \u00B7 Attivo'}</p>
+                <p className="text-[10px] uppercase tracking-widest font-black mb-1" style={{ color: col }}>{CAT[selected.category] ?? selected.category}{selected.mature ? ' \u00B7 Ricordo' : selected.isOwner ? ' \u00B7 Owner' : ' \u00B7 Ospite'}</p>
                 <h3 className="text-2xl font-black text-white leading-tight">{selected.name}</h3>
                 <div className="flex gap-5 mt-4">
                   <div><span className="text-2xl font-black text-white">{selected.count}</span><p className="text-[9px] uppercase text-slate-500 font-bold">{selected.count === 1 ? 'persona' : 'persone'}</p></div>
