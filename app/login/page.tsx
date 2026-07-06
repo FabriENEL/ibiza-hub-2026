@@ -36,8 +36,14 @@ export default function LoginPage() {
   const handleSignin = async () => {
     if (!email.trim() || !validPin || busy) return;
     setBusy(true); setErr('');
+    let loginEmail = email.trim();
+    if (!loginEmail.includes('@')) {
+      const { data: resolved } = await supabase.rpc('email_for_username', { p_username: loginEmail });
+      if (!resolved) { setErr('Username o PIN non corretti.'); setBusy(false); return; }
+      loginEmail = resolved as string;
+    }
     const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(), password: pinToPassword(pin),
+      email: loginEmail, password: pinToPassword(pin),
     });
     if (error) { setErr('Email o PIN non corretti.'); setBusy(false); return; }
     const pending = localStorage.getItem('eg_pending_username');
@@ -57,7 +63,7 @@ export default function LoginPage() {
         <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500 text-center">Junction</p>
         <h1 className="text-white text-2xl font-black text-center [font-family:var(--font-display)]">{mode === 'signup' ? 'Crea account' : 'Bentornato'}</h1>
 
-        <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" inputMode="email" placeholder="Email" className={fld} />
+        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={mode === 'signin' ? 'Email o username' : 'Email'} className={fld} />
         {mode === 'signup' && (
           <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Nome utente" className={fld} />
         )}
@@ -81,4 +87,9 @@ export default function LoginPage() {
     </div>
   );
 }
+
+
+
+
+
 
