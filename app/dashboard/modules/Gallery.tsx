@@ -65,10 +65,16 @@ export default function Gallery({ hubId, theme, archived }: { hubId: string; the
       <div className="flex justify-between items-center">
         <h3 className="font-black uppercase text-white tracking-wider">Galleria</h3>
         {!archived && (
-          <label className={'bg-gradient-to-r ' + theme.gradient + ' text-slate-950 text-[10px] px-3 py-1.5 rounded-lg font-black uppercase cursor-pointer'}>
-            {uploading ? 'Carico...' : '+ Foto'}
-            <input type="file" accept="image/*,video/*" className="hidden" disabled={uploading} onChange={handleUpload} />
-          </label>
+          <div className="flex gap-2">
+            <label className={'bg-gradient-to-r ' + theme.gradient + ' text-slate-950 text-[10px] px-3 py-1.5 rounded-lg font-black uppercase cursor-pointer'}>
+              {uploading ? 'Carico...' : '+ Foto'}
+              <input type="file" accept="image/*,video/*" className="hidden" disabled={uploading} onChange={handleUpload} />
+            </label>
+            <label className={'bg-slate-900 border border-white/15 text-white text-[10px] px-3 py-1.5 rounded-lg font-black uppercase cursor-pointer'}>
+              {String.fromCodePoint(0x1F4F7)} Scatta
+              <input type="file" accept="image/*" capture="environment" className="hidden" disabled={uploading} onChange={handleUpload} />
+            </label>
+          </div>
         )}
       </div>
 
@@ -107,4 +113,5 @@ export default function Gallery({ hubId, theme, archived }: { hubId: string; the
     </div>
   );
 }
+
 
