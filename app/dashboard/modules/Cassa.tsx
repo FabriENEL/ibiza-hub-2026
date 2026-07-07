@@ -1,6 +1,7 @@
 ﻿'use client'
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { logEvent } from '../lib/logEvent';
 import { useHub } from '../lib/HubContext';
 
 type Theme = { text: string; gradient: string; border: string };
@@ -39,7 +40,7 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
     const incl = splitSel.size === 0 || splitSel.size === members.length ? null : [...splitSel];
     const { error } = await supabase.from('expenses').insert({ hub_id: hubId, payer_id: userId, description: desc.trim(), amount: val, split_with: incl });
     setBusy(false);
-    if (!error) { setDesc(''); setAmount(''); setSplitSel(new Set()); load(); }
+    if (!error) { logEvent('expense_added', { amount: val, split: incl ? incl.length : members.length }, hubId); setDesc(''); setAmount(''); setSplitSel(new Set()); load(); }
   };
 
   const handleDelete = async (id: string) => {
@@ -171,6 +172,7 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
     </div>
   );
 }
+
 
 
 
