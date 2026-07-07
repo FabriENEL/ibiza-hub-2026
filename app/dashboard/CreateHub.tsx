@@ -1,6 +1,7 @@
 ﻿'use client'
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { logEvent } from './lib/logEvent';
 import { useHub } from './lib/HubContext';
 export default function CreateHub({ onClose }: { onClose: () => void }) {
   const { refresh, setActiveHubId } = useHub();
@@ -28,6 +29,7 @@ export default function CreateHub({ onClose }: { onClose: () => void }) {
     const out = await res.json();
     if (!res.ok) { setErr(out.error ?? 'Creazione non riuscita.'); setBusy(false); return; }
     await refresh();
+    logEvent('hub_created', { category }, out.hub_id);
     setActiveHubId(out.hub_id);
   };
   const cats = [['travel','Viaggi'],['party','Feste'],['social','Social'],['corporate','Corporate']];
@@ -65,3 +67,4 @@ export default function CreateHub({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
+

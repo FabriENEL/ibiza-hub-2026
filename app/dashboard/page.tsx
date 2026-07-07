@@ -6,6 +6,7 @@ import CreateHub from './CreateHub';
 import JoinHub from './JoinHub';
 import Shell from './Shell';
 import Garden from './Garden';
+import { logEvent } from './lib/logEvent';
 
 const THEME: Record<string, { text: string; gradient: string; border: string }> = {
   travel:    { text: 'text-yellow-500', gradient: 'from-yellow-400 to-yellow-600', border: 'border-yellow-500/30' },
@@ -68,7 +69,7 @@ function Lobby() {
               const v = VISUAL[hub.category] ?? VISUAL.travel;
               const archived = hub.status === 'archived';
               return (
-                <button key={hub.id} onClick={() => setActiveHubId(hub.id)}
+                <button key={hub.id} onClick={() => { logEvent('hub_opened', { category: hub.category }, hub.id); setActiveHubId(hub.id); }}
                   className="relative w-full h-28 rounded-3xl overflow-hidden border border-white/10 text-left shadow-xl transition-transform active:scale-[0.98]">
                   <img src={v.image} alt="" className={'absolute inset-0 w-full h-full object-cover' + (archived ? ' saturate-[0.35] sepia-[0.3]' : '')} />
                   <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 to-black/25" />
@@ -113,6 +114,7 @@ export default function DashboardPage() {
     </AuthGuard>
   );
 }
+
 
 
 
