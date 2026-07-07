@@ -2,6 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { logEvent } from '@/app/dashboard/lib/logEvent';
 
 // PIN 4 cifre -> password Supabase (>=6 char): suffisso fisso non segreto, solo per soglia lunghezza.
 const pinToPassword = (pin: string) => pin + '#Jq';
@@ -30,6 +31,7 @@ export default function LoginPage() {
     if (!data.session) { setErr('Le abbiamo inviato una mail. Confermi il link, poi rientri con email e PIN.'); setBusy(false); return; }
     await supabase.from('profiles').update({ username: username.trim() }).eq('id', data.user.id);
     localStorage.removeItem('eg_pending_username');
+    logEvent('signup');
     router.push('/dashboard');
   };
 
@@ -51,6 +53,7 @@ export default function LoginPage() {
       const { data: u } = await supabase.auth.getUser();
       if (u.user) { await supabase.from('profiles').update({ username: pending }).eq('id', u.user.id); localStorage.removeItem('eg_pending_username'); }
     }
+    logEvent('login');
     router.push('/dashboard');
   };
 
@@ -87,6 +90,7 @@ export default function LoginPage() {
     </div>
   );
 }
+
 
 
 
