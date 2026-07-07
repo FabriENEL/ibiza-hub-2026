@@ -1,6 +1,7 @@
 ﻿'use client'
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { logEvent } from '../lib/logEvent';
 import { useHub } from '../lib/HubContext';
 import { eventVisual, ruleSignature } from '../lib/eventVisuals';
 import DateTimePicker from '../lib/DateTimePicker';
@@ -97,7 +98,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
       revealed_override: null,
     });
     setBusy(false);
-    if (!error) { resetAdd(); load(); }
+    if (!error) { logEvent('event_created', { surprise }, hubId); resetAdd(); load(); }
   };
 
   const startEdit = async (ev: EventRow) => {
@@ -129,6 +130,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
 
   const setOverride = async (id: string, val: boolean | null) => {
     await supabase.from('events').update({ revealed_override: val }).eq('id', id);
+    if (val === true) logEvent('event_revealed', {}, hubId);
     load();
   };
 
@@ -414,4 +416,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     </div>
   );
 }
+
+
+
 
