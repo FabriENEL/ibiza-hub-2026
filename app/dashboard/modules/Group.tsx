@@ -3,12 +3,14 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useHub } from '../lib/HubContext';
 import type { Words } from '../lib/blueprints';
+import Julie from '../Julie';
 
 type Theme = { text: string; gradient: string; border: string };
 type Member = { user_id: string; username: string; role: string; avatar: string | null };
 
 export default function Group({ hubId, theme, isOwner, archived, votesEnabled, words, rounded }: { hubId: string; theme: Theme; isOwner: boolean; archived: boolean; votesEnabled: boolean; words: Words; rounded: string }) {
   const { userId, refresh, avatarUrl } = useHub();
+  const [julieOpen, setJulieOpen] = useState(false);
   const w = words;
   const r = rounded;
   const [members, setMembers] = useState<Member[]>([]);
@@ -112,6 +114,17 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
 
   return (
     <div className="space-y-5">
+      <button onClick={() => setJulieOpen(true)}
+        className="w-full flex items-center gap-3 p-3.5 rounded-2xl active:scale-[0.99] transition-transform"
+        style={{ background: "linear-gradient(135deg, rgba(163,181,133,0.18), rgba(163,181,133,0.06))", border: "1px solid rgba(163,181,133,0.3)" }}>
+        <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black shrink-0" style={{ background: "#A3B585", color: "#14161A" }}>J</div>
+        <div className="text-left flex-1">
+          <p className="text-white font-black text-sm">Parla con J.U.L.I.E.</p>
+          <p className="text-emerald-200/50 text-[11px]">La Sua assistente per eventi e spese</p>
+        </div>
+        <span className="text-emerald-200/40 text-lg">&rsaquo;</span>
+      </button>
+      {julieOpen && <Julie onClose={() => setJulieOpen(false)} />}
       {archived && <div className={'bg-slate-800 border border-slate-600 p-4 text-center ' + r}><span className="text-[10px] uppercase font-black text-slate-300 tracking-widest">Archiviato - sola lettura</span></div>}
 
       <div className={'bg-slate-900 border ' + theme.border + ' p-4 ' + r}>
@@ -187,5 +200,6 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
     </div>
   );
 }
+
 
 
