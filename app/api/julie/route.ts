@@ -19,6 +19,10 @@ function azionePrompt(oggi: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Kill-switch: se Julie e disattivata, risponde con cortesia senza chiamare Groq.
+  if (process.env.NEXT_PUBLIC_JULIE_ENABLED !== 'true') {
+    return NextResponse.json({ reply: 'Mi perdoni, sono momentaneamente non disponibile. Riprovi piu tardi.' });
+  }
   const key = process.env.GROQ_API_KEY;
   if (!key) return NextResponse.json({ error: 'Configurazione mancante' }, { status: 500 });
 
@@ -46,3 +50,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Errore interno', detail: String(e) }, { status: 500 });
   }
 }
+

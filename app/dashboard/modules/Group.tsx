@@ -11,6 +11,7 @@ type Member = { user_id: string; username: string; role: string; avatar: string 
 export default function Group({ hubId, theme, isOwner, archived, votesEnabled, words, rounded }: { hubId: string; theme: Theme; isOwner: boolean; archived: boolean; votesEnabled: boolean; words: Words; rounded: string }) {
   const { userId, refresh, avatarUrl } = useHub();
   const [julieOpen, setJulieOpen] = useState(false);
+  const julieOn = process.env.NEXT_PUBLIC_JULIE_ENABLED === 'true';
   const w = words;
   const r = rounded;
   const [members, setMembers] = useState<Member[]>([]);
@@ -200,6 +201,8 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
     </div>
   );
 }
+
+
 
 
 
