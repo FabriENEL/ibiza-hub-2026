@@ -52,7 +52,7 @@ export default function Shell() {
           <h2 className={'text-transparent bg-clip-text bg-gradient-to-r ' + t.gradient + ' text-[10px] font-black uppercase tracking-widest'}>{active.hub.name}{archived ? ' - RICORDO' : ''}</h2>
           <p className="font-bold text-white text-sm">{greeting}</p>
         </div>
-        <button onClick={() => setActiveHubId(null)} title="Torna alla lobby" aria-label="Torna alla lobby" className={'w-10 h-10 bg-slate-900 border border-white/5 flex items-center justify-center text-slate-300 hover:text-white active:scale-95 transition-all ' + p.vibe.rounded}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" /></svg></button>
+        <button onClick={() => setActiveHubId(null)} title="Torna alla lobby" aria-label="Torna alla lobby" className={'w-10 h-10 bg-slate-900 border-2 flex items-center justify-center hover:text-white active:scale-95 transition-all ' + t.border + ' ' + t.text + ' ' + p.vibe.rounded}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" /></svg></button>
       </header>
 
       {/* key={currentTab}: rimonta il contenitore al cambio tab e fa ripartire l'animazione */}
@@ -69,5 +69,6 @@ export default function Shell() {
     </main>
   );
 }
+
 
 
