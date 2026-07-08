@@ -124,7 +124,7 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
         </div>
         <span className="text-emerald-200/40 text-lg">&rsaquo;</span>
       </button>
-      {julieOpen && <Julie onClose={() => setJulieOpen(false)} />}
+      {julieOpen && <Julie onClose={() => setJulieOpen(false)} hubId={hubId} />}
       {archived && <div className={'bg-slate-800 border border-slate-600 p-4 text-center ' + r}><span className="text-[10px] uppercase font-black text-slate-300 tracking-widest">Archiviato - sola lettura</span></div>}
 
       <div className={'bg-slate-900 border ' + theme.border + ' p-4 ' + r}>
@@ -200,6 +200,7 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
     </div>
   );
 }
+
 
 
 

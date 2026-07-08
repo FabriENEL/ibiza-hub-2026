@@ -1,17 +1,37 @@
 ﻿'use client'
 import { useState, useRef, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useHub } from './lib/HubContext';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
+type PendingEvent = { title: string; scheduled_at: string; location: string | null; description: string | null };
 
-export default function Julie({ onClose }: { onClose: () => void }) {
+export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: string }) {
+  const { userId } = useHub();
   const [messages, setMessages] = useState<Msg[]>([
     { role: 'assistant', content: 'Buongiorno. Sono J.U.L.I.E., come posso esserLe utile?' },
   ]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<PendingEvent | null>(null);
+  const [saving, setSaving] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, busy]);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, busy, pending]);
+
+  const parseAction = (text: string): PendingEvent | null => {
+    const t = text.trim();
+    if (!t.includes('aggiungi_evento')) return null;
+    try {
+      const start = t.indexOf('{'), end = t.lastIndexOf('}');
+      if (start < 0 || end < 0) return null;
+      const obj = JSON.parse(t.slice(start, end + 1));
+      if (obj.action === 'aggiungi_evento' && obj.title && obj.scheduled_at) {
+        return { title: obj.title, scheduled_at: obj.scheduled_at, location: obj.location ?? null, description: obj.description ?? null };
+      }
+    } catch { /* non JSON valido: testo normale */ }
+    return null;
+  };
 
   const send = async () => {
     const text = input.trim();
@@ -24,15 +44,43 @@ export default function Julie({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/julie', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: next }),
+        body: JSON.stringify({ messages: next, hubId }),
       });
       const data = await res.json();
-      setMessages([...next, { role: 'assistant', content: data.reply ?? 'Mi scusi, non ho compreso.' }]);
+      const reply = data.reply ?? 'Mi scusi, non ho compreso.';
+      const action = parseAction(reply);
+      if (action) {
+        setPending(action);
+        setMessages([...next, { role: 'assistant', content: 'Ho preparato l\'evento. Confermi qui sotto per aggiungerlo.' }]);
+      } else {
+        setMessages([...next, { role: 'assistant', content: reply }]);
+      }
     } catch {
       setMessages([...next, { role: 'assistant', content: 'Mi perdoni, ho avuto un problema di connessione. Riprovi.' }]);
     } finally {
       setBusy(false);
     }
+  };
+
+  const confirmEvent = async () => {
+    if (!pending || !userId || saving) return;
+    setSaving(true);
+    const { error } = await supabase.from('events').insert({
+      hub_id: hubId, title: pending.title, scheduled_at: pending.scheduled_at,
+      location: pending.location, description: pending.description,
+      created_by: userId, reveal_visible_to: [], revealed_override: null,
+    });
+    setSaving(false);
+    setMessages((m) => [...m, { role: 'assistant', content: error ? 'Mi perdoni, non sono riuscita ad aggiungere l\'evento.' : 'Fatto. L\'evento e stato aggiunto al calendario.' }]);
+    setPending(null);
+  };
+
+  // Mostra l'ora letterale (coerente col calendario, che usa UTC grezzo). Nessuna conversione fuso.
+  const fmt = (iso: string) => {
+    const m = iso.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if (!m) return iso;
+    const mesi = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+    return m[3] + ' ' + mesi[parseInt(m[2]) - 1] + ' alle ' + m[4] + ':' + m[5];
   };
 
   return (
@@ -60,6 +108,21 @@ export default function Julie({ onClose }: { onClose: () => void }) {
               </div>
             </div>
           ))}
+          {pending && (
+            <div className="rounded-2xl p-4" style={{ background: 'rgba(163,181,133,0.14)', border: '1px solid rgba(163,181,133,0.35)' }}>
+              <p className="text-[10px] uppercase tracking-wider text-emerald-200/60 font-black mb-2">Nuovo evento</p>
+              <p className="text-white font-black text-base">{pending.title}</p>
+              <p className="text-emerald-100/80 text-xs mt-1 capitalize">{fmt(pending.scheduled_at)}</p>
+              {pending.location && <p className="text-emerald-100/60 text-xs mt-0.5">{pending.location}</p>}
+              <div className="flex gap-2 mt-3">
+                <button onClick={confirmEvent} disabled={saving}
+                  className="flex-1 py-2.5 rounded-xl font-black text-xs uppercase active:scale-95 transition-transform disabled:opacity-50"
+                  style={{ background: '#A3B585', color: '#14161A' }}>{saving ? 'Aggiungo...' : 'Conferma'}</button>
+                <button onClick={() => setPending(null)} disabled={saving}
+                  className="px-4 py-2.5 rounded-xl font-black text-xs uppercase text-slate-400 border border-white/10">Annulla</button>
+              </div>
+            </div>
+          )}
           {busy && (
             <div className="flex justify-start">
               <div className="px-4 py-3 rounded-2xl" style={{ background: 'rgba(163,181,133,0.12)' }}>
@@ -81,11 +144,10 @@ export default function Julie({ onClose }: { onClose: () => void }) {
             className="flex-1 bg-slate-950/50 text-white placeholder-slate-500 rounded-xl px-3.5 py-2.5 text-sm outline-none border border-white/10 focus:border-white/25 transition-colors" />
           <button onClick={send} disabled={busy || !input.trim()}
             className="px-4 rounded-xl font-black text-sm disabled:opacity-40 active:scale-95 transition-transform"
-            style={{ background: '#A3B585', color: '#14161A' }}>
-            Invia
-          </button>
+            style={{ background: '#A3B585', color: '#14161A' }}>Invia</button>
         </div>
       </div>
     </div>
   );
 }
+
