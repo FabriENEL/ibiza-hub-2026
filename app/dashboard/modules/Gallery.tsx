@@ -1,6 +1,7 @@
 ﻿'use client'
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { logEvent } from '../lib/logEvent';
 import { useHub } from '../lib/HubContext';
 
 type Theme = { text: string; gradient: string; border: string };
@@ -35,7 +36,7 @@ export default function Gallery({ hubId, theme, archived }: { hubId: string; the
     const isVideo = file.type.startsWith('video/');
     const { error: dbErr } = await supabase.from('media').insert({ hub_id: hubId, url, type: isVideo ? 'video' : 'image', user_id: userId, event_date: new Date().toISOString().split('T')[0] });
     setUploading(false);
-    if (!dbErr) load(); else alert('Errore: ' + dbErr.message);
+    if (!dbErr) { logEvent('photo_uploaded', { type: isVideo ? 'video' : 'image' }, hubId); load(); } else alert('Errore: ' + dbErr.message);
   };
 
   const handleDownload = async (m: Media) => {
@@ -113,5 +114,6 @@ export default function Gallery({ hubId, theme, archived }: { hubId: string; the
     </div>
   );
 }
+
 
 
