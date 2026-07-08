@@ -49,8 +49,8 @@ function Lobby() {
           <div className="flex items-center justify-center gap-3">
             <h1 className="text-3xl font-black text-white">I miei Hub</h1>
             <button onClick={() => { logEvent("garden_opened"); setView("garden"); }} title="Il mio giardino"
-              className="w-11 h-11 flex items-center justify-center rounded-full bg-slate-900 border border-white/15 text-xl active:scale-90 transition-transform hover:border-white/40">
-              {String.fromCodePoint(0x1F331)}
+              className="flex items-center gap-2 pl-3 pr-4 py-2 rounded-full text-sm font-black active:scale-95 transition-transform" style={{ background: "linear-gradient(135deg, #2d4a35, #1c2f22)", border: "1px solid rgba(163,181,133,0.4)", color: "#c4d2ac" }}>
+              <span className="text-lg">{String.fromCodePoint(0x1F331)}</span><span>Il mio giardino</span>
             </button>
           </div>
           <p className="text-slate-400 text-sm mt-2">Ciao {username ?? ''}. Scegli un evento o entrane in uno.</p>
@@ -114,6 +114,8 @@ export default function DashboardPage() {
     </AuthGuard>
   );
 }
+
+
 
 
 
