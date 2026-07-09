@@ -95,7 +95,7 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
 
   return (
     <div className="space-y-4">
-      <div className={'relative overflow-hidden bg-slate-900 border p-5 rounded-xl text-center ' + (inCredit ? 'border-emerald-500/30' : inDebt ? 'border-red-500/30' : theme.border)}>
+      <div className={'eg-card relative overflow-hidden p-5 rounded-xl text-center ' + (inCredit ? 'border-emerald-500/30' : inDebt ? 'border-red-500/30' : theme.border)}>
         <div aria-hidden className={'absolute inset-0 bg-gradient-to-br ' + (inCredit ? 'from-emerald-500/15 to-transparent' : inDebt ? 'from-red-500/15 to-transparent' : 'from-slate-700/10 to-transparent')} />
         <div className="relative">
           <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black mb-1">Il tuo saldo</p>
@@ -107,18 +107,18 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-slate-900 border border-white/5 p-3 rounded-xl text-center">
+        <div className="eg-card p-3 rounded-xl text-center">
           <span className="text-[9px] uppercase text-slate-500 font-bold tracking-wider">Totale</span>
           <p className="text-lg font-black text-white">{total.toFixed(2)} €</p>
         </div>
-        <div className={'bg-slate-900 p-3 rounded-xl text-center border ' + theme.border}>
+        <div className={'eg-card p-3 rounded-xl text-center border ' + theme.border}>
           <span className="text-[9px] uppercase text-slate-500 font-bold tracking-wider">Media/persona</span>
           <p className={'text-lg font-black ' + theme.text}>{(members.length ? total / members.length : 0).toFixed(2)} €</p>
         </div>
       </div>
 
       {!archived && (
-        <div className="bg-slate-900 border border-white/5 p-4 rounded-xl space-y-3">
+        <div className="eg-card p-4 rounded-xl space-y-3">
           <div className="flex gap-2">
             <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Descrizione"
               className="flex-1 bg-slate-950 p-2.5 rounded-lg text-sm text-white border border-slate-700 outline-none focus:border-slate-500 transition-colors" />
@@ -151,7 +151,7 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
         </div>
       )}
 
-      <div className="bg-slate-900 border border-white/5 p-4 rounded-xl">
+      <div className="eg-card p-4 rounded-xl">
         <h4 className={'text-[10px] uppercase font-black mb-3 tracking-wider ' + theme.text}>Piano bonifici · il minimo indispensabile</h4>
         {transfers.length === 0 ? <p className="text-xs text-slate-500">Tutti in pari. Nessun bonifico necessario.</p> : transfers.map((tr, k) => (
           <div key={k} className="flex justify-between items-center mb-2 last:mb-0 bg-slate-950 border border-white/5 rounded-lg px-3 py-2.5">
@@ -161,7 +161,7 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
         ))}
       </div>
 
-      <div className="bg-slate-900 border border-white/5 p-4 rounded-xl">
+      <div className="eg-card p-4 rounded-xl">
         <h4 className="text-[10px] uppercase text-slate-400 font-black mb-3 tracking-wider">Registro spese</h4>
         {expenses.length === 0 ? <p className="text-xs text-slate-500">Nessuna spesa. Registri la prima qui sopra.</p> : expenses.map((e) => (
           <div key={e.id} className={'flex justify-between items-center mb-3 border-b border-white/5 pb-2 last:border-0 last:mb-0 last:pb-0 ' + (e.id === highlightId ? 'animate-[eg-row-glow_2.4s_ease-out] rounded-lg -mx-2 px-2' : '')}>
@@ -179,6 +179,7 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
     </div>
   );
 }
+
 
 
 
