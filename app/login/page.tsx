@@ -63,7 +63,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
       <div className="w-full max-w-sm flex flex-col gap-4">
-        <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500 text-center">Junction</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500 text-center">EventGarden</p>
         <h1 className="text-white text-2xl font-black text-center [font-family:var(--font-display)]">{mode === 'signup' ? 'Crea account' : 'Bentornato'}</h1>
 
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={mode === 'signin' ? 'Email o username' : 'Email'} className={fld} />

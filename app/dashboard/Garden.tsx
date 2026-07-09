@@ -119,16 +119,16 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
       <div className="w-full max-w-sm relative z-10">
         <div className="flex items-center justify-between mb-1">
           <button onClick={onClose} className="text-slate-400 hover:text-white text-sm">Torna</button>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-200/60 font-black">Il mio giardino</p>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-200/60 font-black">Il tuo giardino</p>
         </div>
-        <h2 className="text-center text-2xl font-black text-white [font-family:var(--font-display)] mt-3">Il Suo ramo</h2>
+        <h2 className="text-center text-2xl font-black text-white [font-family:var(--font-display)] mt-3">Il tuo ramo</h2>
         <p className="text-center text-emerald-200/50 text-xs mb-2">{leaves.length === 0 ? 'Ancora da coltivare' : leaves.length + (leaves.length === 1 ? ' momento fiorito' : ' momenti fioriti')}</p>
 
         {loading ? <div className="flex-1 min-h-[70vh] rounded-3xl animate-pulse" style={{ background: 'rgba(255,255,255,0.03)' }} /> :
           leaves.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-5xl mb-4">{String.fromCodePoint(0x1F331)}</p>
-            <p className="text-emerald-100 text-base font-bold">Il Suo ramo attende.</p>
+            <p className="text-emerald-100 text-base font-bold">Il tuo ramo attende.</p>
             <p className="text-emerald-200/50 text-xs mt-2 max-w-[220px] mx-auto">Ogni evento che vivrà farà sbocciare una foglia. Lo guardi crescere.</p>
           </div>
         ) : (
@@ -210,6 +210,7 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
     </div>
   );
 }
+
 
 
 
