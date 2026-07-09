@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ reply: 'Mi perdoni, sono momentaneamente non disponibile. Riprovi piu tardi.' });
   }
   const key = process.env.GROQ_API_KEY;
-  if (!key) return NextResponse.json({ error: 'Configurazione mancante' }, { status: 500 });
+  if (!key) return NextResponse.json({ reply: 'Mi perdoni, non sono al momento raggiungibile. Riprovi tra poco.' });
 
   try {
     const { messages } = await req.json();
@@ -40,14 +40,17 @@ export async function POST(req: NextRequest) {
       }),
     });
     if (!res.ok) {
-      const detail = await res.text();
-      return NextResponse.json({ error: 'Julie non risponde', detail }, { status: 502 });
+      // Degradazione elegante: mai errore grezzo all'utente. Il dettaglio resta nei log server.
+      console.error('Groq error', res.status, await res.text());
+      return NextResponse.json({ reply: 'Mi perdoni, sono momentaneamente non disponibile. Riprovi tra qualche istante.' });
     }
     const data = await res.json();
     const reply = data.choices?.[0]?.message?.content ?? 'Mi scusi, non ho compreso.';
     return NextResponse.json({ reply });
   } catch (e: any) {
-    return NextResponse.json({ error: 'Errore interno', detail: String(e) }, { status: 500 });
+    console.error('Julie exception', String(e));
+    return NextResponse.json({ reply: 'Mi perdoni, ho avuto un contrattempo. Riprovi tra qualche istante.' });
   }
 }
+
 
