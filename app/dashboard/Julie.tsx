@@ -192,9 +192,9 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
         style={{ background: 'linear-gradient(160deg, rgba(28,31,35,0.55), rgba(20,22,26,0.62))' }}>
 
         <div className="flex items-center gap-3.5 p-4 border-b border-white/10" style={{ background: 'linear-gradient(180deg, rgba(163,181,133,0.10), transparent)' }}>
-          <div className={'relative shrink-0 w-14 h-14 ' + (busy ? 'animate-[eg-breathe_1.6s_ease-in-out_infinite]' : 'animate-[eg-breathe_4s_ease-in-out_infinite]')}>
-            <span aria-hidden className="absolute -inset-1 rounded-full blur-md" style={{ background: 'radial-gradient(circle, rgba(163,181,133,0.40), transparent 70%)' }} />
-            <img src="/julie-avatar.png" alt="J.U.L.I.E." className="relative w-14 h-14 rounded-full object-cover" />
+          <div className={'relative shrink-0 w-20 h-20 ' + (busy ? 'animate-[eg-breathe_1.6s_ease-in-out_infinite]' : 'animate-[eg-breathe_4s_ease-in-out_infinite]')}>
+            <span aria-hidden className="absolute -inset-1.5 rounded-full blur-lg" style={{ background: 'radial-gradient(circle, rgba(163,181,133,0.40), transparent 70%)' }} />
+            <img src="/julie-avatar.png" alt="J.U.L.I.E." className="relative w-20 h-20 rounded-full object-cover" />
           </div>
           <div className="flex-1">
             <p className="text-white font-black text-base leading-tight">J.U.L.I.E.</p>
