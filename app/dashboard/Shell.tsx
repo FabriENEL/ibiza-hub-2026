@@ -1,5 +1,5 @@
 ﻿'use client'
-import { useState, type ReactElement } from 'react';
+import { useState, useEffect, type ReactElement } from 'react';
 import { useHub } from './lib/HubContext';
 import { getConfig } from './lib/blueprints';
 import type { ModuleId } from './lib/blueprints';
@@ -16,7 +16,7 @@ const ICONS: Record<ModuleId, string> = {
 };
 
 export default function Shell() {
-  const { memberships, activeHubId, setActiveHubId, username } = useHub();
+  const { memberships, activeHubId, setActiveHubId, username, postAction } = useHub();
   const [tab, setTab] = useState<ModuleId>('calendar');
   const active = memberships.find((m) => m.hub_id === activeHubId);
   if (!active) return null;
@@ -30,7 +30,7 @@ export default function Shell() {
   const votesEnabled = active.hub.votes_enabled ?? bp.defaults.votesEnabled;
 
   const mods = bp.modules.filter((m) => m !== 'votes' || votesEnabled);
-  const currentTab: ModuleId = mods.includes(tab) ? tab : 'calendar';
+  const currentTab: ModuleId = mods.includes(tab) ? tab : 'calendar'; useEffect(() => { if (postAction && mods.includes(postAction.module as ModuleId)) setTab(postAction.module as ModuleId); }, [postAction]);
   const greeting = w.greeting(username ?? '') + (isOwner ? w.ownerTag : '');
 
   const render: Record<ModuleId, ReactElement> = {
@@ -69,6 +69,7 @@ export default function Shell() {
     </main>
   );
 }
+
 
 
 

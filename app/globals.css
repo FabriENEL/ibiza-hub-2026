@@ -126,3 +126,9 @@ body::after {
   .eg-splash-emblem, .eg-splash-glow { animation: none; }
 }
 
+
+/* post-azione Julie: bagliore salvia temporaneo sulla riga appena creata */
+@keyframes eg-row-glow {
+  0%   { background-color: rgba(163,181,133,0.30); box-shadow: 0 0 0 1px rgba(163,181,133,0.55); }
+  100% { background-color: transparent;            box-shadow: 0 0 0 1px transparent; }
+}

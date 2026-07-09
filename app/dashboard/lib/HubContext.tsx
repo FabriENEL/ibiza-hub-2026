@@ -16,7 +16,7 @@ type HubContextValue = {
   activeHubId: string | null;
   setActiveHubId: (id: string | null) => void;
   loading: boolean;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<void>; postAction: { module: string; ts: number } | null; signalPostAction: (module: string) => void;
 };
 
 const HubContext = createContext<HubContextValue | null>(null);
@@ -34,7 +34,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
       if (id) localStorage.setItem('junction_active_hub', id); else localStorage.removeItem('junction_active_hub');
     }
   };
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); const [postAction, setPostAction] = useState<{ module: string; ts: number } | null>(null); const signalPostAction = (module: string) => setPostAction({ module, ts: Date.now() });
 
   const load = async () => {
     setLoading(true);
@@ -66,7 +66,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
   useEffect(() => { load(); }, []);
 
   return (
-    <HubContext.Provider value={{ userId, username, avatarUrl, memberships, activeHubId, setActiveHubId, loading, refresh: load }}>
+    <HubContext.Provider value={{ userId, username, avatarUrl, memberships, activeHubId, setActiveHubId, loading, refresh: load, postAction, signalPostAction }}>
       {children}
     </HubContext.Provider>
   );
@@ -77,4 +77,5 @@ export function useHub() {
   if (!ctx) throw new Error('useHub deve stare dentro <HubProvider>');
   return ctx;
 }
+
 

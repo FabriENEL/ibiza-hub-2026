@@ -1,5 +1,5 @@
 ﻿'use client'
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { logEvent } from '../lib/logEvent';
 import { useHub } from '../lib/HubContext';
@@ -9,14 +9,14 @@ type Expense = { id: string; payer_id: string; description: string; amount: numb
 type Member = { user_id: string; username: string };
 
 export default function Cassa({ hubId, theme, archived }: { hubId: string; theme: Theme; archived: boolean }) {
-  const { userId } = useHub();
+  const { userId, postAction } = useHub();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState(false);
   const [splitSel, setSplitSel] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); const [highlightId, setHighlightId] = useState<string | null>(null); const armedRef = useRef(postAction?.module === 'cassa' && Date.now() - (postAction?.ts ?? 0) < 4000);
 
   const load = async () => {
     setLoading(true);
@@ -25,9 +25,9 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
       .eq('hub_id', hubId).order('created_at', { ascending: false });
     const { data: mem } = await supabase
       .from('hub_members').select('user_id, profiles ( username )').eq('hub_id', hubId);
-    setExpenses((exp ?? []).map((e: any) => ({ ...e, amount: Number(e.amount), split_with: e.split_with ?? null })));
+    const rows = (exp ?? []).map((e: any) => ({ ...e, amount: Number(e.amount), split_with: e.split_with ?? null })); setExpenses(rows);
     setMembers((mem ?? []).map((m: any) => ({ user_id: m.user_id, username: m.profiles?.username ?? '???' })));
-    setLoading(false);
+    setLoading(false); if (armedRef.current && rows.length) { armedRef.current = false; setHighlightId(rows[0].id); setTimeout(() => setHighlightId(null), 2600); }
   };
 
   useEffect(() => { load(); }, [hubId]);
@@ -157,7 +157,7 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
       <div className="bg-slate-900 border border-white/5 p-4 rounded-xl">
         <h4 className="text-[10px] uppercase text-slate-400 font-black mb-3 tracking-wider">Registro spese</h4>
         {expenses.length === 0 ? <p className="text-xs text-slate-500">Nessuna spesa. Registri la prima qui sopra.</p> : expenses.map((e) => (
-          <div key={e.id} className="flex justify-between items-center mb-3 border-b border-white/5 pb-2 last:border-0 last:mb-0 last:pb-0">
+          <div key={e.id} className={'flex justify-between items-center mb-3 border-b border-white/5 pb-2 last:border-0 last:mb-0 last:pb-0 ' + (e.id === highlightId ? 'animate-[eg-row-glow_2.4s_ease-out] rounded-lg -mx-2 px-2' : '')}>
             <div className="text-xs">
               <span className="font-bold text-white">{e.description}</span><br />
               <span className={theme.text}>{nameOf(e.payer_id)}</span>
@@ -172,6 +172,7 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
     </div>
   );
 }
+
 
 
 
