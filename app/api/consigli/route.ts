@@ -30,7 +30,7 @@ async function geocode(location: string): Promise<{ lat: number; lon: number } |
 
 async function fsqTop3(ll: string, query: string) {
   const url = FSQ_URL + '?ll=' + ll + '&radius=6000&query=' + encodeURIComponent(query) +
-    '&sort=POPULARITY&limit=15&fields=fsq_place_id,name,rating,price,categories';
+    '&sort=POPULARITY&limit=10&fields=fsq_place_id,name,price,categories';
   try {
     const res = await fetch(url, {
       headers: {
@@ -46,15 +46,12 @@ async function fsqTop3(ll: string, query: string) {
     const raw = (d?.results ?? d?.places ?? []) as any[];
     const diag = raw.length === 0 ? 'ok ma 0 risultati (chiavi: ' + Object.keys(d).join(',') + ')' : null;
     const tips = raw
+      .slice(0, 3) // gia' ordinati per popolarita' da Foursquare
       .map((p) => ({
         name: p.name ?? '—',
         type: p.categories?.[0]?.name ?? '',
-        rating: typeof p.rating === 'number' ? p.rating : null,
         price: typeof p.price === 'number' ? p.price : null,
-      }))
-      // ordina per valutazione decrescente (i senza voto in fondo), poi i 3 migliori
-      .sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1))
-      .slice(0, 3);
+      }));
     return { tips, error: diag };
   } catch {
     return { tips: [], error: 'fetch_failed' };
