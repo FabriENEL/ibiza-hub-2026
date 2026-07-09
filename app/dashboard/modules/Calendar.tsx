@@ -303,7 +303,6 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                         {!ev.revealed && !ev.reveal_at && (
                           <p className="text-[11px] text-white/90 font-bold mt-1 drop-shadow">In attesa di svelamento</p>
                         )}
-                        <p className="text-[10px] text-white/80 font-bold mt-1 drop-shadow">{'\u{1F4AC}'} {evComments.length} {evComments.length === 1 ? 'commento' : 'commenti'}</p>
                       </div>
                       {editable && (
                         <div className="absolute bottom-3 right-3 flex gap-2 z-10">
@@ -311,6 +310,20 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                           <button onClick={(e) => { e.stopPropagation(); deleteEvent(ev.id); }} className="text-[9px] uppercase text-white font-black bg-red-600/70 px-2 py-1 rounded">Elimina</button>
                         </div>
                       )}
+                    </div>
+
+                    <div onClick={() => setOpenEvent(ev.id)} className="flex items-center justify-between px-4 py-2.5 bg-slate-900/70 border-t border-white/5 cursor-pointer active:bg-slate-900 transition-colors">
+                      <span className="flex items-center gap-2.5 text-[11px] font-bold text-slate-300">
+                        <span>{'\u{1F4AC}'} {evComments.length}</span>
+                        {ev.revealed && ev.location && (
+                          <button onClick={(e) => { e.stopPropagation(); navigateTo(ev.location!); }} className={'flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r ' + theme.gradient + ' text-slate-950 font-black uppercase text-[9px] tracking-wide active:scale-95 transition-transform'}>
+                            {'\u{1F4CD}'} Naviga
+                          </button>
+                        )}
+                      </span>
+                      <span className={'flex items-center gap-1 text-[10px] font-black uppercase tracking-wide ' + theme.text}>
+                        Apri <span className="text-sm leading-none">{'\u203A'}</span>
+                      </span>
                     </div>
 
                     {isOwner && isSurprise && !archived && (
@@ -417,11 +430,3 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     </div>
   );
 }
-
-
-
-
-
-
-
-
