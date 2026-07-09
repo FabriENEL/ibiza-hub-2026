@@ -15,6 +15,9 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     { role: 'assistant', content: 'Buongiorno. Sono J.U.L.I.E., come posso esserLe utile?' },
   ]);
   const [input, setInput] = useState('');
+  const [listening, setListening] = useState(false);
+  const [voiceOk, setVoiceOk] = useState(false);
+  const recRef = useRef<any>(null);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
   const [saving, setSaving] = useState(false); const [closing, setClosing] = useState(false); const softClose = () => { setClosing(true); setTimeout(onClose, 300); };
@@ -44,8 +47,31 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     return null;
   };
 
-  const send = async () => {
-    const text = input.trim();
+  useEffect(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    setVoiceOk(true);
+    const rec = new SR();
+    rec.lang = 'it-IT'; rec.continuous = false; rec.interimResults = false;
+    rec.onresult = (e: any) => {
+      const said = e.results?.[0]?.[0]?.transcript?.trim();
+      if (said) { setInput(said); setTimeout(() => sendVoice(said), 100); }
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    recRef.current = rec;
+  }, []);
+
+  const toggleMic = () => {
+    if (!recRef.current || busy) return;
+    if (listening) { recRef.current.stop(); setListening(false); }
+    else { try { setInput(''); recRef.current.start(); setListening(true); } catch {} }
+  };
+
+  const sendVoice = (text: string) => { const t = text.trim(); if (t && !busy) send(t); };
+
+  const send = async (voiceText?: string) => {
+    const text = (voiceText ?? input).trim();
     if (!text || busy) return;
     const next = [...messages, { role: 'user' as const, content: text }];
     setMessages(next);
@@ -197,14 +223,24 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
             onKeyDown={(e) => e.key === 'Enter' && send()}
             placeholder="Scriva a Julie..." disabled={busy}
             className="flex-1 bg-slate-950/50 text-white placeholder-slate-500 rounded-xl px-3.5 py-2.5 text-sm outline-none border border-white/10 focus:border-white/25 transition-colors" />
-          <button onClick={send} disabled={busy || !input.trim()}
+          <button onClick={() => send()} disabled={busy || !input.trim()}
             className="px-4 rounded-xl font-black text-sm disabled:opacity-40 active:scale-95 transition-transform"
             style={{ background: '#A3B585', color: '#14161A' }}>Invia</button>
+          {voiceOk && (
+            <button onClick={toggleMic} disabled={busy} aria-label={listening ? 'Ferma' : 'Parla con Julie'}
+              className={'px-3 rounded-xl active:scale-95 transition-all disabled:opacity-40 ' + (listening ? 'animate-pulse' : '')}
+              style={{ background: listening ? '#c05656' : 'rgba(163,181,133,0.18)', color: listening ? '#fff' : '#A3B585', border: '1px solid rgba(163,181,133,0.35)' }}>
+              {listening ? '\u23F9' : '\u{1F3A4}'}
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
+
+
 
 
 
