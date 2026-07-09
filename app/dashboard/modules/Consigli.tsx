@@ -68,13 +68,22 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
     }
     setFocus(target);
 
-    if (target?.location) {
+    // Luogo per i consigli: quello dell'evento in focus, altrimenti quello dell'Hub (l'arrivo).
+    let placeLoc: string | null = target?.location ?? null;
+    if (!placeLoc) {
+      const { data: hub } = await supabase.from('hubs').select('location').eq('id', hubId).single();
+      const hl = (hub as any)?.location;
+      placeLoc = hl && hl !== '-' ? hl : null;
+    }
+
+    if (placeLoc) {
       try {
-        const res = await fetch('/api/consigli', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: target.location }) });
+        const res = await fetch('/api/consigli', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: placeLoc }) });
         const d = await res.json();
         setSections((d.sections ?? []) as Section[]);
         setDiag(d.diag ?? null);
-        setWx(d.geo ? await fetchWx(d.geo, target.scheduled_at) : null);
+        // Meteo solo con un evento in focus (segue il calendario); dal solo luogo Hub non mostriamo un numero.
+        setWx(target?.location && d.geo ? await fetchWx(d.geo, target.scheduled_at) : null);
       } catch (e) { setSections([]); setDiag('errore rete: ' + String(e)); setWx(null); }
     } else { setSections([]); setWx(null); }
 

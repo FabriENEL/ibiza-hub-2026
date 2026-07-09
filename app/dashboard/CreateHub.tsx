@@ -7,22 +7,31 @@ export default function CreateHub({ onClose }: { onClose: () => void }) {
   const { refresh, setActiveHubId } = useHub();
   const [name, setName] = useState('');
   const [category, setCategory] = useState('travel');
+  const [location, setLocation] = useState('');
   const today = new Date().toISOString().split('T')[0];
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const handleCreate = async () => {
-    if (!name.trim() || busy) return;
+    if (!name.trim() || !location.trim() || busy) return;
     if (endDate < startDate) { setErr('La data di fine non puo precedere quella di inizio.'); return; }
     setBusy(true); setErr('');
+    // Verifica che il luogo sia riconoscibile (geocoding gratuito, nessuna chiave).
+    let geoOk = false;
+    try {
+      const g = await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&language=it&name=' + encodeURIComponent(location.trim()));
+      const gd = await g.json();
+      geoOk = !!gd?.results?.[0];
+    } catch { geoOk = false; }
+    if (!geoOk) { setErr('Non ho trovato questo luogo. Provi col nome della citta (es. Rimini).'); setBusy(false); return; }
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { setErr('Sessione scaduta. Rientra.'); setBusy(false); return; }
     const res = await fetch('/api/hubs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
       body: JSON.stringify({
-        name: name.trim(), category, location: '-', start_date: startDate, end_date: endDate,
+        name: name.trim(), category, location: location.trim(), start_date: startDate, end_date: endDate,
         max_participants: 5, passcode: Math.random().toString(36).slice(2, 8), creator_name: name.trim(),
       }),
     });
@@ -40,6 +49,7 @@ export default function CreateHub({ onClose }: { onClose: () => void }) {
         <button onClick={onClose} className="text-slate-400 hover:text-white text-sm">Torna</button>
         <h1 className="text-2xl font-black text-white uppercase tracking-widest [font-family:var(--font-display)]">Nuovo Hub</h1>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome evento" className={fld} />
+        <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Luogo (citta, es. Rimini)" className={fld} />
         <div className="grid gap-2">
           {cats.map(([id, label]) => (
             <button key={id} onClick={() => setCategory(id)}
@@ -58,7 +68,7 @@ export default function CreateHub({ onClose }: { onClose: () => void }) {
             <input type="date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} className={fld + ' min-w-0'} />
           </div>
         </div>
-        <button onClick={handleCreate} disabled={busy || !name.trim()}
+        <button onClick={handleCreate} disabled={busy || !name.trim() || !location.trim()}
           className="w-full bg-white text-slate-950 p-4 rounded-3xl font-black uppercase text-xs disabled:opacity-40 active:scale-[0.98] transition-transform">
           {busy ? 'Creazione...' : 'Crea Hub'}
         </button>
@@ -67,4 +77,3 @@ export default function CreateHub({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
-
