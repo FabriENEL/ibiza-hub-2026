@@ -321,8 +321,8 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                           </button>
                         )}
                       </span>
-                      <span className={'flex items-center gap-1 text-[10px] font-black uppercase tracking-wide ' + theme.text}>
-                        Apri <span className="text-sm leading-none">{'\u203A'}</span>
+                      <span className={'flex items-center gap-1 px-3 py-1.5 rounded-full bg-gradient-to-r ' + theme.gradient + ' text-slate-950 text-[10px] font-black uppercase tracking-wide active:scale-95 transition-transform'}>
+                        Dettagli <span className="text-sm leading-none">{'\u203A'}</span>
                       </span>
                     </div>
 
