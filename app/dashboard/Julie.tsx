@@ -51,7 +51,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
       const action = parseAction(reply);
       if (action) {
         setPending(action);
-        setMessages([...next, { role: 'assistant', content: 'Ho preparato l\'evento. Confermi qui sotto per aggiungerlo.' }]);
+        setMessages([...next, { role: 'assistant', content: 'Ecco, guardi pure. Se va bene, confermi.' }]);
       } else {
         setMessages([...next, { role: 'assistant', content: reply }]);
       }
@@ -71,7 +71,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
       created_by: userId, reveal_visible_to: [], revealed_override: null,
     });
     setSaving(false);
-    setMessages((m) => [...m, { role: 'assistant', content: error ? 'Mi perdoni, non sono riuscita ad aggiungere l\'evento.' : 'Fatto. L\'evento e stato aggiunto al calendario.' }]);
+    setMessages((m) => [...m, { role: 'assistant', content: error ? 'Mi perdoni, non sono riuscita ad aggiungerlo. Riprovi.' : 'Fatto, e nel calendario. Buon divertimento.' }]);
     setPending(null);
   };
 
@@ -150,4 +150,5 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     </div>
   );
 }
+
 
