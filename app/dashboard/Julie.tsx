@@ -17,6 +17,8 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   const [input, setInput] = useState('');
   const [listening, setListening] = useState(false);
   const [voiceOk, setVoiceOk] = useState(false);
+  const [speakOn, setSpeakOn] = useState(false);
+  const ttsOk = typeof window !== 'undefined' && 'speechSynthesis' in window;
   const recRef = useRef<any>(null);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
@@ -62,8 +64,21 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     recRef.current = rec;
   }, []);
 
+  const speak = (text: string) => {
+    if (!ttsOk) return;
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'it-IT';
+      const itVoice = window.speechSynthesis.getVoices().find((v) => v.lang.startsWith('it'));
+      if (itVoice) u.voice = itVoice;
+      window.speechSynthesis.speak(u);
+    } catch {}
+  };
+
   const toggleMic = () => {
     if (!recRef.current || busy) return;
+    if (!listening) setSpeakOn(true);
     if (listening) { recRef.current.stop(); setListening(false); }
     else { try { setInput(''); recRef.current.start(); setListening(true); } catch {} }
   };
@@ -89,8 +104,10 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
       if (action) {
         setPending(action);
         setMessages([...next, { role: 'assistant', content: 'Ecco, guardi pure. Se va bene, confermi.' }]);
+        if (speakOn) speak('Ho preparato la proposta, la verifichi e confermi pure.');
       } else {
         setMessages([...next, { role: 'assistant', content: reply }]);
+        if (speakOn) speak(reply);
       }
     } catch {
       setMessages([...next, { role: 'assistant', content: 'Mi perdoni, ho avuto un problema di connessione. Riprovi.' }]);
@@ -226,6 +243,13 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
           <button onClick={() => send()} disabled={busy || !input.trim()}
             className="px-4 rounded-xl font-black text-sm disabled:opacity-40 active:scale-95 transition-transform"
             style={{ background: '#A3B585', color: '#14161A' }}>Invia</button>
+          {ttsOk && (
+            <button onClick={() => { if (speakOn) window.speechSynthesis.cancel(); setSpeakOn(!speakOn); }} aria-label={speakOn ? 'Muta Julie' : 'Attiva voce'}
+              className='px-3 rounded-xl active:scale-95 transition-all'
+              style={{ background: speakOn ? 'rgba(163,181,133,0.30)' : 'rgba(255,255,255,0.06)', color: speakOn ? '#A3B585' : '#64748b', border: '1px solid rgba(163,181,133,0.25)' }}>
+              {speakOn ? '\u{1F50A}' : '\u{1F507}'}
+            </button>
+          )}
           {voiceOk && (
             <button onClick={toggleMic} disabled={busy} aria-label={listening ? 'Ferma' : 'Parla con Julie'}
               className={'px-3 rounded-xl active:scale-95 transition-all disabled:opacity-40 ' + (listening ? 'animate-pulse' : '')}
@@ -238,6 +262,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     </div>
   );
 }
+
 
 
 
