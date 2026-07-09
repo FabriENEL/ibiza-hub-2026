@@ -95,6 +95,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(spoken);
       u.lang = 'it-IT';
+      u.rate = 1.1; // un filo piu' svelta: toglie la cantilena
       const itVoice = voicesRef.current.find((v) => v.lang.startsWith('it'));
       if (itVoice) u.voice = itVoice;
       window.speechSynthesis.speak(u);
