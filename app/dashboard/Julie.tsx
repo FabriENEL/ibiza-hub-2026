@@ -172,6 +172,14 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
             <p className="text-white font-black text-base leading-tight">J.U.L.I.E.</p>
             <p className="text-emerald-200/60 text-[10px] tracking-wide">Join Us Living In EventGarden</p>
           </div>
+          {ttsOk && (
+            <button onClick={() => { if (speakOn) window.speechSynthesis.cancel(); setSpeakOn(!speakOn); }} aria-label={speakOn ? 'Muta Julie' : 'Attiva voce'} className='self-start p-1 rounded-lg transition-colors' style={{ color: speakOn ? '#A3B585' : '#64748b' }}>
+              <svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
+                <path d='M11 5 6 9H2v6h4l5 4z' fill='currentColor' stroke='none' />
+                {speakOn ? <><path d='M15.5 8.5a5 5 0 0 1 0 7' /><path d='M18.5 5.5a9 9 0 0 1 0 13' /></> : <path d='m17 9 4 6M21 9l-4 6' />}
+              </svg>
+            </button>
+          )}
           <button onClick={softClose} aria-label="Chiudi" className="self-start text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
         </div>
 
@@ -243,13 +251,6 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
           <button onClick={() => send()} disabled={busy || !input.trim()}
             className="px-4 rounded-xl font-black text-sm disabled:opacity-40 active:scale-95 transition-transform"
             style={{ background: '#A3B585', color: '#14161A' }}>Invia</button>
-          {ttsOk && (
-            <button onClick={() => { if (speakOn) window.speechSynthesis.cancel(); setSpeakOn(!speakOn); }} aria-label={speakOn ? 'Muta Julie' : 'Attiva voce'}
-              className='px-3 rounded-xl active:scale-95 transition-all'
-              style={{ background: speakOn ? 'rgba(163,181,133,0.30)' : 'rgba(255,255,255,0.06)', color: speakOn ? '#A3B585' : '#64748b', border: '1px solid rgba(163,181,133,0.25)' }}>
-              {speakOn ? '\u{1F50A}' : '\u{1F507}'}
-            </button>
-          )}
           {voiceOk && (
             <button onClick={toggleMic} disabled={busy} aria-label={listening ? 'Ferma' : 'Parla con Julie'}
               className={'px-3 rounded-xl active:scale-95 transition-all disabled:opacity-40 ' + (listening ? 'animate-pulse' : '')}
@@ -262,6 +263,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     </div>
   );
 }
+
 
 
 
