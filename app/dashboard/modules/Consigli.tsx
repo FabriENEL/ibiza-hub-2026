@@ -31,12 +31,16 @@ async function fetchWx(city: { lat: number; lon: number }, iso: string): Promise
   try {
     const day = iso.split('T')[0];
     const days = (new Date(day).getTime() - Date.now()) / 86400000;
-    if (days >= -1 && days <= 7) {
+    // Oltre 3 giorni: previsione non affidabile -> nessun numero, in schermata compare l'augurio.
+    if (days > 3) return null;
+    // Entro 3 giorni (oggi incluso): previsione reale del giorno dell'evento.
+    if (days >= -1) {
       const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + city.lat + '&longitude=' + city.lon + '&daily=weather_code,temperature_2m_max&start_date=' + day + '&end_date=' + day + '&timezone=auto');
       const d = await res.json();
       if (d?.daily?.temperature_2m_max?.[0] != null) return { temp: Math.round(d.daily.temperature_2m_max[0]), code: d.daily.weather_code[0], forecast: true };
       return null;
     }
+    // Evento gia' passato: meteo attuale.
     const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + city.lat + '&longitude=' + city.lon + '&current=temperature_2m,weather_code');
     const d = await res.json();
     if (d?.current?.temperature_2m != null) return { temp: Math.round(d.current.temperature_2m), code: d.current.weather_code, forecast: false };
