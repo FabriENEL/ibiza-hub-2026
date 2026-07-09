@@ -12,6 +12,8 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
   const { userId, refresh, avatarUrl } = useHub();
   const [julieOpen, setJulieOpen] = useState(false);
   const julieOn = process.env.NEXT_PUBLIC_JULIE_ENABLED === 'true';
+  const [confirmOut, setConfirmOut] = useState(false);
+  const doLogout = async () => { await supabase.auth.signOut(); window.location.href = '/login'; };
   const w = words;
   const r = rounded;
   const [members, setMembers] = useState<Member[]>([]);
@@ -198,9 +200,24 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
       )}
 
       {isOwner && <button onClick={toggleArchive} className={'w-full py-3 font-black text-xs uppercase ' + r + ' ' + (archived ? 'bg-gradient-to-r ' + theme.gradient + ' text-slate-950' : 'bg-slate-900 border border-red-500/30 text-red-400')}>{archived ? 'Riapri Hub' : 'Concludi Hub (archivia)'}</button>}
+      <div className="pt-6 mt-2 border-t border-white/5">
+        {!confirmOut ? (
+          <button onClick={() => setConfirmOut(true)} className="w-full text-center text-[10px] uppercase tracking-widest text-slate-600 py-2">Esci dall'account</button>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-center text-[11px] text-slate-400">Confermi l'uscita?</p>
+            <div className="flex gap-2">
+              <button onClick={doLogout} className="flex-1 py-2.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 text-[10px] uppercase font-black">Esci</button>
+              <button onClick={() => setConfirmOut(false)} className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-400 text-[10px] uppercase font-black">Annulla</button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
+
 
 
 
