@@ -92,8 +92,16 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     if (!title.trim() || !when || busy) return;
     if (surprise && revealAt && when && new Date(revealAt) > new Date(when)) { alert('Lo svelamento deve precedere l\'evento.'); return; }
     setBusy(true);
+    // Copertina on-demand come Julie: solo se il titolo non ha gia' un'immagine-regola locale.
+    let cover_url: string | null = null;
+    if (ruleSignature(title.trim()) === '__none__') {
+      try {
+        const cr = await fetch('/api/cover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: title.trim() }) });
+        const cd = await cr.json(); cover_url = cd.url ?? null;
+      } catch { cover_url = null; }
+    }
     const { error } = await supabase.from('events').insert({
-      hub_id: hubId, title: title.trim(), scheduled_at: when, location: where.trim() || null, created_by: userId,
+      hub_id: hubId, title: title.trim(), scheduled_at: when, location: where.trim() || null, created_by: userId, cover_url,
       reveal_at: surprise ? (revealAt || null) : null,
       reveal_visible_to: surprise ? Array.from(audience) : [],
       revealed_override: null,
