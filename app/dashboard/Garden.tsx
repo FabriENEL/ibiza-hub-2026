@@ -45,7 +45,7 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
     build();
   }, [userId, memberships]);
 
-  const A = { x: 60, y: 470 }, B = { x: 150, y: 240 }, C = { x: 300, y: 280 }, D = { x: 380, y: 90 };
+  const A = { x: 60, y: 720 }, B = { x: 150, y: 380 }, C = { x: 310, y: 430 }, D = { x: 380, y: 90 };
   const bez = (t: number) => {
     const u = 1 - t;
     return {
@@ -124,7 +124,7 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
         <h2 className="text-center text-2xl font-black text-white [font-family:var(--font-display)] mt-3">Il Suo ramo</h2>
         <p className="text-center text-emerald-200/50 text-xs mb-2">{leaves.length === 0 ? 'Ancora da coltivare' : leaves.length + (leaves.length === 1 ? ' momento fiorito' : ' momenti fioriti')}</p>
 
-        {loading ? <div className="h-[480px] rounded-3xl animate-pulse" style={{ background: 'rgba(255,255,255,0.03)' }} /> :
+        {loading ? <div className="flex-1 min-h-[70vh] rounded-3xl animate-pulse" style={{ background: 'rgba(255,255,255,0.03)' }} /> :
           leaves.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-5xl mb-4">{String.fromCodePoint(0x1F331)}</p>
@@ -132,7 +132,7 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
             <p className="text-emerald-200/50 text-xs mt-2 max-w-[220px] mx-auto">Ogni evento che vivrà farà sbocciare una foglia. Lo guardi crescere.</p>
           </div>
         ) : (
-          <svg viewBox="0 0 440 500" className="w-full">
+          <svg viewBox="-50 -10 540 790" className="w-full flex-1" preserveAspectRatio="xMidYMid meet">
             {shown.map((lf, i) => {
               const t = 0.1 + (0.82 * i) / Math.max(1, shown.length - 1);
               const b = bez(t);
@@ -151,7 +151,7 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
               const delay = 1.3 + i * 0.13;
               return (
                 <g key={lf.key} onClick={() => setSelected(lf)} className="cursor-pointer"
-                   style={{ opacity: 0, animation: 'pop .55s ease-out ' + delay + 's forwards', transformOrigin: b.x + 'px ' + b.y + 'px' }}>
+                   style={{ opacity: 0, animation: 'pop .55s ease-out ' + delay + 's forwards, sway ' + (3.4 + jit(i, 6) * 2.2) + 's ease-in-out ' + (delay + 0.6) + 's infinite', transformOrigin: b.x + 'px ' + b.y + 'px' }}>
                   <path d={'M' + b.x + ' ' + b.y + ' Q' + ctrlX + ' ' + ctrlY + ' ' + tx + ' ' + ty} stroke={STEM} strokeWidth="2.6" fill="none" strokeLinecap="round" />
                   <FlowerShape x={fx} y={fy} color={FLOWER[lf.category] ?? '#f59e0b'} r={3 + Math.sqrt(lf.count) * 0.45} />
                   <LeafShape x={tx} y={ty} ang={perp} len={leafLen(lf.count)} colors={colors} op={lf.mature ? 0.82 : 1} gid={'lg' + i} />
@@ -206,7 +206,10 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
           </div>
         );
       })()}
-      <style>{'@keyframes grow { to { stroke-dashoffset: 0 } } @keyframes pop { from { opacity:0; transform: scale(0) } to { opacity:1; transform: scale(1) } } @keyframes float { 0%,100% { transform: translateY(0); opacity: 0.3 } 50% { transform: translateY(-12px); opacity: 0.7 } }'}</style>
+      <style>{'@keyframes grow { to { stroke-dashoffset: 0 } } @keyframes pop { from { opacity:0; transform: scale(0) } to { opacity:1; transform: scale(1) } } @keyframes float { 0%,100% { transform: translateY(0); opacity: 0.3 } 50% { transform: translateY(-12px); opacity: 0.7 } } @keyframes sway { 0%,100% { transform: scale(1) rotate(-1.6deg) } 50% { transform: scale(1) rotate(1.6deg) } } @media (prefers-reduced-motion: reduce) { g, circle { animation-iteration-count: 1 !important } }'}</style>
     </div>
   );
 }
+
+
+
