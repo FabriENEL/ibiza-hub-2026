@@ -1,6 +1,21 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+
+// Rate limiting in memoria: sufficiente per il test (poche decine di utenti, processo singolo).
+// Non persiste tra restart/deploy: accettabile, protegge da abuso accidentale non da attacco.
+const RATE_MAX = 12;              // richieste consentite
+const RATE_WINDOW_MS = 60_000;    // per finestra di 60 secondi
+const hits = new Map<string, number[]>();
+
+function rateLimited(id: string): boolean {
+  const now = Date.now();
+  const recent = (hits.get(id) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
+  if (recent.length >= RATE_MAX) { hits.set(id, recent); return true; }
+  recent.push(now);
+  hits.set(id, recent);
+  return false;
+}
 const MODEL = 'openai/gpt-oss-120b';
 
 const SYSTEM = `Sei J.U.L.I.E. (Join Us Living In EventGarden), l'assistente dell'app EventGarden per l'organizzazione di eventi di gruppo.
@@ -23,6 +38,12 @@ export async function POST(req: NextRequest) {
   if (process.env.NEXT_PUBLIC_JULIE_ENABLED !== 'true') {
     return NextResponse.json({ reply: 'Mi perdoni, sono momentaneamente non disponibile. Riprovi piu tardi.' });
   }
+  // Chiave di limitazione: IP del chiamante (approssimazione sufficiente per il test).
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local';
+  if (rateLimited(ip)) {
+    return NextResponse.json({ reply: 'Mi conceda un istante, sto elaborando molte richieste. Riprovi tra poco.' });
+  }
+
   const key = process.env.GROQ_API_KEY;
   if (!key) return NextResponse.json({ reply: 'Mi perdoni, non sono al momento raggiungibile. Riprovi tra poco.' });
 
@@ -52,5 +73,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ reply: 'Mi perdoni, ho avuto un contrattempo. Riprovi tra qualche istante.' });
   }
 }
+
 
 
