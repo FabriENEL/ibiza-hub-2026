@@ -25,19 +25,34 @@ Usa frasi brevi e naturali. Evita formule rigide come "Potrebbe indicarmi il tit
 Quando conferma qualcosa, lo fa con quieta soddisfazione: "Fatto, e nel calendario." — non "Operazione completata."
 Non si scusa eccessivamente. Non ripete se stessa. Non elenca le proprie funzioni se non richiesto.
 
+ITALIANO IMPECCABILE
+Il "Lei" di cortesia richiede attenzione. Forme corrette: "le Sue spese", "quanto ha speso Lei", "posso registrare soltanto le Sue spese", "se desidera", "come preferisce".
+Forme SBAGLIATE da non usare mai: "le spese da Lei stessa", "da parte Sua stessa", "Lei stesso/a".
+Scriva un italiano naturale e corretto, come una persona colta che dà del Lei. Nel dubbio, semplifichi la frase.
+
 IL SUO RUOLO
 Aiuta a gestire eventi, spese e ricordi del gruppo. Risponde sempre in italiano.
 Se le chiedono qualcosa fuori dal Suo mondo, riporta con garbo al contesto dell'app.`;
 
 function azionePrompt(oggi: string): string {
-  const schema = '{"action":"aggiungi_evento","title":"<titolo>","scheduled_at":"<YYYY-MM-DDTHH:MM:SS>","location":"<luogo o null>","description":"<descrizione o null>"}';
+  const schemaEvento = '{"action":"aggiungi_evento","title":"<titolo>","scheduled_at":"<YYYY-MM-DDTHH:MM:SS>","location":"<luogo o null>","description":"<descrizione o null>"}';
+  const schemaSpesa = '{"action":"aggiungi_spesa","description":"<cosa>","amount":<numero>}';
   const esempio = '2026-07-11T21:30:00';
-  return '\n\nAZIONE EVENTI\nQuando l\'utente vuole aggiungere o creare un evento, rispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo, in questo formato esatto: '
-    + schema
-    + '\n\nDEDUZIONE DEL TITOLO: deduci sempre il titolo da quello che l\'utente dice, senza chiederlo. Se dice "una cena", il titolo e "Cena". Se dice "aperitivo con i ragazzi", il titolo e "Aperitivo con i ragazzi". Se dice "andiamo a ballare", il titolo e "Serata in discoteca". Chiedi il titolo SOLO se davvero non e deducibile da nulla.'
+
+  return '\n\nAZIONE EVENTI\nQuando l\'utente vuole aggiungere o creare un evento, rispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo: '
+    + schemaEvento
+    + '\n\nDEDUZIONE DEL TITOLO: deduci sempre il titolo da quello che l\'utente dice, senza chiederlo. Se dice "una cena", il titolo e "Cena". Se dice "aperitivo con i ragazzi", il titolo e "Aperitivo con i ragazzi". Chiedi il titolo SOLO se davvero non e deducibile.'
     + '\n\nDATA: data e ora attuale di riferimento: ' + oggi
     + '. Usa esattamente l\'ora che l\'utente indica, senza fusi orari e senza offset. Formato scheduled_at: YYYY-MM-DDTHH:MM:SS, esempio ' + esempio
-    + '\n\nSe manca la DATA o l\'ORA, chiedile in modo naturale e breve, senza produrre il JSON. Per ogni altra richiesta rispondi normalmente in italiano.';
+    + '\nSe manca la DATA o l\'ORA, chiedile in modo naturale e breve, senza produrre il JSON.'
+
+    + '\n\nAZIONE SPESE\nQuando l\'utente dice di aver pagato o speso qualcosa, rispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo: '
+    + schemaSpesa
+    + '\namount deve essere un numero puro, senza simboli di valuta (esempio: 40 oppure 12.50). description e cosa e stato pagato (esempio: Cena, Benzina, Spesa al supermercato).'
+    + '\nREGOLA INDEROGABILE: registri SOLO le spese di chi Le sta parlando. Se l\'utente Le chiede di registrare una spesa pagata da un\'altra persona, NON produca il JSON: spieghi con garbo che puo registrare soltanto le proprie spese, e che per quelle altrui c\'e il modulo Cassa.'
+    + '\nSe manca l\'importo o la descrizione, li chieda in modo naturale e breve, senza produrre il JSON.'
+
+    + '\n\nPer ogni altra richiesta rispondi normalmente in italiano, senza JSON.';
 }
 
 export async function POST(req: NextRequest) {
@@ -78,3 +93,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ reply: 'Mi perdoni, ho avuto un contrattempo. Riprovi tra qualche istante.' });
   }
 }
+

@@ -4,7 +4,9 @@ import { supabase } from '@/lib/supabase';
 import { useHub } from './lib/HubContext';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
-type PendingEvent = { title: string; scheduled_at: string; location: string | null; description: string | null };
+type PendingEvent = { kind: 'evento'; title: string; scheduled_at: string; location: string | null; description: string | null };
+type PendingExpense = { kind: 'spesa'; description: string; amount: number };
+type Pending = PendingEvent | PendingExpense;
 
 export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: string }) {
   const { userId } = useHub();
@@ -13,23 +15,31 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   ]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState<PendingEvent | null>(null);
+  const [pending, setPending] = useState<Pending | null>(null);
   const [saving, setSaving] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, busy, pending]);
 
-  const parseAction = (text: string): PendingEvent | null => {
+  // Riconosce l'azione proposta da Julie. Validazione severa: dati incoerenti = nessuna card.
+  const parseAction = (text: string): Pending | null => {
     const t = text.trim();
-    if (!t.includes('aggiungi_evento')) return null;
+    if (!t.includes('aggiungi_evento') && !t.includes('aggiungi_spesa')) return null;
     try {
       const start = t.indexOf('{'), end = t.lastIndexOf('}');
       if (start < 0 || end < 0) return null;
-      const obj = JSON.parse(t.slice(start, end + 1));
-      if (obj.action === 'aggiungi_evento' && obj.title && obj.scheduled_at) {
-        return { title: obj.title, scheduled_at: obj.scheduled_at, location: obj.location ?? null, description: obj.description ?? null };
+      const o = JSON.parse(t.slice(start, end + 1));
+
+      if (o.action === 'aggiungi_evento' && o.title && o.scheduled_at) {
+        return { kind: 'evento', title: o.title, scheduled_at: o.scheduled_at, location: o.location ?? null, description: o.description ?? null };
       }
-    } catch { /* non JSON valido: testo normale */ }
+      if (o.action === 'aggiungi_spesa' && o.description) {
+        const n = Number(o.amount);
+        // Importo non valido: meglio nessuna proposta che una cifra assurda.
+        if (!Number.isFinite(n) || n <= 0) return null;
+        return { kind: 'spesa', description: String(o.description), amount: n };
+      }
+    } catch { /* non JSON: testo normale */ }
     return null;
   };
 
@@ -62,20 +72,33 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     }
   };
 
-  const confirmEvent = async () => {
+  const confirmPending = async () => {
     if (!pending || !userId || saving) return;
     setSaving(true);
-    const { error } = await supabase.from('events').insert({
-      hub_id: hubId, title: pending.title, scheduled_at: pending.scheduled_at,
-      location: pending.location, description: pending.description,
-      created_by: userId, reveal_visible_to: [], revealed_override: null,
-    });
+    let error = null;
+
+    if (pending.kind === 'evento') {
+      const r = await supabase.from('events').insert({
+        hub_id: hubId, title: pending.title, scheduled_at: pending.scheduled_at,
+        location: pending.location, description: pending.description,
+        created_by: userId, reveal_visible_to: [], revealed_override: null,
+      });
+      error = r.error;
+    } else {
+      // payer_id sempre da sessione: Julie non attribuisce spese a terzi. split_with null = tutti.
+      const r = await supabase.from('expenses').insert({
+        hub_id: hubId, payer_id: userId, description: pending.description,
+        amount: pending.amount, split_with: null,
+      });
+      error = r.error;
+    }
+
     setSaving(false);
-    setMessages((m) => [...m, { role: 'assistant', content: error ? 'Mi perdoni, non sono riuscita ad aggiungerlo. Riprovi.' : 'Fatto, e nel calendario. Buon divertimento.' }]);
+    const ok = pending.kind === 'evento' ? 'Fatto, e nel calendario. Buon divertimento.' : 'Fatto. Ho registrato la spesa in cassa.';
+    setMessages((m) => [...m, { role: 'assistant', content: error ? 'Mi perdoni, non sono riuscita a registrarlo. Riprovi.' : ok }]);
     setPending(null);
   };
 
-  // Mostra l'ora letterale (coerente col calendario, che usa UTC grezzo). Nessuna conversione fuso.
   const fmt = (iso: string) => {
     const m = iso.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
     if (!m) return iso;
@@ -108,14 +131,15 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
               </div>
             </div>
           ))}
-          {pending && (
+
+          {pending && pending.kind === 'evento' && (
             <div className="rounded-2xl p-4" style={{ background: 'rgba(163,181,133,0.14)', border: '1px solid rgba(163,181,133,0.35)' }}>
               <p className="text-[10px] uppercase tracking-wider text-emerald-200/60 font-black mb-2">Nuovo evento</p>
               <p className="text-white font-black text-base">{pending.title}</p>
-              <p className="text-emerald-100/80 text-xs mt-1 capitalize">{fmt(pending.scheduled_at)}</p>
+              <p className="text-emerald-100/80 text-xs mt-1">{fmt(pending.scheduled_at)}</p>
               {pending.location && <p className="text-emerald-100/60 text-xs mt-0.5">{pending.location}</p>}
               <div className="flex gap-2 mt-3">
-                <button onClick={confirmEvent} disabled={saving}
+                <button onClick={confirmPending} disabled={saving}
                   className="flex-1 py-2.5 rounded-xl font-black text-xs uppercase active:scale-95 transition-transform disabled:opacity-50"
                   style={{ background: '#A3B585', color: '#14161A' }}>{saving ? 'Aggiungo...' : 'Conferma'}</button>
                 <button onClick={() => setPending(null)} disabled={saving}
@@ -123,6 +147,26 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
               </div>
             </div>
           )}
+
+          {pending && pending.kind === 'spesa' && (
+            <div className="rounded-2xl p-4" style={{ background: 'rgba(163,181,133,0.14)', border: '1px solid rgba(163,181,133,0.35)' }}>
+              <p className="text-[10px] uppercase tracking-wider text-emerald-200/60 font-black mb-2">Nuova spesa</p>
+              <p className="text-white font-black text-2xl">{pending.amount.toFixed(2)} &euro;</p>
+              <p className="text-emerald-100/80 text-sm mt-0.5">{pending.description}</p>
+              <div className="mt-2 pt-2 border-t border-white/10 space-y-0.5">
+                <p className="text-emerald-100/60 text-[11px]">Pagata da Lei</p>
+                <p className="text-emerald-100/60 text-[11px]">Divisa tra tutti i partecipanti</p>
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button onClick={confirmPending} disabled={saving}
+                  className="flex-1 py-2.5 rounded-xl font-black text-xs uppercase active:scale-95 transition-transform disabled:opacity-50"
+                  style={{ background: '#A3B585', color: '#14161A' }}>{saving ? 'Registro...' : 'Conferma'}</button>
+                <button onClick={() => setPending(null)} disabled={saving}
+                  className="px-4 py-2.5 rounded-xl font-black text-xs uppercase text-slate-400 border border-white/10">Annulla</button>
+              </div>
+            </div>
+          )}
+
           {busy && (
             <div className="flex justify-start">
               <div className="px-4 py-3 rounded-2xl" style={{ background: 'rgba(163,181,133,0.12)' }}>
@@ -150,5 +194,3 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     </div>
   );
 }
-
-
