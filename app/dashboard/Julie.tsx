@@ -21,6 +21,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   const ttsOk = typeof window !== 'undefined' && 'speechSynthesis' in window;
   const recRef = useRef<any>(null);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
+  const sendVoiceRef = useRef<(t: string) => void>(() => {});
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
   const [saving, setSaving] = useState(false); const [closing, setClosing] = useState(false); const softClose = () => { setClosing(true); setTimeout(onClose, 300); };
@@ -58,7 +59,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     rec.lang = 'it-IT'; rec.continuous = false; rec.interimResults = false;
     rec.onresult = (e: any) => {
       const said = e.results?.[0]?.[0]?.transcript?.trim();
-      if (said) { setInput(said); setTimeout(() => sendVoice(said), 100); }
+      if (said) { setInput(said); setTimeout(() => sendVoiceRef.current(said), 100); }
     };
     rec.onend = () => setListening(false);
     rec.onerror = () => setListening(false);
@@ -89,8 +90,10 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   const speak = (text: string) => {
     if (!ttsOk || !text) return;
     try {
+      // Il marchio resta puntato a schermo; alla voce diciamo il nome come parola.
+      const spoken = text.replace(/J\.U\.L\.I\.E\.?/gi, 'Julie');
       window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
+      const u = new SpeechSynthesisUtterance(spoken);
       u.lang = 'it-IT';
       const itVoice = voicesRef.current.find((v) => v.lang.startsWith('it'));
       if (itVoice) u.voice = itVoice;
@@ -107,6 +110,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   };
 
   const sendVoice = (text: string) => { const t = text.trim(); if (t && !busy) send(t); };
+  useEffect(() => { sendVoiceRef.current = sendVoice; });
 
   const send = async (voiceText?: string) => {
     const text = (voiceText ?? input).trim();
