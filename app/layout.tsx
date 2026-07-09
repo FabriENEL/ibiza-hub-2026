@@ -9,10 +9,10 @@ const display = Space_Grotesk({ variable: "--font-display", subsets: ["latin"] }
 const displaySerif = Cormorant_Garamond({ variable: "--font-display-serif", weight: ["500", "600"], subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Junction",
-  description: "Junction - Il tuo evento di gruppo, un solo posto.",
+  title: "EventGarden",
+  description: "EventGarden - Il tuo evento di gruppo, un solo posto.",
   icons: { icon: "/icon.png" },
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Junction" },
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "EventGarden" },
 };
 
 export const viewport: Viewport = { themeColor: "#020617" };
@@ -27,3 +27,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     </html>
   );
 }
+
+
+
