@@ -20,6 +20,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   const [speakOn, setSpeakOn] = useState(false);
   const ttsOk = typeof window !== 'undefined' && 'speechSynthesis' in window;
   const recRef = useRef<any>(null);
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
   const [saving, setSaving] = useState(false); const [closing, setClosing] = useState(false); const softClose = () => { setClosing(true); setTimeout(onClose, 300); };
@@ -64,21 +65,43 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     recRef.current = rec;
   }, []);
 
-  const speak = (text: string) => {
+  // Le voci sono caricate in modo asincrono dal browser: le mettiamo in cache appena disponibili,
+  // cosi' getVoices() non torna vuoto al primo utilizzo.
+  useEffect(() => {
     if (!ttsOk) return;
+    const load = () => { voicesRef.current = window.speechSynthesis.getVoices(); };
+    load();
+    window.speechSynthesis.onvoiceschanged = load;
+  }, [ttsOk]);
+
+  // Sblocca il motore vocale. DEVE partire da un gesto utente (tap): altrimenti la voce
+  // emessa dopo await fetch(...) viene silenziata dalle policy di autoplay del browser.
+  const unlockTTS = () => {
+    if (!ttsOk) return;
+    try {
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0;
+      window.speechSynthesis.speak(u);
+      window.speechSynthesis.resume();
+    } catch {}
+  };
+
+  const speak = (text: string) => {
+    if (!ttsOk || !text) return;
     try {
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.lang = 'it-IT';
-      const itVoice = window.speechSynthesis.getVoices().find((v) => v.lang.startsWith('it'));
+      const itVoice = voicesRef.current.find((v) => v.lang.startsWith('it'));
       if (itVoice) u.voice = itVoice;
       window.speechSynthesis.speak(u);
+      window.speechSynthesis.resume(); // aggira il pause-bug di Chrome dopo cancel()
     } catch {}
   };
 
   const toggleMic = () => {
     if (!recRef.current || busy) return;
-    if (!listening) setSpeakOn(true);
+    if (!listening) { setSpeakOn(true); unlockTTS(); }
     if (listening) { recRef.current.stop(); setListening(false); }
     else { try { setInput(''); recRef.current.start(); setListening(true); } catch {} }
   };
@@ -173,7 +196,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
             <p className="text-emerald-200/60 text-[10px] tracking-wide">Join Us Living In EventGarden</p>
           </div>
           {ttsOk && (
-            <button onClick={() => { if (speakOn) window.speechSynthesis.cancel(); setSpeakOn(!speakOn); }} aria-label={speakOn ? 'Muta Julie' : 'Attiva voce'} className='self-start p-1 rounded-lg transition-colors' style={{ color: speakOn ? '#A3B585' : '#64748b' }}>
+            <button onClick={() => { if (speakOn) { window.speechSynthesis.cancel(); setSpeakOn(false); } else { unlockTTS(); setSpeakOn(true); } }} aria-label={speakOn ? 'Muta Julie' : 'Attiva voce'} className='self-start p-1 rounded-lg transition-colors' style={{ color: speakOn ? '#A3B585' : '#64748b' }}>
               <svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
                 <path d='M11 5 6 9H2v6h4l5 4z' fill='currentColor' stroke='none' />
                 {speakOn ? <><path d='M15.5 8.5a5 5 0 0 1 0 7' /><path d='M18.5 5.5a9 9 0 0 1 0 13' /></> : <path d='m17 9 4 6M21 9l-4 6' />}
@@ -263,19 +286,3 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
