@@ -49,6 +49,7 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
   const [focus, setFocus] = useState<EventRow | null>(null);
   const [wx, setWx] = useState<Wx | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
+  const [diag, setDiag] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
 
@@ -72,8 +73,9 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
         const res = await fetch('/api/consigli', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: target.location }) });
         const d = await res.json();
         setSections((d.sections ?? []) as Section[]);
+        setDiag(d.diag ?? null);
         setWx(d.geo ? await fetchWx(d.geo, target.scheduled_at) : null);
-      } catch { setSections([]); setWx(null); }
+      } catch (e) { setSections([]); setDiag('errore rete: ' + String(e)); setWx(null); }
     } else { setSections([]); setWx(null); }
 
     setLoading(false);
@@ -112,7 +114,13 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
         }
       </div>
 
-      {!loading && focus && sections.every((s) => s.tips.length === 0) && (
+      {diag && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-amber-200 text-xs break-words">
+          <span className="font-black uppercase tracking-wide">Diagnostica Foursquare</span><br />{diag}
+        </div>
+      )}
+
+      {!loading && focus && sections.every((s) => s.tips.length === 0) && !diag && (
         <p className="text-slate-500 text-sm">Nessun consiglio trovato per questa zona. Verifichi il luogo dell'evento o la chiave del servizio.</p>
       )}
 

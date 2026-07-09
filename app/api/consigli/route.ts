@@ -39,9 +39,12 @@ async function fsqTop3(ll: string, query: string) {
         accept: 'application/json',
       },
     });
-    if (!res.ok) return { tips: [], error: 'fsq_' + res.status };
-    const d = await res.json();
+    const bodyText = await res.text();
+    if (!res.ok) return { tips: [], error: 'HTTP ' + res.status + ' ' + bodyText.slice(0, 160) };
+    let d: any = {};
+    try { d = JSON.parse(bodyText); } catch { return { tips: [], error: 'risposta non-JSON: ' + bodyText.slice(0, 120) }; }
     const raw = (d?.results ?? d?.places ?? []) as any[];
+    const diag = raw.length === 0 ? 'ok ma 0 risultati (chiavi: ' + Object.keys(d).join(',') + ')' : null;
     const tips = raw
       .map((p) => ({
         name: p.name ?? '—',
@@ -52,7 +55,7 @@ async function fsqTop3(ll: string, query: string) {
       // ordina per valutazione decrescente (i senza voto in fondo), poi i 3 migliori
       .sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1))
       .slice(0, 3);
-    return { tips, error: null };
+    return { tips, error: diag };
   } catch {
     return { tips: [], error: 'fetch_failed' };
   }
@@ -68,12 +71,14 @@ export async function POST(req: Request) {
   if (!geo) return NextResponse.json({ sections: [], geo: null, error: location ? 'geocode_failed' : 'no_location' });
 
   const ll = geo.lat + ',' + geo.lon;
-  const sections = await Promise.all(
+  const results = await Promise.all(
     CATEGORIES.map(async (c) => {
       const r = await fsqTop3(ll, c.query);
-      return { id: c.id, title: c.title, tips: r.tips };
+      return { id: c.id, title: c.title, tips: r.tips, diag: r.error };
     })
   );
+  const sections = results.map(({ id, title, tips }) => ({ id, title, tips }));
+  const diag = results.find((r) => r.diag)?.diag ?? null;
 
-  return NextResponse.json({ sections, geo, error: null });
+  return NextResponse.json({ sections, geo, diag });
 }
