@@ -30,7 +30,7 @@ async function geocode(location: string): Promise<{ lat: number; lon: number } |
 
 async function fsqTop3(ll: string, query: string) {
   const url = FSQ_URL + '?ll=' + ll + '&radius=6000&query=' + encodeURIComponent(query) +
-    '&sort=POPULARITY&limit=10&fields=fsq_place_id,name,price,categories';
+    '&sort=POPULARITY&limit=10&fields=fsq_place_id,name,categories';
   try {
     const res = await fetch(url, {
       headers: {
@@ -50,7 +50,7 @@ async function fsqTop3(ll: string, query: string) {
       .map((p) => ({
         name: p.name ?? '—',
         type: p.categories?.[0]?.name ?? '',
-        price: typeof p.price === 'number' ? p.price : null,
+        price: null,
       }));
     return { tips, error: diag };
   } catch {
