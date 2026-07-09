@@ -138,3 +138,13 @@ body::after {
   0%, 100% { transform: translateY(0) scale(1); }
   50%      { transform: translateY(-1.5px) scale(1.015); }
 }
+
+/* J contratta viva: anello che si irradia per invitare al tocco */
+@keyframes eg-ripple {
+  0%   { transform: scale(1);    opacity: 0.55; }
+  70%  { opacity: 0; }
+  100% { transform: scale(1.9);  opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .eg-ripple-ring { animation: none !important; opacity: 0 !important; }
+}

@@ -13,7 +13,7 @@ type Comment = { id: string; event_id: string; user_id: string; content: string;
 type Member = { user_id: string; username: string };
 
 export default function Calendar({ hubId, theme, isOwner, archived, words, rounded }: { hubId: string; theme: Theme; isOwner: boolean; archived: boolean; words: Words; rounded: string }) {
-  const { userId } = useHub();
+  const { userId, postAction } = useHub();
   const w = words;
   const r = rounded;
   const [events, setEvents] = useState<EventRow[]>([]);
@@ -73,6 +73,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
   };
 
   useEffect(() => { load(); }, [hubId]);
+  useEffect(() => { if (postAction?.module === 'calendar' && Date.now() - postAction.ts < 4000) load(); }, [postAction]);
 
   const canManageEvent = (ev: EventRow) => {
     if (myRole === 'OWNER') return true;
@@ -416,6 +417,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     </div>
   );
 }
+
 
 
 
