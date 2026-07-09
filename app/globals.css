@@ -132,3 +132,9 @@ body::after {
   0%   { background-color: rgba(163,181,133,0.30); box-shadow: 0 0 0 1px rgba(163,181,133,0.55); }
   100% { background-color: transparent;            box-shadow: 0 0 0 1px transparent; }
 }
+
+/* Julie viva: respiro lievissimo dell'avatar in chat espansa */
+@keyframes eg-breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-1.5px) scale(1.015); }
+}

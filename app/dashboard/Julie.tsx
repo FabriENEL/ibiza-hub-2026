@@ -16,7 +16,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
-  const [saving, setSaving] = useState(false); const [closing, setClosing] = useState(false);
+  const [saving, setSaving] = useState(false); const [closing, setClosing] = useState(false); const softClose = () => { setClosing(true); setTimeout(onClose, 300); };
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, busy, pending]);
@@ -96,7 +96,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     setSaving(false);
     const ok = pending.kind === 'evento' ? 'Fatto, e nel calendario. Buon divertimento.' : 'Fatto. Ho registrato la spesa in cassa.';
     setMessages((m) => [...m, { role: 'assistant', content: error ? 'Mi perdoni, non sono riuscita a registrarlo. Riprovi.' : ok }]);
-    const _target = pending.kind === 'spesa' ? 'cassa' : 'calendar'; const _ok = !error; setPending(null); if (_ok) { setTimeout(() => setClosing(true), 650); setTimeout(() => signalPostAction(_target), 1050); }
+    const _target = pending.kind === 'spesa' ? 'cassa' : 'calendar'; const _ok = !error; setPending(null); if (_ok) { setTimeout(() => setClosing(true), 650); setTimeout(() => { signalPostAction(_target); onClose(); }, 1050); }
   };
 
   const fmt = (iso: string) => {
@@ -107,18 +107,21 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={softClose}>
       <div onClick={(e) => e.stopPropagation()}
-        className={'w-full max-w-md h-[70vh] sm:h-[600px] flex flex-col rounded-t-3xl sm:rounded-3xl overflow-hidden transition-all duration-300 ease-in ' + (closing ? 'opacity-0 translate-y-4 sm:scale-95' : 'opacity-100')}
-        style={{ background: 'linear-gradient(160deg, #1C1F23, #14161A)' }}>
+        className={'w-full max-w-md h-[70vh] sm:h-[600px] flex flex-col rounded-t-3xl sm:rounded-3xl overflow-hidden backdrop-blur-md transition-all duration-300 ease-in ' + (closing ? 'opacity-0 translate-y-4 sm:scale-95' : 'opacity-100')}
+        style={{ background: 'linear-gradient(160deg, rgba(28,31,35,0.55), rgba(20,22,26,0.62))' }}>
 
-        <div className="flex items-center gap-3 p-4 border-b border-white/10">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-black" style={{ background: '#A3B585', color: '#14161A' }}>J</div>
-          <div className="flex-1">
-            <p className="text-white font-black text-sm">J.U.L.I.E.</p>
-            <p className="text-emerald-200/50 text-[10px] uppercase tracking-wider">EventGarden</p>
+        <div className="flex items-center gap-3.5 p-4 border-b border-white/10" style={{ background: 'linear-gradient(180deg, rgba(163,181,133,0.10), transparent)' }}>
+          <div className="relative shrink-0">
+            <span aria-hidden className="absolute -inset-1 rounded-full blur-md" style={{ background: 'radial-gradient(circle, rgba(163,181,133,0.45), transparent 70%)' }} />
+            <img src="/julie-avatar.jpeg" alt="J.U.L.I.E." className={'relative w-14 h-14 rounded-full object-cover shadow-lg shadow-black/40 ' + (busy ? 'animate-[eg-breathe_1.6s_ease-in-out_infinite]' : 'animate-[eg-breathe_4s_ease-in-out_infinite]')} style={{ border: '2px solid rgba(163,181,133,0.75)' }} />
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
+          <div className="flex-1">
+            <p className="text-white font-black text-base leading-tight">J.U.L.I.E.</p>
+            <p className="text-emerald-200/60 text-[10px] tracking-wide">Join Us Living In EventGarden</p>
+          </div>
+          <button onClick={softClose} aria-label="Chiudi" className="self-start text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -194,5 +197,11 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     </div>
   );
 }
+
+
+
+
+
+
 
 

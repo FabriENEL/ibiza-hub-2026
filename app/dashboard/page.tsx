@@ -5,6 +5,7 @@ import { useState } from 'react';
 import CreateHub from './CreateHub';
 import JoinHub from './JoinHub';
 import Shell from './Shell';
+import JulieDock from './JulieDock';
 import Garden from './Garden';
 import { logEvent } from './lib/logEvent';
 
@@ -102,7 +103,7 @@ function Lobby() {
 function DashboardRouter() {
   const { activeHubId } = useHub();
   if (!activeHubId) return <Lobby />;
-  return <Shell />;
+  return <><Shell /><JulieDock /></>;
 }
 
 export default function DashboardPage() {
@@ -114,6 +115,7 @@ export default function DashboardPage() {
     </AuthGuard>
   );
 }
+
 
 
 

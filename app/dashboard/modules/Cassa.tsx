@@ -31,6 +31,7 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
   };
 
   useEffect(() => { load(); }, [hubId]);
+  useEffect(() => { if (postAction?.module === 'cassa' && Date.now() - postAction.ts < 4000) load(); }, [postAction]);
   useEffect(() => {
     if (postAction?.module !== 'cassa' || Date.now() - postAction.ts > 4000 || !expenses.length) return;
     setHighlightId(expenses[0].id);
@@ -178,6 +179,7 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
     </div>
   );
 }
+
 
 
 
