@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useHub } from './lib/HubContext';
+import { ruleSignature } from './lib/eventVisuals';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 type PendingEvent = { kind: 'evento'; title: string; scheduled_at: string; location: string | null; description: string | null };
@@ -78,8 +79,15 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     let error = null;
 
     if (pending.kind === 'evento') {
+      let cover_url: string | null = null;
+      if (ruleSignature(pending.title) === '__none__') {
+        try {
+          const cr = await fetch('/api/cover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: pending.title }) });
+          const cd = await cr.json(); cover_url = cd.url ?? null;
+        } catch { cover_url = null; }
+      }
       const r = await supabase.from('events').insert({
-        hub_id: hubId, title: pending.title, scheduled_at: pending.scheduled_at,
+        hub_id: hubId, title: pending.title, scheduled_at: pending.scheduled_at, cover_url,
         location: pending.location, description: pending.description,
         created_by: userId, reveal_visible_to: [], revealed_override: null,
       });
@@ -197,6 +205,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     </div>
   );
 }
+
 
 
 

@@ -8,7 +8,7 @@ import DateTimePicker from '../lib/DateTimePicker';
 import type { Words } from '../lib/blueprints';
 
 type Theme = { text: string; gradient: string; border: string };
-type EventRow = { id: string; title: string | null; scheduled_at: string; location: string | null; created_by: string | null; reveal_at: string | null; revealed_override: boolean | null; revealed: boolean };
+type EventRow = { id: string; title: string | null; scheduled_at: string; location: string | null; created_by: string | null; reveal_at: string | null; revealed_override: boolean | null; revealed: boolean; cover_url: string | null };
 type Comment = { id: string; event_id: string; user_id: string; content: string; author: string };
 type Member = { user_id: string; username: string };
 
@@ -53,7 +53,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
 
   const load = async () => {
     setLoading(true);
-    const { data: ev } = await supabase.from('events_view').select('id, title, scheduled_at, location, created_by, reveal_at, revealed_override, revealed').eq('hub_id', hubId).order('scheduled_at', { ascending: true });
+    const { data: ev } = await supabase.from('events_view').select('id, title, scheduled_at, location, created_by, reveal_at, revealed_override, revealed, cover_url').eq('hub_id', hubId).order('scheduled_at', { ascending: true });
     const { data: cm } = await supabase.from('event_comments').select('id, event_id, user_id, content, profiles ( username )').eq('hub_id', hubId).order('created_at', { ascending: true });
     const { data: mem } = await supabase.from('hub_members').select('user_id, role, profiles ( username )').eq('hub_id', hubId);
     const evs = ev ?? [];
@@ -201,7 +201,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
 
   // Evento espanso (overlay). vis ricalcolato qui perche' fuori dal map.
   const xp = openEvent ? events.find((e) => e.id === openEvent) ?? null : null;
-  const xpVis = xp ? (xp.revealed && xp.title ? eventVisual(xp.title, variantMap.get(xp.id) ?? 0) : { image: undefined, gradient: 'from-slate-700 to-slate-900', icon: '\u{1F512}', matched: true }) : null;
+  const xpVis = xp ? (xp.revealed && xp.title ? (xp.cover_url ? { image: xp.cover_url, gradient: 'from-slate-800 to-slate-900', icon: '', matched: true } : eventVisual(xp.title, variantMap.get(xp.id) ?? 0)) : { image: undefined, gradient: 'from-slate-700 to-slate-900', icon: '\u{1F512}', matched: true }) : null;
   const xpComments = xp ? comments.filter((c) => c.event_id === xp.id) : [];
   const xpMine = xp ? myCommentOn(xp.id) : undefined;
   const xpCd = xp ? eventCountdown(xp.scheduled_at) : null;
@@ -262,7 +262,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
           {dayEvents.map((ev) => {
             const evComments = comments.filter((c) => c.event_id === ev.id);
             const editable = canManageEvent(ev) && !archived;
-            const vis = ev.revealed && ev.title ? eventVisual(ev.title, variantMap.get(ev.id) ?? 0) : { image: undefined, gradient: 'from-slate-700 to-slate-900', icon: '\u{1F512}', matched: true };
+            const vis = ev.revealed && ev.title ? (ev.cover_url ? { image: ev.cover_url, gradient: 'from-slate-800 to-slate-900', icon: '', matched: true } : eventVisual(ev.title, variantMap.get(ev.id) ?? 0)) : { image: undefined, gradient: 'from-slate-700 to-slate-900', icon: '\u{1F512}', matched: true };
             const isSurprise = !!ev.reveal_at || ev.revealed_override !== null;
 
             return (
@@ -417,6 +417,8 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     </div>
   );
 }
+
+
 
 
 
