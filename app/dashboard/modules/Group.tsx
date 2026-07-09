@@ -130,7 +130,7 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
 
       {archived && <div className={'bg-slate-800 border border-slate-600 p-4 text-center ' + r}><span className="text-[10px] uppercase font-black text-slate-300 tracking-widest">Archiviato - sola lettura</span></div>}
 
-      <div className={'bg-slate-900 border ' + theme.border + ' p-4 ' + r}>
+      <div className={'eg-card border ' + theme.border + ' p-4 ' + r}>
         <div className="flex items-center gap-4">
           <div className={'rounded-full p-[2.5px] bg-gradient-to-br ' + theme.gradient}><Avatar url={avatarUrl} name="?" size="w-16 h-16" /></div>
           <div className="flex-1">
@@ -155,7 +155,7 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
             // Solo il fondatore (OWNER) puo promuovere/declassare, e non se stesso.
             const canManage = isOwner && !isMe && m.role !== 'OWNER' && !archived;
             return (
-              <div key={m.user_id} className={'bg-slate-900 border ' + theme.border + ' p-4 ' + r}>
+              <div key={m.user_id} className={'eg-card border ' + theme.border + ' p-4 ' + r}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Avatar url={m.avatar} name={m.username} size="w-9 h-9" />
@@ -177,21 +177,21 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
       </div>
 
       {isOwner && passcode && !archived && (
-        <div className={'bg-slate-900 border ' + theme.border + ' p-4 ' + r}>
+        <div className={'eg-card border ' + theme.border + ' p-4 ' + r}>
           <p className="text-[10px] uppercase text-slate-400 font-black mb-2">Codice invito</p>
           <div className="bg-slate-950 rounded-xl p-4 text-center border border-dashed border-white/15"><span className={'text-2xl font-black tracking-[0.3em] ' + theme.text}>{passcode}</span></div>
         </div>
       )}
 
       {isOwner && !archived && (
-        <div className={'bg-slate-900 border border-white/5 p-4 flex items-center justify-between ' + r}>
+        <div className={'eg-card-n p-4 flex items-center justify-between ' + r}>
           <div><p className="text-[10px] uppercase text-slate-400 font-black">Modulo Voto</p><p className="text-[10px] text-slate-500">{votesEnabled ? 'Attivo' : 'Disattivato'}</p></div>
           <button onClick={toggleVotes} className={'text-[10px] uppercase font-black px-3 py-2 rounded-lg ' + (votesEnabled ? 'bg-slate-800 text-slate-300 border border-slate-600' : 'bg-gradient-to-r ' + theme.gradient + ' text-slate-950')}>{votesEnabled ? 'Disattiva' : 'Attiva'}</button>
         </div>
       )}
 
       {!archived && (
-        <div className={'bg-slate-900 border border-white/5 p-4 space-y-3 ' + r}>
+        <div className={'eg-card-n p-4 space-y-3 ' + r}>
           <p className="text-[10px] uppercase text-slate-400 font-black">Unisciti a un altro Hub</p>
           <input value={joinCode} onChange={(e) => setJoinCode(e.target.value)} placeholder="Codice invito" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white outline-none" />
           <button onClick={handleJoin} disabled={busy || !joinCode.trim()} className={'w-full bg-gradient-to-r ' + theme.gradient + ' text-slate-950 py-2.5 rounded-lg font-black text-xs uppercase disabled:opacity-40'}>{busy ? 'Entro...' : 'Unisciti'}</button>
@@ -216,6 +216,7 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
     </div>
   );
 }
+
 
 
 

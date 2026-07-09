@@ -166,7 +166,7 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
         <h3 className="font-black uppercase text-white tracking-wider mb-3">Meteo del programma</h3>
         {loading ? <div className={'h-32 bg-slate-900 border border-white/5 animate-pulse ' + r} /> :
           !focus ? <p className="text-slate-500 text-sm">Il meteo comparira qui al primo evento svelato con un luogo. Aggiunga un evento al programma.</p> :
-          <div className={'relative overflow-hidden bg-slate-900 border ' + theme.border + ' p-5 ' + r}>
+          <div className={'eg-card relative overflow-hidden border ' + theme.border + ' p-5 ' + r}>
             {wx && <div aria-hidden className={'absolute inset-0 bg-gradient-to-br ' + wxTone(wx.code)} />}
             <div className="relative flex items-center justify-between">
               <div>
@@ -197,7 +197,7 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
           </div>
           <div className="space-y-2">
             {s.tips.map((tip, i) => (
-              <div key={i} className={'bg-slate-900 border ' + theme.border + ' p-4 flex items-center justify-between transition-transform active:scale-[0.98] ' + r}>
+              <div key={i} className={'eg-card border ' + theme.border + ' p-4 flex items-center justify-between transition-transform active:scale-[0.98] ' + r}>
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="font-bold text-white text-sm">{tip.name}</p>
@@ -218,3 +218,4 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
     </div>
   );
 }
+

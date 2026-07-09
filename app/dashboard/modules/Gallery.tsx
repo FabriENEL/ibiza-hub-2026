@@ -91,7 +91,7 @@ export default function Gallery({ hubId, theme, archived }: { hubId: string; the
         </div> : (
         <div className="grid grid-cols-2 gap-3">
           {shown.map((m) => (
-            <div key={m.id} onClick={() => setViewer(m)} className="bg-slate-900 rounded-xl overflow-hidden border border-white/5 cursor-pointer active:scale-95 transition-transform">
+            <div key={m.id} onClick={() => setViewer(m)} className="eg-card-n rounded-xl overflow-hidden cursor-pointer active:scale-95 transition-transform">
               <div className="aspect-square bg-slate-950">
                 {m.type === 'video' ? <div className="relative w-full h-full"><video src={m.url} className="w-full h-full object-cover" /><span className="absolute inset-0 flex items-center justify-center text-white/90 text-2xl drop-shadow bg-black/20">{'\u25B6'}</span></div> : <img src={m.url} className="w-full h-full object-cover" alt="" />}
               </div>
@@ -114,6 +114,7 @@ export default function Gallery({ hubId, theme, archived }: { hubId: string; the
     </div>
   );
 }
+
 
 
 

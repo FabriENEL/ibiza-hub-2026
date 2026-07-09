@@ -234,7 +234,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
       )}
 
       {canCreate && !archived && adding && (
-        <div className={'bg-slate-900 border border-white/5 p-4 space-y-3 ' + r}>
+        <div className={'eg-card-n p-4 space-y-3 ' + r}>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titolo evento" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white outline-none" />
           <DateTimePicker value={when} onChange={setWhen} />
           <input value={where} onChange={(e) => setWhere(e.target.value)} placeholder="Luogo (opzionale)" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white outline-none" />
@@ -266,7 +266,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
             const isSurprise = !!ev.reveal_at || ev.revealed_override !== null;
 
             return (
-              <div key={ev.id} className={'bg-slate-900 border ' + theme.border + ' overflow-hidden ' + r}>
+              <div key={ev.id} className={'eg-card border ' + theme.border + ' overflow-hidden ' + r}>
                 {editId === ev.id ? (
                   <div className="space-y-2 p-4">
                     <input value={eTitle} onChange={(e) => setETitle(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white outline-none" />
@@ -353,18 +353,18 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
 
             <div className="p-5 space-y-4 pb-16">
               {xpCd && xp.revealed && (
-                <div className={'bg-slate-900 border ' + theme.border + ' p-4 text-center ' + r}>
+                <div className={'eg-card border ' + theme.border + ' p-4 text-center ' + r}>
                   <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black mb-1">Inizia tra</p>
                   <p className={'text-3xl font-black ' + theme.text}>{xpCd}</p>
                 </div>
               )}
               {!xpCd && xp.revealed && (
-                <div className={'bg-slate-900 border border-white/10 p-3 text-center ' + r}>
+                <div className={'eg-card-n p-3 text-center ' + r}>
                   <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black">Evento iniziato</p>
                 </div>
               )}
               {!xp.revealed && (
-                <div className={'bg-slate-900 border border-white/10 p-4 text-center ' + r}>
+                <div className={'eg-card-n p-4 text-center ' + r}>
                   <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black mb-1">{xp.reveal_at ? 'Sblocco tra' : 'In attesa di svelamento'}</p>
                   {xp.reveal_at && <p className="text-2xl font-black text-white">{countdown(xp.reveal_at)}</p>}
                 </div>
@@ -382,7 +382,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                   <div className="space-y-2">
                     {xpComments.length === 0 && <p className="text-xs text-slate-500">Nessun commento. Rompa il ghiaccio.</p>}
                     {xpComments.map((c) => (
-                      <div key={c.id} className="bg-slate-900 rounded-xl p-3 border border-white/5">
+                      <div key={c.id} className="eg-card-n rounded-xl p-3">
                         <div className="flex justify-between items-center">
                           <span className={'text-[10px] font-black ' + theme.text}>{c.author}</span>
                           {c.user_id === userId && !archived && editingC !== c.id && (
@@ -417,6 +417,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     </div>
   );
 }
+
 
 
 
