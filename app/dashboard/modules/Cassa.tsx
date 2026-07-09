@@ -16,7 +16,7 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState(false);
   const [splitSel, setSplitSel] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true); const [highlightId, setHighlightId] = useState<string | null>(null); const armedRef = useRef(postAction?.module === 'cassa' && Date.now() - (postAction?.ts ?? 0) < 4000);
+  const [loading, setLoading] = useState(true); const [highlightId, setHighlightId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -27,10 +27,16 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
       .from('hub_members').select('user_id, profiles ( username )').eq('hub_id', hubId);
     const rows = (exp ?? []).map((e: any) => ({ ...e, amount: Number(e.amount), split_with: e.split_with ?? null })); setExpenses(rows);
     setMembers((mem ?? []).map((m: any) => ({ user_id: m.user_id, username: m.profiles?.username ?? '???' })));
-    setLoading(false); if (armedRef.current && rows.length) { armedRef.current = false; setHighlightId(rows[0].id); setTimeout(() => setHighlightId(null), 2600); }
+    setLoading(false);
   };
 
   useEffect(() => { load(); }, [hubId]);
+  useEffect(() => {
+    if (postAction?.module !== 'cassa' || Date.now() - postAction.ts > 4000 || !expenses.length) return;
+    setHighlightId(expenses[0].id);
+    const timer = setTimeout(() => setHighlightId(null), 2600);
+    return () => clearTimeout(timer);
+  }, [postAction, expenses]);
 
   const handleAdd = async () => {
     const val = Number(amount);
@@ -172,6 +178,7 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
     </div>
   );
 }
+
 
 
 

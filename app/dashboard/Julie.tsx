@@ -96,7 +96,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     setSaving(false);
     const ok = pending.kind === 'evento' ? 'Fatto, e nel calendario. Buon divertimento.' : 'Fatto. Ho registrato la spesa in cassa.';
     setMessages((m) => [...m, { role: 'assistant', content: error ? 'Mi perdoni, non sono riuscita a registrarlo. Riprovi.' : ok }]);
-    const _target = pending.kind === 'spesa' ? 'cassa' : 'calendar'; const _ok = !error; setPending(null); if (_ok) { setTimeout(() => setClosing(true), 750); setTimeout(() => signalPostAction(_target), 1050); }
+    const _target = pending.kind === 'spesa' ? 'cassa' : 'calendar'; const _ok = !error; setPending(null); if (_ok) { setTimeout(() => setClosing(true), 650); setTimeout(() => signalPostAction(_target), 1050); }
   };
 
   const fmt = (iso: string) => {
@@ -107,9 +107,9 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   };
 
   return (
-    <div className={'fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm ' + (closing ? 'animate-[eg-fade-out_.3s_ease-in_forwards]' : '')} onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md h-[70vh] sm:h-[600px] flex flex-col rounded-t-3xl sm:rounded-3xl overflow-hidden"
+        className={'w-full max-w-md h-[70vh] sm:h-[600px] flex flex-col rounded-t-3xl sm:rounded-3xl overflow-hidden transition-all duration-300 ease-in ' + (closing ? 'opacity-0 translate-y-4 sm:scale-95' : 'opacity-100')}
         style={{ background: 'linear-gradient(160deg, #1C1F23, #14161A)' }}>
 
         <div className="flex items-center gap-3 p-4 border-b border-white/10">
@@ -194,4 +194,5 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     </div>
   );
 }
+
 
