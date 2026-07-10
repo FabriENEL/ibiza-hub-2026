@@ -10,10 +10,10 @@ import Garden from './Garden';
 import { logEvent } from './lib/logEvent';
 
 const THEME: Record<string, { text: string; gradient: string; border: string }> = {
-  travel:    { text: 'text-yellow-500', gradient: 'from-yellow-400 to-yellow-600', border: 'border-yellow-500/30' },
-  party:     { text: 'text-rose-500',   gradient: 'from-rose-400 to-pink-600',     border: 'border-rose-500/30' },
-  social:    { text: 'text-emerald-500',gradient: 'from-emerald-400 to-teal-600',  border: 'border-emerald-500/30' },
-  corporate: { text: 'text-blue-500',   gradient: 'from-blue-400 to-indigo-600',   border: 'border-blue-500/30' },
+  travel:    { text: 'text-[#7FA8B0]', gradient: 'from-[#7FA8B0] to-[#5F8189]', border: 'border-[#7FA8B04D]' },
+  party:     { text: 'text-[#D9A441]', gradient: 'from-[#D9A441] to-[#B7842B]', border: 'border-[#D9A4414D]' },
+  social:    { text: 'text-[#A3B585]', gradient: 'from-[#A3B585] to-[#7C8E60]', border: 'border-[#A3B5854D]' },
+  corporate: { text: 'text-[#8892B0]', gradient: 'from-[#8892B0] to-[#67718F]', border: 'border-[#8892B04D]' },
 };
 
 const VISUAL: Record<string, { image: string; icon: string }> = {
