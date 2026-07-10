@@ -17,6 +17,7 @@ type HubContextValue = {
   setActiveHubId: (id: string | null) => void;
   loading: boolean;
   refresh: () => Promise<void>; postAction: { module: string; ts: number } | null; signalPostAction: (module: string) => void; julieOpen: boolean; openJulie: () => void; closeJulie: () => void;
+  julieSeed: { title: string; location: string | null } | null; seedJulie: (s: { title: string; location: string | null }) => void; clearJulieSeed: () => void;
 };
 
 const HubContext = createContext<HubContextValue | null>(null);
@@ -35,6 +36,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
     }
   };
   const [loading, setLoading] = useState(true); const [postAction, setPostAction] = useState<{ module: string; ts: number } | null>(null); const signalPostAction = (module: string) => setPostAction({ module, ts: Date.now() }); const [julieOpen, setJulieOpen] = useState(false); const openJulie = () => setJulieOpen(true); const closeJulie = () => setJulieOpen(false);
+  const [julieSeed, setJulieSeed] = useState<{ title: string; location: string | null } | null>(null); const seedJulie = (s: { title: string; location: string | null }) => { setJulieSeed(s); setJulieOpen(true); }; const clearJulieSeed = () => setJulieSeed(null);
 
   const load = async () => {
     setLoading(true);
@@ -66,7 +68,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
   useEffect(() => { load(); }, []);
 
   return (
-    <HubContext.Provider value={{ userId, username, avatarUrl, memberships, activeHubId, setActiveHubId, loading, refresh: load, postAction, signalPostAction, julieOpen, openJulie, closeJulie }}>
+    <HubContext.Provider value={{ userId, username, avatarUrl, memberships, activeHubId, setActiveHubId, loading, refresh: load, postAction, signalPostAction, julieOpen, openJulie, closeJulie, julieSeed, seedJulie, clearJulieSeed }}>
       {children}
     </HubContext.Provider>
   );
@@ -77,6 +79,3 @@ export function useHub() {
   if (!ctx) throw new Error('useHub deve stare dentro <HubProvider>');
   return ctx;
 }
-
-
-

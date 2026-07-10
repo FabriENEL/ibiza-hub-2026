@@ -6,11 +6,9 @@ import { useHub } from '../lib/HubContext';
 type Theme = { text: string; gradient: string; border: string };
 type EventRow = { id: string; title: string | null; scheduled_at: string; location: string | null; revealed: boolean };
 type Wx = { temp: number; code: number; forecast: boolean };
-type Tip = { name: string; type: string; rating: number | null; price: number | null };
+type Tip = { name: string; type: string; lat: number | null; lon: number | null; address: string | null };
 type Section = { id: string; title: string; tips: Tip[] };
 
-// Ogni categoria di consiglio implica una fascia oraria: la usiamo come orario di default del 'Mi interessa'.
-const SLOT_HOUR: Record<string, number> = { beach: 11, aperitivo: 18, food: 20, night: 23, parking: 9 };
 
 const emoji = (code: number) => {
   if (code === 0) return '\u2600\uFE0F';
@@ -53,7 +51,7 @@ async function fetchWx(city: { lat: number; lon: number }, iso: string): Promise
 }
 
 export default function Consigli({ hubId, theme, category, rounded }: { hubId: string; theme: Theme; category: string; rounded: string }) {
-  const { userId } = useHub();
+  const { seedJulie } = useHub();
   const r = rounded;
   const [focus, setFocus] = useState<EventRow | null>(null);
   const [wx, setWx] = useState<Wx | null>(null);
@@ -61,29 +59,18 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
   const [diag, setDiag] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
-  const [hubStart, setHubStart] = useState<string | null>(null);
-  const [addedTips, setAddedTips] = useState<Set<string>>(new Set());
-  const [savingTip, setSavingTip] = useState<string | null>(null);
 
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(i); }, []);
 
-  const buildWhen = (sectionId: string) => {
-    const base = hubStart || new Date().toISOString().split('T')[0];
-    const h = SLOT_HOUR[sectionId] ?? 12;
-    return base + 'T' + String(h).padStart(2, '0') + ':00';
-  };
-  const navigateTo = (place: string) => window.open('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(place), '_blank');
-  const addInterest = async (sectionId: string, tip: Tip) => {
-    const key = sectionId + '|' + tip.name;
-    if (addedTips.has(key) || savingTip) return;
-    setSavingTip(key);
-    const { error } = await supabase.from('events').insert({
-      hub_id: hubId, title: tip.name, scheduled_at: buildWhen(sectionId), location: tip.name,
-      created_by: userId, reveal_visible_to: [], revealed_override: null,
-    });
-    setSavingTip(null);
-    if (!error) setAddedTips((prev) => new Set(prev).add(key));
-  };
+  // Naviga al punto esatto (coordinate Foursquare); ripiega sul nome se mancano.
+  const navigateTo = (tip: Tip) => window.open(
+    tip.lat != null && tip.lon != null
+      ? 'https://www.google.com/maps/search/?api=1&query=' + tip.lat + ',' + tip.lon
+      : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(tip.name),
+    '_blank'
+  );
+  // 'Mi interessa': non crea nulla di nascosto. Sveglia Julie col luogo; sara' lei a chiedere data e ora.
+  const propose = (tip: Tip) => seedJulie({ title: tip.name, location: tip.address || tip.name });
 
   const load = async () => {
     setLoading(true);
@@ -99,11 +86,10 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
     setFocus(target);
 
     // Luogo per i consigli: quello dell'evento in focus, altrimenti quello dell'Hub (l'arrivo).
-    // Un'unica lettura Hub: luogo (fallback consigli) + data d'inizio (default orario 'Mi interessa').
-    const { data: hub } = await supabase.from('hubs').select('location, start_date').eq('id', hubId).single();
-    setHubStart((hub as any)?.start_date ?? null);
+    // Luogo per i consigli: quello dell'evento in focus, altrimenti quello dell'Hub (l'arrivo).
     let placeLoc: string | null = target?.location ?? null;
     if (!placeLoc) {
+      const { data: hub } = await supabase.from('hubs').select('location').eq('id', hubId).single();
       const hl = (hub as any)?.location;
       placeLoc = hl && hl !== '-' ? hl : null;
     }
@@ -168,29 +154,23 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
         <div key={s.id}>
           <h3 className="font-black uppercase text-white tracking-wider mb-2">{s.title}</h3>
           <div className="space-y-2">
-            {s.tips.map((tip, i) => {
-              const key = s.id + '|' + tip.name;
-              const added = addedTips.has(key);
-              const saving = savingTip === key;
-              return (
+            {s.tips.map((tip, i) => (
               <div key={i} className={'eg-card border ' + theme.border + ' p-4 flex items-center justify-between ' + r}>
                 <div className="min-w-0">
                   <p className="font-bold text-white text-sm truncate">{tip.name}</p>
                   {tip.type && <p className="text-[11px] text-slate-400 truncate">{tip.type}</p>}
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-3">
-                  <button onClick={() => navigateTo(tip.name)} aria-label="Naviga" className="w-9 h-9 rounded-full flex items-center justify-center border border-white/10 text-slate-300 active:scale-90 transition-transform">{'\u{1F4CD}'}</button>
+                  <button onClick={() => navigateTo(tip)} aria-label="Naviga" className="w-9 h-9 rounded-full flex items-center justify-center border border-white/10 text-slate-300 active:scale-90 transition-transform">{'\u{1F4CD}'}</button>
                   {s.id !== 'parking' && (
-                    <button onClick={() => addInterest(s.id, tip)} disabled={added || saving} aria-label={added ? 'Nel programma' : 'Mi interessa'}
-                      className={'w-9 h-9 rounded-full flex items-center justify-center border text-base active:scale-90 transition-all ' + (added ? 'border-transparent' : 'border-white/10')}
-                      style={added ? { background: '#A3B585', color: '#14161A' } : { color: '#A3B585' }}>
-                      {added ? '\u2665' : (saving ? '\u2026' : '\u2661')}
+                    <button onClick={() => propose(tip)} aria-label="Mi interessa"
+                      className="w-9 h-9 rounded-full flex items-center justify-center border border-white/10 text-base active:scale-90 transition-transform" style={{ color: '#A3B585' }}>
+                      {'\u2661'}
                     </button>
                   )}
                 </div>
               </div>
-              );
-            })}
+            ))}
           </div>
         </div>
       ))}

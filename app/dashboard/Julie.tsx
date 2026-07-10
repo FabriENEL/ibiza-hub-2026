@@ -3,14 +3,15 @@ import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useHub } from './lib/HubContext';
 import { ruleSignature } from './lib/eventVisuals';
+import DateTimePicker from './lib/DateTimePicker';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
-type PendingEvent = { kind: 'evento'; title: string; scheduled_at: string; location: string | null; description: string | null };
+type PendingEvent = { kind: 'evento'; title: string; scheduled_at: string; location: string | null; description: string | null; fromConsiglio?: boolean };
 type PendingExpense = { kind: 'spesa'; description: string; amount: number };
 type Pending = PendingEvent | PendingExpense;
 
 export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: string }) {
-  const { userId, signalPostAction } = useHub();
+  const { userId, signalPostAction, julieSeed, clearJulieSeed } = useHub();
   const [messages, setMessages] = useState<Msg[]>([
     { role: 'assistant', content: 'Buongiorno. Sono J.U.L.I.E., come posso esserLe utile?' },
   ]);
@@ -28,6 +29,19 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, busy, pending]);
+
+  // Arrivo da un consiglio ('Mi interessa'): precompilo la card con nome e luogo, chiedo solo data/ora.
+  useEffect(() => {
+    if (!julieSeed) return;
+    setPending({ kind: 'evento', title: julieSeed.title, scheduled_at: '', location: julieSeed.location, description: null, fromConsiglio: true });
+    const opts = [
+      'Ottima scelta! Quando lo mettiamo in programma?',
+      'Che bel posto. Mi indichi giorno e ora e lo aggiungo io.',
+      'Perfetto, al resto penso io: mi dica solo data e ora.',
+    ];
+    setMessages((m) => [...m, { role: 'assistant', content: opts[Math.floor(Math.random() * opts.length)] }]);
+    clearJulieSeed();
+  }, [julieSeed]);
 
   // Riconosce l'azione proposta da Julie. Validazione severa: dati incoerenti = nessuna card.
   const parseAction = (text: string): Pending | null => {
@@ -146,6 +160,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
 
   const confirmPending = async () => {
     if (!pending || !userId || saving) return;
+    if (pending.kind === 'evento' && !pending.scheduled_at) return;
     setSaving(true);
     let error = null;
 
@@ -226,10 +241,16 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
             <div className="rounded-2xl p-4" style={{ background: 'rgba(163,181,133,0.14)', border: '1px solid rgba(163,181,133,0.35)' }}>
               <p className="text-[10px] uppercase tracking-wider text-emerald-200/60 font-black mb-2">Nuovo evento</p>
               <p className="text-white font-black text-base">{pending.title}</p>
-              <p className="text-emerald-100/80 text-xs mt-1">{fmt(pending.scheduled_at)}</p>
+              {pending.fromConsiglio ? (
+                <div className="mt-2 mb-1">
+                  <DateTimePicker value={pending.scheduled_at} onChange={(v) => setPending({ ...pending, scheduled_at: v })} />
+                </div>
+              ) : (
+                <p className="text-emerald-100/80 text-xs mt-1">{fmt(pending.scheduled_at)}</p>
+              )}
               {pending.location && <p className="text-emerald-100/60 text-xs mt-0.5">{pending.location}</p>}
               <div className="flex gap-2 mt-3">
-                <button onClick={confirmPending} disabled={saving}
+                <button onClick={confirmPending} disabled={saving || (pending.fromConsiglio && !pending.scheduled_at)}
                   className="flex-1 py-2.5 rounded-xl font-black text-xs uppercase active:scale-95 transition-transform disabled:opacity-50"
                   style={{ background: '#A3B585', color: '#14161A' }}>{saving ? 'Aggiungo...' : 'Conferma'}</button>
                 <button onClick={() => setPending(null)} disabled={saving}
