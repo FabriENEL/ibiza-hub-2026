@@ -1,7 +1,7 @@
 ﻿'use client'
 import AuthGuard from './AuthGuard';
 import { HubProvider, useHub } from './lib/HubContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import CreateHub from './CreateHub';
 import JoinHub from './JoinHub';
 import Shell from './Shell';
@@ -16,7 +16,6 @@ const THEME: Record<string, { text: string; gradient: string; border: string }> 
   corporate: { text: 'text-blue-500',   gradient: 'from-blue-400 to-indigo-600',   border: 'border-blue-500/30' },
 };
 
-// Ogni categoria ha un volto: banner + icona. Il carattere dell'Hub inizia dalla selezione.
 const VISUAL: Record<string, { image: string; icon: string }> = {
   travel:    { image: '/events/boat.webp',        icon: '\u{1F30D}' },
   party:     { image: '/events/club.webp',        icon: '\u{1F389}' },
@@ -30,7 +29,7 @@ function Lobby() {
 
   if (view === 'create') return <CreateHub onClose={() => setView('list')} />;
   if (view === 'join')   return <JoinHub onClose={() => setView('list')} />;
-  if (view === 'garden') return <Garden onClose={() => setView('list')} onOpenHub={(id) => setActiveHubId(id)} />;
+  if (view === 'garden') return <Garden onClose={() => setView('list')} onOpenHub={(id: string) => setActiveHubId(id)} />;
 
   if (loading) {
     return (
@@ -65,7 +64,7 @@ function Lobby() {
           </div>
         ) : (
           <div className="space-y-4">
-            {memberships.map(({ hub, role }) => {
+            {memberships.map(({ hub, role }: { hub: any; role: string }) => {
               const th = THEME[hub.category] ?? THEME.travel;
               const v = VISUAL[hub.category] ?? VISUAL.travel;
               const archived = hub.status === 'archived';
@@ -101,7 +100,18 @@ function Lobby() {
 }
 
 function DashboardRouter() {
-  const { activeHubId } = useHub();
+  const { activeHubId, setActiveHubId } = useHub();
+
+  useEffect(() => {
+    history.pushState(null, '', location.href);
+    const onPop = () => {
+      if (activeHubId) setActiveHubId(null);
+      history.pushState(null, '', location.href);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [activeHubId, setActiveHubId]);
+
   if (!activeHubId) return <Lobby />;
   return <><Shell /><JulieDock /></>;
 }
@@ -115,13 +125,3 @@ export default function DashboardPage() {
     </AuthGuard>
   );
 }
-
-
-
-
-
-
-
-
-
-
