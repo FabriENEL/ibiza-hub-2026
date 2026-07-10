@@ -3,24 +3,26 @@
   vibe: { rounded: string; tone: 'warm' | 'formal' | 'neutral' };
 };
 
+// Voce di casa: salvia. Fallback dei moduli e delle categorie "calme".
 const NEUTRAL: Persona = {
-  theme: { text: 'text-yellow-500', gradient: 'from-yellow-400 to-yellow-600', border: 'border-yellow-500/30' },
+  theme: { text: 'text-[#A3B585]', gradient: 'from-[#A3B585] to-[#7C8E60]', border: 'border-[#A3B5854D]' },
   vibe: { rounded: 'rounded-2xl', tone: 'neutral' },
 };
-
 export const PERSONAS: Record<string, Persona> = {
-  travel: NEUTRAL,
+  travel: {
+    theme: { text: 'text-[#7FA8B0]', gradient: 'from-[#7FA8B0] to-[#5F8189]', border: 'border-[#7FA8B04D]' },
+    vibe: { rounded: 'rounded-2xl', tone: 'neutral' },
+  },
   social: NEUTRAL,
   party: {
-    theme: { text: 'text-pink-500', gradient: 'from-pink-400 to-fuchsia-600', border: 'border-pink-500/30' },
+    theme: { text: 'text-[#D9A441]', gradient: 'from-[#D9A441] to-[#B7842B]', border: 'border-[#D9A4414D]' },
     vibe: { rounded: 'rounded-3xl', tone: 'warm' },
   },
   corporate: {
-    theme: { text: 'text-blue-400', gradient: 'from-blue-500 to-indigo-600', border: 'border-blue-500/20' },
+    theme: { text: 'text-[#8892B0]', gradient: 'from-[#8892B0] to-[#67718F]', border: 'border-[#8892B04D]' },
     vibe: { rounded: 'rounded-lg', tone: 'formal' },
   },
 };
-
 export function getPersona(category: string): Persona {
   return PERSONAS[category] ?? NEUTRAL;
 }
