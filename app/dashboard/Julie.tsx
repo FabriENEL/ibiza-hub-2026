@@ -25,10 +25,11 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   const sendVoiceRef = useRef<(t: string) => void>(() => {});
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
-  const [saving, setSaving] = useState(false); const [closing, setClosing] = useState(false); const softClose = () => { setClosing(true); setTimeout(onClose, 300); };
+  const [saving, setSaving] = useState(false); const [closing, setClosing] = useState(false); const [shown, setShown] = useState(false); const softClose = () => { setClosing(true); setTimeout(onClose, 300); };
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, busy, pending]);
+  useEffect(() => { const id = requestAnimationFrame(() => setShown(true)); return () => cancelAnimationFrame(id); }, []);
 
   // Arrivo da un consiglio ('Mi interessa'): precompilo la card con nome e luogo, chiedo solo data/ora.
   useEffect(() => {
@@ -201,9 +202,9 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={softClose}>
+    <div className={'fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300 ' + ((closing || !shown) ? 'opacity-0' : 'opacity-100')} onClick={softClose}>
       <div onClick={(e) => e.stopPropagation()}
-        className={'w-full max-w-md h-[70vh] sm:h-[600px] flex flex-col rounded-t-3xl sm:rounded-3xl overflow-hidden backdrop-blur-md transition-all duration-300 ease-in ' + (closing ? 'opacity-0 translate-y-4 sm:scale-95' : 'opacity-100')}
+        className={'w-full max-w-md h-[70vh] sm:h-[600px] flex flex-col rounded-t-3xl sm:rounded-3xl overflow-hidden backdrop-blur-md transition-all duration-300 ease-out ' + ((closing || !shown) ? 'opacity-0 translate-y-4 sm:scale-95' : 'opacity-100')}
         style={{ background: 'linear-gradient(160deg, rgba(28,31,35,0.55), rgba(20,22,26,0.62))' }}>
 
         <div className="flex items-center gap-3.5 p-4 border-b border-white/10" style={{ background: 'linear-gradient(180deg, rgba(163,181,133,0.10), transparent)' }}>
