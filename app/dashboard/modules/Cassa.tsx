@@ -5,7 +5,7 @@ import { logEvent } from '../lib/logEvent';
 import { useHub } from '../lib/HubContext';
 
 type Theme = { text: string; gradient: string; border: string };
-type Expense = { id: string; payer_id: string; description: string; amount: number; split_with: string[] | null };
+type Expense = { id: string; payer_id: string; description: string; amount: number; split_with: string[] | null; created_at: string };
 type Member = { user_id: string; username: string };
 
 export default function Cassa({ hubId, theme, archived }: { hubId: string; theme: Theme; archived: boolean }) {
@@ -17,11 +17,12 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
   const [busy, setBusy] = useState(false);
   const [splitSel, setSplitSel] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true); const [highlightId, setHighlightId] = useState<string | null>(null);
+  const highlightRef = useRef<HTMLDivElement | null>(null);
 
   const load = async () => {
     setLoading(true);
     const { data: exp } = await supabase
-      .from('expenses').select('id, payer_id, description, amount, split_with')
+      .from('expenses').select('id, payer_id, description, amount, split_with, created_at')
       .eq('hub_id', hubId).order('created_at', { ascending: false });
     const { data: mem } = await supabase
       .from('hub_members').select('user_id, profiles ( username )').eq('hub_id', hubId);
@@ -38,6 +39,12 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
     const timer = setTimeout(() => setHighlightId(null), 2600);
     return () => clearTimeout(timer);
   }, [postAction, expenses]);
+  // Porta in vista la riga appena aggiunta: il glow non brilla piu' fuori schermo.
+  useEffect(() => {
+    if (highlightId && highlightRef.current) highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlightId]);
+
+  const fmtDate = (iso: string) => { const d = new Date(iso); const p = (n: number) => String(n).padStart(2, '0'); const mesi = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic']; return p(d.getUTCDate()) + ' ' + mesi[d.getUTCMonth()]; };
 
   const handleAdd = async () => {
     const val = Number(amount);
@@ -164,10 +171,10 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
       <div className="eg-card p-4 rounded-xl">
         <h4 className="text-[10px] uppercase text-slate-400 font-black mb-3 tracking-wider">Registro spese</h4>
         {expenses.length === 0 ? <p className="text-xs text-slate-500">Nessuna spesa. Registri la prima qui sopra.</p> : expenses.map((e) => (
-          <div key={e.id} className={'flex justify-between items-center mb-3 border-b border-white/5 pb-2 last:border-0 last:mb-0 last:pb-0 ' + (e.id === highlightId ? 'animate-[eg-row-glow_2.4s_ease-out] rounded-lg -mx-2 px-2' : '')}>
+          <div key={e.id} ref={e.id === highlightId ? highlightRef : null} className={'flex justify-between items-center mb-3 border-b border-white/5 pb-2 last:border-0 last:mb-0 last:pb-0 ' + (e.id === highlightId ? 'animate-[eg-row-glow_2.4s_ease-out] rounded-lg -mx-2 px-2' : '')}>
             <div className="text-xs">
               <span className="font-bold text-white">{e.description}</span><br />
-              <span className={theme.text}>{nameOf(e.payer_id)}</span>
+              <span className={theme.text}>{nameOf(e.payer_id)}</span><span className="text-slate-500"> · {fmtDate(e.created_at)}</span>
             </div>
             <div className="text-right">
               <span className="font-black text-sm block text-white">{e.amount.toFixed(2)} €</span>
@@ -179,11 +186,3 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
     </div>
   );
 }
-
-
-
-
-
-
-
-
