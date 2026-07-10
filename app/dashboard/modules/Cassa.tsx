@@ -4,6 +4,23 @@ import { supabase } from '@/lib/supabase';
 import { logEvent } from '../lib/logEvent';
 import { useHub } from '../lib/HubContext';
 
+// Palette "ramoscello": antracite di base, salvia come voce, terracotta desaturata per il debito.
+// Pilota locale a questo file. Se approvata, va promossa a token di tema e rimossa da qui.
+const P = {
+  panel: '#262b2e',
+  inset: '#21262a',
+  field: '#1f2427',
+  line: 'rgba(255,255,255,0.06)',
+  hi: '#e9e7e1',
+  mid: '#cfd2cb',
+  lo: '#7f857e',
+  sage: '#a9c09c',
+  sageDim: '#8fa585',
+  sageInk: '#cfe0c4',
+  clay: '#c79a8b',
+};
+const card: React.CSSProperties = { background: P.panel, border: '1px solid ' + P.line };
+
 type Theme = { text: string; gradient: string; border: string };
 type Expense = { id: string; payer_id: string; description: string; amount: number; split_with: string[] | null; created_at: string };
 type Member = { user_id: string; username: string };
@@ -95,45 +112,45 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
 
   if (loading) return (
     <div className="space-y-3">
-      <div className="h-32 bg-slate-900 border border-white/5 animate-pulse rounded-xl" />
-      <div className="h-20 bg-slate-900 border border-white/5 animate-pulse rounded-xl" />
+      <div className="h-32 animate-pulse rounded-xl" style={card} />
+      <div className="h-20 animate-pulse rounded-xl" style={card} />
     </div>
   );
 
   return (
     <div className="space-y-4">
-      <div className={'eg-card relative overflow-hidden p-5 rounded-xl text-center ' + (inCredit ? 'border-emerald-500/30' : inDebt ? 'border-red-500/30' : theme.border)}>
-        <div aria-hidden className={'absolute inset-0 bg-gradient-to-br ' + (inCredit ? 'from-emerald-500/15 to-transparent' : inDebt ? 'from-red-500/15 to-transparent' : 'from-slate-700/10 to-transparent')} />
-        <div className="relative">
-          <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black mb-1">Il tuo saldo</p>
-          <p className={'text-4xl font-black ' + (inCredit ? 'text-emerald-400' : inDebt ? 'text-red-400' : 'text-white')}>
-            {inCredit ? '+' : ''}{myBalance.toFixed(2)} €
-          </p>
-          <p className="text-[10px] text-slate-500 font-bold mt-1">{inCredit ? 'Ti devono rimborsare' : inDebt ? 'Da versare al gruppo' : 'Sei in pari'}</p>
-        </div>
+      {/* Saldo eroe: l'unico elemento che parla forte. Niente gradiente, salvia per il credito. */}
+      <div className="p-5 rounded-xl text-center" style={card}>
+        <p className="text-[11px] tracking-wider mb-1" style={{ color: P.lo }}>Il tuo saldo</p>
+        <p className="text-4xl font-medium" style={{ color: inCredit ? P.sage : inDebt ? P.clay : P.hi }}>
+          {inCredit ? '+' : ''}{myBalance.toFixed(2)} €
+        </p>
+        <p className="text-[11px] mt-1" style={{ color: P.lo }}>{inCredit ? 'Ti devono rimborsare' : inDebt ? 'Da versare al gruppo' : 'Sei in pari'}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="eg-card p-3 rounded-xl text-center">
-          <span className="text-[9px] uppercase text-slate-500 font-bold tracking-wider">Totale</span>
-          <p className="text-lg font-black text-white">{total.toFixed(2)} €</p>
+        <div className="p-3 rounded-xl text-center" style={card}>
+          <span className="text-[10px] tracking-wider" style={{ color: P.lo }}>Totale</span>
+          <p className="text-lg font-medium" style={{ color: P.hi }}>{total.toFixed(2)} €</p>
         </div>
-        <div className={'eg-card p-3 rounded-xl text-center border ' + theme.border}>
-          <span className="text-[9px] uppercase text-slate-500 font-bold tracking-wider">Media/persona</span>
-          <p className={'text-lg font-black ' + theme.text}>{(members.length ? total / members.length : 0).toFixed(2)} €</p>
+        <div className="p-3 rounded-xl text-center" style={card}>
+          <span className="text-[10px] tracking-wider" style={{ color: P.lo }}>Media/persona</span>
+          <p className="text-lg font-medium" style={{ color: P.sageDim }}>{(members.length ? total / members.length : 0).toFixed(2)} €</p>
         </div>
       </div>
 
       {!archived && (
-        <div className="eg-card p-4 rounded-xl space-y-3">
+        <div className="p-4 rounded-xl space-y-3" style={card}>
           <div className="flex gap-2">
             <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Descrizione"
-              className="flex-1 bg-slate-950 p-2.5 rounded-lg text-sm text-white border border-slate-700 outline-none focus:border-slate-500 transition-colors" />
+              className="flex-1 p-2.5 rounded-lg text-sm outline-none transition-colors"
+              style={{ background: P.field, color: P.hi, border: '1px solid ' + P.line }} />
             <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="€"
-              className="w-24 bg-slate-950 p-2.5 rounded-lg text-sm text-white border border-slate-700 font-black outline-none focus:border-slate-500 transition-colors" />
+              className="w-24 p-2.5 rounded-lg text-sm font-medium outline-none transition-colors"
+              style={{ background: P.field, color: P.hi, border: '1px solid ' + P.line }} />
           </div>
           <div>
-            <p className="text-[9px] uppercase text-slate-500 font-black mb-1.5 tracking-wider">Chi partecipa {splitSel.size === 0 ? '(tutti)' : '(' + splitSel.size + ')'}</p>
+            <p className="text-[10px] tracking-wider mb-1.5" style={{ color: P.lo }}>Chi partecipa {splitSel.size === 0 ? '(tutti)' : '(' + splitSel.size + ')'}</p>
             <div className="flex flex-wrap gap-1.5">
               {members.map((m) => {
                 const on = splitSel.size === 0 || splitSel.has(m.user_id);
@@ -144,7 +161,10 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
                     base.has(m.user_id) ? base.delete(m.user_id) : base.add(m.user_id);
                     return base.size === members.length ? new Set<string>() : base;
                   })}
-                    className={'text-[10px] font-black px-2.5 py-1 rounded-full ' + (on ? 'bg-gradient-to-r ' + theme.gradient + ' text-slate-950' : 'bg-slate-800 text-slate-500 line-through')}>
+                    className="text-[11px] px-2.5 py-1 rounded-full transition-colors"
+                    style={on
+                      ? { background: 'rgba(169,192,156,0.14)', color: P.sageInk }
+                      : { background: P.inset, color: P.lo, textDecoration: 'line-through' }}>
                     {m.username}
                   </button>
                 );
@@ -152,36 +172,51 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
             </div>
           </div>
           <button onClick={handleAdd} disabled={busy || !desc.trim() || !amount}
-            className={'w-full bg-gradient-to-r ' + theme.gradient + ' text-slate-950 py-2.5 rounded-lg font-black text-xs uppercase disabled:opacity-40 active:scale-[0.98] transition-transform'}>
-            {busy ? 'Salvo...' : 'Registra spesa'}
+            className="w-full py-2.5 rounded-lg font-medium text-sm active:scale-[0.98] transition-transform disabled:opacity-40"
+            style={{ background: P.sage, color: '#20261f' }}>
+            {busy ? 'Salvo…' : 'Registra spesa'}
           </button>
         </div>
       )}
 
-      <div className="eg-card p-4 rounded-xl">
-        <h4 className={'text-[10px] uppercase font-black mb-3 tracking-wider ' + theme.text}>Piano bonifici · il minimo indispensabile</h4>
-        {transfers.length === 0 ? <p className="text-xs text-slate-500">Tutti in pari. Nessun bonifico necessario.</p> : transfers.map((tr, k) => (
-          <div key={k} className="flex justify-between items-center mb-2 last:mb-0 bg-slate-950 border border-white/5 rounded-lg px-3 py-2.5">
-            <span className="text-xs font-bold"><span className="text-red-400">{nameOf(tr.from)}</span><span className="text-slate-600 mx-1.5">→</span><span className="text-emerald-400">{nameOf(tr.to)}</span></span>
-            <span className="font-black text-sm text-white">{tr.amount.toFixed(2)} €</span>
+      <div className="p-4 rounded-xl" style={card}>
+        <h4 className="text-[11px] tracking-wider mb-3" style={{ color: P.sage }}>Piano bonifici · il minimo indispensabile</h4>
+        {transfers.length === 0 ? <p className="text-xs" style={{ color: P.lo }}>Tutti in pari. Nessun bonifico necessario.</p> : transfers.map((tr, k) => (
+          <div key={k} className="flex justify-between items-center mb-2 last:mb-0 rounded-lg px-3 py-2.5" style={{ background: P.inset }}>
+            <span className="text-xs"><span style={{ color: P.clay }}>{nameOf(tr.from)}</span><span className="mx-1.5" style={{ color: P.lo }}>→</span><span style={{ color: P.sage }}>{nameOf(tr.to)}</span></span>
+            <span className="text-sm font-medium" style={{ color: P.hi }}>{tr.amount.toFixed(2)} €</span>
           </div>
         ))}
       </div>
 
-      <div className="eg-card p-4 rounded-xl">
-        <h4 className="text-[10px] uppercase text-slate-400 font-black mb-3 tracking-wider">Registro spese</h4>
-        {expenses.length === 0 ? <p className="text-xs text-slate-500">Nessuna spesa. Registri la prima qui sopra.</p> : expenses.map((e) => (
-          <div key={e.id} ref={e.id === highlightId ? highlightRef : null} className={'flex justify-between items-center mb-3 border-b border-white/5 pb-2 last:border-0 last:mb-0 last:pb-0 ' + (e.id === highlightId ? 'animate-[eg-row-glow_2.4s_ease-out] rounded-lg -mx-2 px-2' : '')}>
-            <div className="text-xs">
-              <span className="font-bold text-white">{e.description}</span><br />
-              <span className={theme.text}>{nameOf(e.payer_id)}</span><span className="text-slate-500"> · {fmtDate(e.created_at)}</span>
+      <div className="p-4 rounded-xl" style={card}>
+        <h4 className="text-[11px] tracking-wider mb-1" style={{ color: P.lo }}>Registro spese</h4>
+        {expenses.length === 0 ? <p className="text-xs pt-2" style={{ color: P.lo }}>Nessuna spesa. Registri la prima qui sopra.</p> : expenses.map((e) => {
+          const on = e.id === highlightId;
+          return (
+            <div key={e.id} ref={on ? highlightRef : null}
+              className="flex justify-between items-center py-2.5 px-2 -mx-2 rounded-lg transition-colors duration-700"
+              style={{ borderBottom: '1px solid ' + P.line, ...(on ? { background: 'rgba(169,192,156,0.10)', boxShadow: 'inset 0 0 0 1px rgba(169,192,156,0.35)', borderBottom: '1px solid transparent' } : {}) }}>
+              <div className="flex items-center gap-2.5 min-w-0">
+                {/* Il fiore: un solo puntino nel colore-tema dell'Hub, non piu' un neon sparato. */}
+                <span className={theme.text + ' shrink-0'} aria-hidden><span className="block w-1.5 h-1.5 rounded-full bg-current" /></span>
+                <div className="min-w-0">
+                  <p className="text-[13px] truncate" style={{ color: P.hi }}>{e.description}</p>
+                  <p className="text-[11px] mt-0.5" style={{ color: P.lo }}>{nameOf(e.payer_id)} · {fmtDate(e.created_at)}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 shrink-0">
+                <span className="text-[13px] font-medium" style={{ color: P.hi }}>{e.amount.toFixed(2)} €</span>
+                {e.payer_id === userId && !archived && (
+                  <button onClick={() => handleDelete(e.id)} aria-label="Elimina spesa"
+                    className="transition-colors hover:opacity-100 opacity-70" style={{ color: P.lo }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-13M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" /></svg>
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="text-right">
-              <span className="font-black text-sm block text-white">{e.amount.toFixed(2)} €</span>
-              {e.payer_id === userId && !archived && <button onClick={() => handleDelete(e.id)} className="text-[8px] text-red-500 font-bold uppercase mt-1">Elimina</button>}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
