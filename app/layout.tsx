@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "EventGarden" },
 };
 
-export const viewport: Viewport = { themeColor: "#020617" };
+export const viewport: Viewport = { themeColor: "#020617", width: "device-width", initialScale: 1, maximumScale: 1, userScalable: false };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
@@ -27,6 +27,3 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     </html>
   );
 }
-
-
-

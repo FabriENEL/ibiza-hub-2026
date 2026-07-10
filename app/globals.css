@@ -160,3 +160,7 @@ body::after {
 /* Elevazione (strategia B): fondo+ombra+volume, il bordo resta alla card (colore categoria) */
 .eg-card   { background: linear-gradient(160deg,#1e232b,#171a1f); box-shadow: 0 6px 20px -8px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04); }
 .eg-card-n { background: linear-gradient(160deg,#1e232b,#171a1f); border: 1px solid rgba(255,255,255,0.09); box-shadow: 0 6px 20px -8px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04); }
+
+/* Leggibilita': alza il minimo dei caratteri piu' piccoli, difficili da leggere. */
+.text-\[7px\], .text-\[8px\] { font-size: 10px !important; }
+.text-\[9px\], .text-\[10px\] { font-size: 11px !important; }
