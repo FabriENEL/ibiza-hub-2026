@@ -4,8 +4,9 @@ import { supabase } from '@/lib/supabase';
 import { useHub } from './lib/HubContext';
 import { ruleSignature } from './lib/eventVisuals';
 import DateTimePicker from './lib/DateTimePicker';
+import LuoghiCard, { type Luogo } from './LuoghiCard';
 
-type Msg = { role: 'user' | 'assistant'; content: string };
+type Msg = { role: 'user' | 'assistant'; content: string; luoghi?: Luogo[]; zona?: string | null };
 type PendingEvent = { kind: 'evento'; title: string; scheduled_at: string; location: string | null; description: string | null; fromConsiglio?: boolean };
 type PendingExpense = { kind: 'spesa'; description: string; amount: number };
 type Pending = PendingEvent | PendingExpense;
@@ -147,6 +148,13 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
       });
       const data = await res.json();
       const reply = data.reply ?? 'Mi scusi, non ho compreso.';
+      // Julie ha cercato: il testo viaggia con le schede dei luoghi veri.
+      if (Array.isArray(data.luoghi) && data.luoghi.length > 0) {
+        setMessages((m) => [...m, { role: 'assistant', content: reply, luoghi: data.luoghi, zona: data.zona ?? null }]);
+        if (speakOn) speak(reply);
+        setBusy(false);
+        return;
+      }
       const action = parseAction(reply);
       if (action) {
         setPending(action);
@@ -241,7 +249,13 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
               </div>
             </div>
           ))}
-
+{messages.map((m, i) => m.luoghi ? (
+            <LuoghiCard key={'L' + i} luoghi={m.luoghi} zona={m.zona}
+              onScegli={(l) => {
+                setPending({ kind: 'evento', title: l.name, scheduled_at: '', location: l.address || l.name, description: null, fromConsiglio: true });
+                setMessages((mm) => [...mm, { role: 'assistant', content: 'Ottima scelta. Mi dica giorno e ora e lo metto in programma.' }]);
+              }} />
+          ) : null)}
           {pending && pending.kind === 'evento' && (
             <div className="rounded-2xl p-4" style={{ background: 'rgba(163,181,133,0.14)', border: '1px solid rgba(163,181,133,0.35)' }}>
               <p className="text-[10px] uppercase tracking-wider text-emerald-200/60 font-black mb-2">Nuovo evento</p>

@@ -1,5 +1,5 @@
 ﻿'use client'
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { logEvent } from '../lib/logEvent';
 import { useHub } from '../lib/HubContext';
@@ -67,34 +67,56 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
   const [editCText, setEditCText] = useState('');
   // Menu impostazioni della card: raccoglie Modifica ed Elimina sotto una sola icona.
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  // Evento appena creato: il calendario ci salta sopra e lo illumina. Nessuna caccia al tesoro dopo un'azione di Julie.
+  const [freshId, setFreshId] = useState<string | null>(null);
+  const freshRef = useRef<HTMLDivElement | null>(null);
+  const idsRef = useRef<Set<string>>(new Set());
 
   const dayOf = (iso: string) => iso.split('T')[0];
 
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
 
-  const load = async () => {
+  const load = async (cercaNuovo = false) => {
     setLoading(true);
+    const noti = new Set(idsRef.current);
     const { data: ev } = await supabase.from('events_view').select('id, title, scheduled_at, location, created_by, reveal_at, revealed_override, revealed, cover_url').eq('hub_id', hubId).order('scheduled_at', { ascending: true });
     const { data: cm } = await supabase.from('event_comments').select('id, event_id, user_id, content, profiles ( username )').eq('hub_id', hubId).order('created_at', { ascending: true });
     const { data: mem } = await supabase.from('hub_members').select('user_id, role, profiles ( username )').eq('hub_id', hubId);
     const evs = ev ?? [];
     setEvents(evs);
+    idsRef.current = new Set(evs.map((e) => e.id));
     setComments((cm ?? []).map((c: any) => ({ id: c.id, event_id: c.event_id, user_id: c.user_id, content: c.content, author: c.profiles?.username ?? '???' })));
     const owners = new Set<string>((mem ?? []).filter((m: any) => m.role === 'OWNER').map((m: any) => m.user_id));
     setOwnerIds(owners);
     setMembers((mem ?? []).map((m: any) => ({ user_id: m.user_id, username: m.profiles?.username ?? '???' })));
     const me = (mem ?? []).find((m: any) => m.user_id === userId);
     setMyRole(me?.role ?? 'MEMBER');
-    const days = Array.from(new Set(evs.map((e) => dayOf(e.scheduled_at)))).sort();
-    if (days.length > 0) {
-      const today = new Date().toISOString().split('T')[0];
-      setSelectedDay(days.includes(today) ? today : days[0]);
+
+    // Chi c'e ora e non c'era prima e' l'evento appena creato: ci si posiziona sopra e lo si illumina.
+    const nuovo = cercaNuovo && noti.size > 0 ? evs.find((e) => !noti.has(e.id)) : undefined;
+    if (nuovo) {
+      setSelectedDay(dayOf(nuovo.scheduled_at));
+      setFreshId(nuovo.id);
+    } else {
+      const days = Array.from(new Set(evs.map((e) => dayOf(e.scheduled_at)))).sort();
+      if (days.length > 0) {
+        const today = new Date().toISOString().split('T')[0];
+        setSelectedDay(days.includes(today) ? today : days[0]);
+      }
     }
     setLoading(false);
   };
 
   useEffect(() => { load(); }, [hubId]);
-  useEffect(() => { if (postAction?.module === 'calendar' && Date.now() - postAction.ts < 4000) load(); }, [postAction]);
+  useEffect(() => { if (postAction?.module === 'calendar' && Date.now() - postAction.ts < 4000) load(true); }, [postAction]);
+
+  // Porta in vista la card appena creata e lascia svanire l'evidenza: conferma visiva senza chiasso.
+  useEffect(() => {
+    if (!freshId) return;
+    const t1 = setTimeout(() => freshRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
+    const t2 = setTimeout(() => setFreshId(null), 3200);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [freshId]);
 
   const canManageEvent = (ev: EventRow) => {
     if (myRole === 'OWNER') return true;
@@ -302,7 +324,9 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
             const isSurprise = !!ev.reveal_at || ev.revealed_override !== null;
 
             return (
-              <div key={ev.id} className={'eg-card border ' + theme.border + ' overflow-hidden ' + r}>
+              <div key={ev.id} ref={ev.id === freshId ? freshRef : null}
+                className={'eg-card border overflow-hidden transition-all duration-700 ' + (ev.id === freshId ? '' : theme.border) + ' ' + r}
+                style={ev.id === freshId ? { borderColor: 'rgba(163,181,133,0.85)', boxShadow: '0 0 0 3px rgba(163,181,133,0.22)' } : {}}>
                 {editId === ev.id ? (
                   <div className="space-y-2 p-4">
                     <input value={eTitle} onChange={(e) => setETitle(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white outline-none" />

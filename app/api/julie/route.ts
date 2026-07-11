@@ -105,8 +105,10 @@ function azionePrompt(oggi: string): string {
     + '\nSe manca l\'importo o la descrizione, li chieda in modo naturale e breve, senza produrre il JSON.'
 
     + '\n\nAZIONE RICERCA LUOGHI\nQuando l\'utente cerca un posto dove mangiare, bere, uscire, rilassarsi o parcheggiare, rispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo: '
-    + '{"action":"cerca_luoghi","categoria":"<una tra: food, aperitivo, night, beach, parking>","intro":"<una sola riga di presentazione, calda e breve>"}'
+    + '{"action":"cerca_luoghi","categoria":"<una tra: food, aperitivo, night, beach, parking>","zona":"<comune o citta indicata dall\'utente, oppure null>","intro":"<una sola riga di presentazione, calda e breve>"}'
     + '\nMappa: cena/pranzo/ristorante/mangiare -> food. aperitivo/drink/cocktail/bere -> aperitivo. discoteca/locale notturno/ballare/dopocena -> night. spiaggia/mare/relax -> beach. parcheggio/posteggio -> parking.'
+    + '\nCAMPO ZONA: se in QUALSIASI punto della conversazione l\'utente ha indicato un comune, una citta o una localita (anche solo scrivendone il nome, esempio: "Merone" oppure "Merone (CO)"), riportalo nel campo zona. Se non l\'ha mai indicata, metti null: la zona verra presa dall\'Hub.'
+    + '\nSe hai appena chiesto la zona e l\'utente risponde con un nome di luogo, quella E la zona: produci subito il JSON con quel valore. NON richiederla una seconda volta.'
     + '\nIl campo intro e cio che dirai prima di mostrare i luoghi: UNA riga sola, mai un elenco. Esempi: "Ecco tre indirizzi a due passi. Mi dica quale e glielo fisso." oppure "Questi sono i posti migliori qui intorno."'
     + '\nSe la richiesta e vaga (esempio: "cosa facciamo stasera?"), NON produrre il JSON: proponi le categorie in una riga ("Cerco una cena, un aperitivo o un locale per dopo?") e attendi.'
 
@@ -183,9 +185,12 @@ export async function POST(req: NextRequest) {
     // cerca_luoghi: la ricerca la fa il server, in un solo giro. Il client riceve testo + luoghi pronti.
     const az = jsonDi(reply);
     if (az?.action === 'cerca_luoghi' && az.categoria) {
-      const loc = await luogoHub(hubId);
+      // Cascata: prima la zona detta dall'utente, poi quella dell'Hub. Senza la prima, chiedere la zona
+      // creava una domanda senza risposta possibile: l'utente rispondeva e veniva ignorato.
+      const detta = typeof az.zona === 'string' && az.zona.trim() && az.zona.trim().toLowerCase() !== 'null' ? az.zona.trim() : null;
+      const loc = detta ?? (await luogoHub(hubId));
       if (!loc) {
-        return NextResponse.json({ reply: 'Mi dica la zona in cui cercare e Le trovo i posti giusti.' });
+        return NextResponse.json({ reply: 'Mi dica in quale citta cercare e Le trovo i posti giusti.' });
       }
       const origin = new URL(req.url).origin;
       const { tips, zona } = await cercaLuoghi(origin, loc, az.categoria);
