@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useHub } from '../lib/HubContext';
 import type { Words } from '../lib/blueprints';
+import PushToggle from './PushToggle';
 
 
 type Theme = { text: string; gradient: string; border: string };
@@ -146,6 +147,8 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
         {!archived && <button onClick={shareLocation} disabled={locBusy} className="w-full mt-4 bg-slate-800 border border-slate-600 text-white py-2.5 rounded-xl font-black text-[11px] uppercase disabled:opacity-40">{locBusy ? 'Individuo...' : '\u{1F4CD} Invia la mia posizione'}</button>}
       </div>
 
+      <PushToggle rounded={r} />
+
       <div>
         <h3 className="font-black uppercase text-white tracking-wider mb-3">{w.members}</h3>
         <div className="space-y-2">
@@ -216,13 +219,3 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
