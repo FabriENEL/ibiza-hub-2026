@@ -23,7 +23,7 @@ export default function Shell() {
   const { memberships, activeHubId, setActiveHubId, username, postAction } = useHub();
   const [tab, setTab] = useState<ModuleId>('calendar');
   const [nudgeX, setNudgeX] = useState(0);            // rimbalzo economico agli estremi (strato removibile)
-  const swipe = useRef<{ x: number; y: number } | null>(null);
+  const swipe = useRef<{ x: number; y: number; lx: number; ly: number } | null>(null);
   const active = memberships.find((m) => m.hub_id === activeHubId);
   if (!active) return null;
 
@@ -42,10 +42,12 @@ export default function Shell() {
   // Rimbalzo: micro-scatto di 12px nella direzione tentata, poi ritorno. Nessun keyframe globale.
   const bump = (dir: number) => { setNudgeX(dir * 12); window.setTimeout(() => setNudgeX(0), 160); };
 
-  const onSwipeStart = (e: React.PointerEvent) => { swipe.current = { x: e.clientX, y: e.clientY }; };
-  const onSwipeEnd = (e: React.PointerEvent) => {
+  const onSwipeStart = (e: React.PointerEvent) => { swipe.current = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY }; };
+  // Android/Chrome chiude lo swipe con pointercancel e a volte azzera le coordinate: tengo l'ultima nota nel move.
+  const onSwipeMove = (e: React.PointerEvent) => { const s = swipe.current; if (s) { s.lx = e.clientX; s.ly = e.clientY; } };
+  const onSwipeEnd = () => {
     const s = swipe.current; swipe.current = null; if (!s) return;
-    const dx = e.clientX - s.x, dy = e.clientY - s.y;
+    const dx = s.lx - s.x, dy = s.ly - s.y;
     // Non abbastanza orizzontale: lascio vivere lo scroll verticale.
     if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) < Math.abs(dy) * H_DOMINANCE) return;
     const idx = mods.indexOf(currentTab);
@@ -79,7 +81,7 @@ export default function Shell() {
       </header>
 
       {/* Swipe orizzontale = cambio tab. Il wrapper esterno porta il rimbalzo; l'interno l'animazione moduleIn. */}
-      <div onPointerDown={onSwipeStart} onPointerUp={onSwipeEnd} style={{ transform: 'translateX(' + nudgeX + 'px)', transition: 'transform .16s ease-out' }}>
+      <div onPointerDown={onSwipeStart} onPointerMove={onSwipeMove} onPointerUp={onSwipeEnd} onPointerCancel={onSwipeEnd} style={{ transform: 'translateX(' + nudgeX + 'px)', transition: 'transform .16s ease-out' }}>
         {/* key={currentTab}: rimonta il contenitore al cambio tab e fa ripartire l'animazione */}
         <div key={currentTab} className="relative p-4 animate-[moduleIn_.25s_ease-out]">{render[currentTab]}</div>
       </div>
