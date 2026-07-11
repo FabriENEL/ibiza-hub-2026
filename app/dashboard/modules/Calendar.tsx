@@ -12,6 +12,25 @@ type EventRow = { id: string; title: string | null; scheduled_at: string; locati
 type Comment = { id: string; event_id: string; user_id: string; content: string; author: string };
 type Member = { user_id: string; username: string };
 
+// Icone auto-esplicative: dicono cosa fanno senza bisogno di una scritta accanto.
+const IconGear = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[17px] h-[17px]">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+  </svg>
+);
+const IconPin = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[15px] h-[15px]">
+    <path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z" />
+    <circle cx="12" cy="10" r="2.6" />
+  </svg>
+);
+const IconBack = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-[20px] h-[20px]">
+    <path d="M15 18l-6-6 6-6" />
+  </svg>
+);
+
 export default function Calendar({ hubId, theme, isOwner, archived, words, rounded }: { hubId: string; theme: Theme; isOwner: boolean; archived: boolean; words: Words; rounded: string }) {
   const { userId, postAction } = useHub();
   const w = words;
@@ -46,6 +65,8 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
   const [draft, setDraft] = useState('');
   const [editingC, setEditingC] = useState<string | null>(null);
   const [editCText, setEditCText] = useState('');
+  // Menu impostazioni della card: raccoglie Modifica ed Elimina sotto una sola icona.
+  const [menuFor, setMenuFor] = useState<string | null>(null);
 
   const dayOf = (iso: string) => iso.split('T')[0];
 
@@ -112,6 +133,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
 
   const startEdit = async (ev: EventRow) => {
     const { data } = await supabase.from('events').select('title, location, reveal_at, reveal_visible_to').eq('id', ev.id).single();
+    setMenuFor(null);
     setEditId(ev.id);
     setETitle(data?.title ?? '');
     setEWhen(ev.scheduled_at.slice(0, 16));
@@ -132,6 +154,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     if (!error) { setEditId(null); load(); }
   };
   const deleteEvent = async (id: string) => {
+    setMenuFor(null);
     if (!confirm('Eliminare questo evento?')) return;
     await supabase.from('events').delete().eq('id', id);
     load();
@@ -213,6 +236,8 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
   const xpComments = xp ? comments.filter((c) => c.event_id === xp.id) : [];
   const xpMine = xp ? myCommentOn(xp.id) : undefined;
   const xpCd = xp ? eventCountdown(xp.scheduled_at) : null;
+
+  const closeXp = () => { setOpenEvent(null); setDraft(''); setEditingC(null); };
 
   const AudiencePicker = ({ selected, onToggle }: { selected: Set<string>; onToggle: (uid: string) => void }) => (
     <div className="bg-slate-950 border border-slate-700 rounded-lg p-2 space-y-1 max-h-40 overflow-y-auto">
@@ -297,12 +322,32 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                   </div>
                 ) : (
                   <>
-                    <div onClick={() => setOpenEvent(ev.id)} className={'relative flex flex-col justify-end p-4 bg-slate-800 cursor-pointer active:scale-[0.99] transition-transform ' + bannerH}>
+                    <div onClick={() => { setMenuFor(null); setOpenEvent(ev.id); }} className={'relative flex flex-col justify-end p-4 bg-slate-800 cursor-pointer active:scale-[0.99] transition-transform ' + bannerH}>
                       {vis.image && <img src={vis.image} alt="" className="absolute inset-0 w-full h-full object-cover" />}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
                       {!ev.revealed && <div aria-hidden className="absolute inset-0 overflow-hidden"><div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2.4s_ease-in-out_infinite]" /></div>}
-                      <span className="absolute top-3 right-3 text-4xl drop-shadow-lg opacity-90 z-10">{vis.icon}</span>
+
+                      {vis.icon && <span className={'absolute top-3 text-4xl drop-shadow-lg opacity-90 z-10 ' + (editable ? 'right-14' : 'right-3')}>{vis.icon}</span>}
                       <span className="absolute top-3 left-3 bg-black/50 text-white text-xs font-black px-2 py-1 rounded-lg z-10">{timeOf(ev.scheduled_at)}</span>
+
+                      {/* Impostazioni della card: un solo ingranaggio raccoglie Modifica ed Elimina. */}
+                      {editable && (
+                        <div className="absolute top-3 right-3 z-20">
+                          <button onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === ev.id ? null : ev.id); }}
+                            aria-label="Impostazioni evento" title="Impostazioni evento"
+                            className="w-9 h-9 rounded-full flex items-center justify-center bg-black/55 text-white/90 border border-white/15 backdrop-blur active:scale-90 transition-transform">
+                            <IconGear />
+                          </button>
+                          {menuFor === ev.id && (
+                            <div onClick={(e) => e.stopPropagation()} className="absolute top-11 right-0 w-36 rounded-xl overflow-hidden border border-white/10 shadow-2xl" style={{ background: '#1C1F22' }}>
+                              <button onClick={(e) => { e.stopPropagation(); startEdit(ev); }} className="w-full text-left px-3 py-2.5 text-[11px] font-bold text-slate-200 active:bg-white/5">Modifica</button>
+                              <div className="h-px bg-white/8" />
+                              <button onClick={(e) => { e.stopPropagation(); deleteEvent(ev.id); }} className="w-full text-left px-3 py-2.5 text-[11px] font-bold text-red-400 active:bg-red-500/10">Elimina</button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <div className="relative z-10">
                         <h4 className={'font-black text-white uppercase drop-shadow-lg leading-tight ' + titleSize}>{ev.revealed ? ev.title : 'DATI OSCURATI'}</h4>
                         {!ev.revealed && ev.reveal_at && (
@@ -312,20 +357,17 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                           <p className="text-[11px] text-white/90 font-bold mt-1 drop-shadow">In attesa di svelamento</p>
                         )}
                       </div>
-                      {editable && (
-                        <div className="absolute bottom-3 right-3 flex gap-2 z-10">
-                          <button onClick={(e) => { e.stopPropagation(); startEdit(ev); }} className="text-[9px] uppercase text-white font-black bg-black/50 px-2 py-1 rounded drop-shadow">Modifica</button>
-                          <button onClick={(e) => { e.stopPropagation(); deleteEvent(ev.id); }} className="text-[9px] uppercase text-white font-black bg-red-600/70 px-2 py-1 rounded">Elimina</button>
-                        </div>
-                      )}
                     </div>
 
                     <div onClick={() => setOpenEvent(ev.id)} className="flex items-center justify-between px-4 py-2.5 bg-slate-900/70 border-t border-white/5 cursor-pointer active:bg-slate-900 transition-colors">
                       <span className="flex items-center gap-2.5 text-[11px] font-bold text-slate-300">
                         <span>{'\u{1F4AC}'} {evComments.length}</span>
                         {ev.revealed && ev.location && (
-                          <button onClick={(e) => { e.stopPropagation(); navigateTo(ev.location!); }} className={'flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r ' + theme.gradient + ' text-slate-950 font-black uppercase text-[9px] tracking-wide active:scale-95 transition-transform'}>
-                            {'\u{1F4CD}'} Naviga
+                          <button onClick={(e) => { e.stopPropagation(); navigateTo(ev.location!); }}
+                            aria-label="Naviga fin qui" title="Naviga fin qui"
+                            className="w-7 h-7 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                            style={{ background: '#A3B585', color: '#14161A' }}>
+                            <IconPin />
                           </button>
                         )}
                       </span>
@@ -355,19 +397,26 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
         </div>
       )}
 
-      {/* SCHERMATA EVENTO ESPANSA - stile post social */}
+      {/* SCHERMATA EVENTO ESPANSA - z altissimo: copre l'intestazione dell'app, cosi' il tasto Home non e' raggiungibile per errore. */}
       {xp && xpVis && (
-        <div className="fixed inset-0 bg-slate-950 z-[100] overflow-y-auto" onClick={() => { setOpenEvent(null); setDraft(''); setEditingC(null); }}>
+        <div className="fixed inset-0 bg-slate-950 z-[9999] overflow-y-auto" onClick={closeXp}>
           <div onClick={(e) => e.stopPropagation()}>
             <div className="relative h-72">
               {xpVis.image && <img src={xpVis.image} alt="" className="absolute inset-0 w-full h-full object-cover" />}
               {!xpVis.image && <div className={'absolute inset-0 bg-gradient-to-br ' + ('gradient' in xpVis ? xpVis.gradient : '')} />}
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-black/30 to-black/20" />
               {!xp.revealed && <div aria-hidden className="absolute inset-0 overflow-hidden"><div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2.4s_ease-in-out_infinite]" /></div>}
-              <button onClick={() => { setOpenEvent(null); setDraft(''); setEditingC(null); }} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-black/50 text-white font-black text-sm backdrop-blur z-10 active:scale-95 transition-transform">{'\u2190'}</button>
-              <span className="absolute top-4 right-4 text-5xl drop-shadow-lg z-10">{xpVis.icon}</span>
+
+              {/* Indietro: pieno, ad alto contrasto, sempre leggibile sopra qualunque copertina. */}
+              <button onClick={closeXp} aria-label="Torna al programma" title="Torna al programma"
+                className="absolute top-4 left-4 w-11 h-11 rounded-full flex items-center justify-center z-20 active:scale-90 transition-transform shadow-xl"
+                style={{ background: '#A3B585', color: '#14161A', border: '2px solid rgba(255,255,255,0.35)' }}>
+                <IconBack />
+              </button>
+
+              {xpVis.icon && <span className="absolute top-4 right-4 text-5xl drop-shadow-lg z-10">{xpVis.icon}</span>}
               <div className="absolute bottom-4 left-5 right-5 z-10">
-                <p className="text-[10px] uppercase tracking-widest text-white/70 font-black">{dayLabel(dayOf(xp.scheduled_at))} \u00B7 {timeOf(xp.scheduled_at)}</p>
+                <p className="text-[10px] uppercase tracking-widest text-white/70 font-black">{dayLabel(dayOf(xp.scheduled_at))} &middot; {timeOf(xp.scheduled_at)}</p>
                 <h2 className="text-3xl font-black text-white uppercase leading-tight drop-shadow-lg [font-family:var(--font-display)]">{xp.revealed ? xp.title : 'DATI OSCURATI'}</h2>
               </div>
             </div>
@@ -392,8 +441,8 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
               )}
 
               {xp.revealed && xp.location && (
-                <button onClick={() => navigateTo(xp.location!)} className={'w-full bg-gradient-to-r ' + theme.gradient + ' text-slate-950 py-4 rounded-2xl font-black text-sm uppercase tracking-wide active:scale-[0.98] transition-transform'}>
-                  {'\u{1F4CD}'} Portami a {xp.location}
+                <button onClick={() => navigateTo(xp.location!)} className={'w-full bg-gradient-to-r ' + theme.gradient + ' text-slate-950 py-4 rounded-2xl font-black text-sm uppercase tracking-wide active:scale-[0.98] transition-transform flex items-center justify-center gap-2'}>
+                  <IconPin /> Portami a {xp.location}
                 </button>
               )}
 
