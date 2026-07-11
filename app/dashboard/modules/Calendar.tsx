@@ -25,20 +25,21 @@ const IconPin = () => (
     <circle cx="12" cy="10" r="2.6" />
   </svg>
 );
+const IconChat = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[15px] h-[15px]">
+    <path d="M21 12a8 8 0 0 1-8 8H8l-4 3v-4.5A8 8 0 1 1 21 12Z" />
+  </svg>
+);
 const IconInfo = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[15px] h-[15px]">
     <circle cx="12" cy="12" r="9" />
     <path d="M12 11v5M12 7.6v.6" />
   </svg>
 );
-const IconBack = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-[20px] h-[20px]">
-    <path d="M15 18l-6-6 6-6" />
-  </svg>
-);
 
 export default function Calendar({ hubId, theme, isOwner, archived, words, rounded }: { hubId: string; theme: Theme; isOwner: boolean; archived: boolean; words: Words; rounded: string }) {
-  const { userId, postAction, setImmersive } = useHub();
+  // NB: non si tocca il contesto da qui. Aggiornarlo rimonta la Shell, Calendar rinasce e perde lo stato del flip.
+  const { userId, postAction } = useHub();
   const w = words;
   const r = rounded;
   const [events, setEvents] = useState<EventRow[]>([]);
@@ -67,7 +68,15 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
   const [eRevealAt, setERevealAt] = useState('');
   const [eAudience, setEAudience] = useState<Set<string>>(new Set());
 
-  const [openEvent, setOpenEvent] = useState<string | null>(null);
+  // Il dettaglio non e' piu' un overlay a schermo pieno: la card GIRA e mostra il retro.
+  // Niente schermo mezzo vuoto, niente intestazione da coprire: il dettaglio ha la misura del suo contenuto.
+  const [flipped, setFlipped] = useState<string | null>(null);
+  // I commenti vivono in un pannello che fluttua SOPRA la card, fuori dal 3D:
+  // dentro una trasformazione 3D i campi di testo non ricevono il fuoco. Cosi' il flip resta puro.
+  const [commentiFor, setCommentiFor] = useState<string | null>(null);
+  const [panelShown, setPanelShown] = useState(false);
+  const [backH, setBackH] = useState<Record<string, number>>({});
+  const backRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [draft, setDraft] = useState('');
   const [editingC, setEditingC] = useState<string | null>(null);
   const [editCText, setEditCText] = useState('');
@@ -123,6 +132,22 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     const t2 = setTimeout(() => setFreshId(null), 3200);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [freshId]);
+
+// Misura i retri appena disegnati: la card nasce gia' della misura giusta, non cresce al tocco.
+  useEffect(() => {
+    if (loading) return;
+    const t = setTimeout(() => {
+      const m: Record<string, number> = {};
+      Object.entries(backRefs.current).forEach(([id, el]) => {
+        if (el) m[id] = el.scrollHeight;
+      });
+      setBackH((prev) => {
+        const cambiato = Object.keys(m).some((k) => prev[k] !== m[k]);
+        return cambiato ? { ...prev, ...m } : prev;
+      });
+    }, 60);
+    return () => clearTimeout(t);
+  }, [events, comments, selectedDay, loading]);
 
   const canManageEvent = (ev: EventRow) => {
     if (myRole === 'OWNER') return true;
@@ -258,22 +283,22 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     });
   }
 
-  // Altezza cartolina adattiva: pochi eventi -> scenografici; molti -> compatti (min 4 in viewport).
+  // Altezza minima adattiva: pochi eventi -> cartoline scenografiche; molti -> piu' compatte.
+  // Il retro puo' chiedere di piu': allora la card cresce, ma resta uguale su entrambe le facce.
   const n = dayEvents.length;
-  const bannerH = n <= 1 ? 'h-56' : n === 2 ? 'h-44' : n === 3 ? 'h-36' : 'h-24';
+  const minH = n <= 1 ? 300 : n === 2 ? 270 : n === 3 ? 250 : 230;
   const titleSize = n <= 2 ? 'text-2xl' : n === 3 ? 'text-xl' : 'text-base';
 
-  // Evento espanso (overlay). vis ricalcolato qui perche' fuori dal map.
-  const xp = openEvent ? events.find((e) => e.id === openEvent) ?? null : null;
-  const xpVis = xp ? (xp.revealed && xp.title ? (xp.cover_url ? { image: xp.cover_url, gradient: 'from-slate-800 to-slate-900', icon: '', matched: true } : eventVisual(xp.title, variantMap.get(xp.id) ?? 0)) : { image: undefined, gradient: 'from-slate-700 to-slate-900', icon: '\u{1F512}', matched: true }) : null;
-  const xpComments = xp ? comments.filter((c) => c.event_id === xp.id) : [];
-  const xpMine = xp ? myCommentOn(xp.id) : undefined;
-  const xpCd = xp ? eventCountdown(xp.scheduled_at) : null;
 
-  // Immersivo: alzato e abbassato SOLO al gesto dell'utente, mai in un useEffect.
-  // Un effetto su setImmersive rimonterebbe la Shell, che rimonta Calendar, che riesegue l'effetto: ciclo infinito.
-  const openXp = (id: string) => { setMenuFor(null); setImmersive(true); setOpenEvent(id); };
-  const closeXp = () => { setImmersive(false); setOpenEvent(null); setDraft(''); setEditingC(null); };
+  const gira = (id: string) => {
+    setMenuFor(null);
+    setFlipped(flipped === id ? null : id);
+  };
+
+  // Il pannello commenti sale dal basso come la chat di Julie: stesso velo, stessa dissolvenza.
+  const apriCommenti = (id: string) => { setCommentiFor(id); setPanelShown(false); requestAnimationFrame(() => setPanelShown(true)); };
+  const chiudiCommenti = () => { setPanelShown(false); setTimeout(() => { setCommentiFor(null); setDraft(''); setEditingC(null); }, 280); };
+
 
   const AudiencePicker = ({ selected, onToggle }: { selected: Set<string>; onToggle: (uid: string) => void }) => (
     <div className="bg-slate-950 border border-slate-700 rounded-lg p-2 space-y-1 max-h-40 overflow-y-auto">
@@ -333,6 +358,73 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
             const editable = canManageEvent(ev) && !archived;
             const vis = ev.revealed && ev.title ? (ev.cover_url ? { image: ev.cover_url, gradient: 'from-slate-800 to-slate-900', icon: '', matched: true } : eventVisual(ev.title, variantMap.get(ev.id) ?? 0)) : { image: undefined, gradient: 'from-slate-700 to-slate-900', icon: '\u{1F512}', matched: true };
             const isSurprise = !!ev.reveal_at || ev.revealed_override !== null;
+            const isFlip = flipped === ev.id;
+            const evCd = eventCountdown(ev.scheduled_at);
+            // Una misura sola per fronte e retro: la card non cresce quando gira.
+            const cardH = Math.max(backH[ev.id] ?? 0, minH);
+
+            // Il contenuto del retro, usato sia nella faccia 3D (durante la rotazione) sia da fermo (piatto).
+            const retro = (
+              <div ref={(el) => { backRefs.current[ev.id] = el; }} className="relative h-full overflow-y-auto">
+                {vis.image && <img src={vis.image} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover opacity-[0.13] pointer-events-none" />}
+                <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(180deg, rgba(20,22,26,0.86), rgba(20,22,26,0.96))' }} />
+
+                <div className="relative z-10 p-4 space-y-3">
+                  <div className="min-w-0 cursor-pointer active:opacity-70 transition-opacity" onClick={() => gira(ev.id)}>
+                    <p className="text-[9px] uppercase tracking-[0.16em] text-slate-500 font-black">{dayLabel(dayOf(ev.scheduled_at))} &middot; {timeOf(ev.scheduled_at)}</p>
+                    <h4 className="text-lg font-black text-white uppercase leading-tight truncate">{ev.revealed ? ev.title : 'DATI OSCURATI'}</h4>
+                  </div>
+
+                  {ev.revealed && evCd && (
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[10px] uppercase tracking-widest text-slate-500 font-black">Inizia tra</span>
+                      <span className="text-xl font-black" style={{ color: '#A3B585' }}>{evCd}</span>
+                    </div>
+                  )}
+                  {ev.revealed && !evCd && <p className="text-[10px] uppercase tracking-widest text-slate-500 font-black">Evento iniziato</p>}
+                  {!ev.revealed && <p className="text-[11px] text-slate-400">{ev.reveal_at ? 'Sblocco tra ' + countdown(ev.reveal_at) : 'In attesa di svelamento'}</p>}
+
+                  {ev.revealed && (
+                    <div className="space-y-2">
+                      {ev.location && (
+                        <button onClick={() => navigateTo(ev.location!)}
+                          className="w-full py-3 rounded-xl font-black text-[12px] uppercase tracking-wide active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+                          style={{ background: '#A3B585', color: '#14161A' }}>
+                          <IconPin /> Portami l&igrave;
+                        </button>
+                      )}
+                      {ev.location && (
+                        <button onClick={() => schedaLocale(ev.title, ev.location!)}
+                          className="w-full py-2.5 rounded-xl text-[11px] font-bold active:scale-[0.98] transition-transform flex items-center justify-center gap-2 border border-white/10 text-slate-400">
+                          <IconInfo /> Orari, telefono e recensioni
+                        </button>
+                      )}
+                      <button onClick={() => apriCommenti(ev.id)}
+                        className="w-full py-2.5 rounded-xl text-[11px] font-bold active:scale-[0.98] transition-transform flex items-center justify-center gap-2 border border-white/10 text-slate-300">
+                        <IconChat /> Commenti ({evComments.length})
+                      </button>
+                      {ev.location && <p className="text-[10px] text-slate-500 text-center truncate">{ev.location}</p>}
+                    </div>
+                  )}
+
+
+
+                  {isOwner && isSurprise && !archived && (
+                    <div className="flex gap-2 pt-1">
+                      {ev.revealed_override !== true && <button onClick={() => setOverride(ev.id, true)} className={'text-[9px] uppercase font-black px-3 py-1.5 rounded bg-gradient-to-r ' + theme.gradient + ' text-slate-950'}>Svela ora</button>}
+                      {ev.revealed_override !== false && <button onClick={() => setOverride(ev.id, false)} className="text-[9px] uppercase font-black px-3 py-1.5 rounded bg-slate-800 text-slate-300 border border-slate-600">Rinascondi</button>}
+                      {ev.revealed_override !== null && <button onClick={() => setOverride(ev.id, null)} className="text-[9px] uppercase font-black px-3 py-1.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Auto</button>}
+                    </div>
+                  )}
+                </div>
+
+                <button onClick={() => gira(ev.id)} aria-label="Torna alla copertina" title="Torna alla copertina"
+                  className="absolute bottom-0 right-0 w-11 h-11 active:opacity-60 transition-opacity">
+                  <span aria-hidden className="absolute bottom-0 right-0"
+                    style={{ width: 0, height: 0, borderStyle: 'solid', borderWidth: '0 0 22px 22px', borderColor: 'transparent transparent rgba(163,181,133,0.55) transparent' }} />
+                </button>
+              </div>
+            );
 
             return (
               <div key={ev.id} ref={ev.id === freshId ? freshRef : null}
@@ -359,76 +451,69 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                     </div>
                   </div>
                 ) : (
-                  <>
-                    <div onClick={() => openXp(ev.id)} className={'relative flex flex-col justify-end p-4 bg-slate-800 cursor-pointer active:scale-[0.99] transition-transform ' + bannerH}>
-                      {vis.image && <img src={vis.image} alt="" className="absolute inset-0 w-full h-full object-cover" />}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
-                      {!ev.revealed && <div aria-hidden className="absolute inset-0 overflow-hidden"><div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2.4s_ease-in-out_infinite]" /></div>}
+                  <div className="[perspective:1400px]">
+                    <div className="relative w-full transition-transform duration-500 ease-out [transform-style:preserve-3d]"
+                      style={{ height: cardH + 'px', transform: isFlip ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
 
-                      {/* Solo il lucchetto: comunica uno stato. Le emoji decorative sono state rimosse - rubavano la scena alla copertina. */}
-                      {!ev.revealed && <span className={'absolute top-3 text-3xl drop-shadow-lg opacity-90 z-10 ' + (editable ? 'right-14' : 'right-3')}>{'\u{1F512}'}</span>}
-                      <span className="absolute top-3 left-3 bg-black/50 text-white text-xs font-black px-2 py-1 rounded-lg z-10">{timeOf(ev.scheduled_at)}</span>
+                      {/* FRONTE: la copertina riempie tutta l'altezza. Nessun salto quando la card gira. */}
+                      <div className={'absolute inset-0 [backface-visibility:hidden] overflow-hidden rounded-[inherit] ' + (isFlip ? 'pointer-events-none' : '')}>
+                        <div onClick={() => gira(ev.id)} className="relative h-full flex flex-col justify-end p-4 bg-slate-800 cursor-pointer">
+                          {vis.image && <img src={vis.image} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+                          {!ev.revealed && <div aria-hidden className="absolute inset-0 overflow-hidden"><div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2.4s_ease-in-out_infinite]" /></div>}
 
-                      {/* Impostazioni della card: un solo ingranaggio raccoglie Modifica ed Elimina. */}
-                      {editable && (
-                        <div className="absolute top-3 right-3 z-20">
-                          <button onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === ev.id ? null : ev.id); }}
-                            aria-label="Impostazioni evento" title="Impostazioni evento"
-                            className="w-9 h-9 rounded-full flex items-center justify-center bg-black/55 text-white/90 border border-white/15 backdrop-blur active:scale-90 transition-transform">
-                            <IconGear />
-                          </button>
-                          {menuFor === ev.id && (
-                            <div onClick={(e) => e.stopPropagation()} className="absolute top-11 right-0 w-36 rounded-xl overflow-hidden border border-white/10 shadow-2xl" style={{ background: '#1C1F22' }}>
-                              <button onClick={(e) => { e.stopPropagation(); startEdit(ev); }} className="w-full text-left px-3 py-2.5 text-[11px] font-bold text-slate-200 active:bg-white/5">Modifica</button>
-                              <div className="h-px bg-white/8" />
-                              <button onClick={(e) => { e.stopPropagation(); deleteEvent(ev.id); }} className="w-full text-left px-3 py-2.5 text-[11px] font-bold text-red-400 active:bg-red-500/10">Elimina</button>
+                          {!ev.revealed && <span className={'absolute top-3 text-3xl drop-shadow-lg opacity-90 z-10 ' + (editable ? 'right-14' : 'right-3')}>{'\u{1F512}'}</span>}
+                          <span className="absolute top-3 left-3 bg-black/50 text-white text-xs font-black px-2 py-1 rounded-lg z-10">{timeOf(ev.scheduled_at)}</span>
+
+                          {editable && (
+                            <div className="absolute top-3 right-3 z-20">
+                              <button onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === ev.id ? null : ev.id); }}
+                                aria-label="Impostazioni evento" title="Impostazioni evento"
+                                className="w-9 h-9 rounded-full flex items-center justify-center bg-black/55 text-white/90 border border-white/15 backdrop-blur active:scale-90 transition-transform">
+                                <IconGear />
+                              </button>
+                              {menuFor === ev.id && (
+                                <div onClick={(e) => e.stopPropagation()} className="absolute top-11 right-0 w-36 rounded-xl overflow-hidden border border-white/10 shadow-2xl" style={{ background: '#1C1F22' }}>
+                                  <button onClick={(e) => { e.stopPropagation(); startEdit(ev); }} className="w-full text-left px-3 py-2.5 text-[11px] font-bold text-slate-200 active:bg-white/5">Modifica</button>
+                                  <div className="h-px bg-white/10" />
+                                  <button onClick={(e) => { e.stopPropagation(); deleteEvent(ev.id); }} className="w-full text-left px-3 py-2.5 text-[11px] font-bold text-red-400 active:bg-red-500/10">Elimina</button>
+                                </div>
+                              )}
                             </div>
                           )}
+
+                          <span aria-hidden className="absolute bottom-0 right-0 z-10"
+                            style={{ width: 0, height: 0, borderStyle: 'solid', borderWidth: '0 0 22px 22px', borderColor: 'transparent transparent rgba(163,181,133,0.55) transparent' }} />
+
+                          <div className="relative z-10 pb-9">
+                            <h4 className={'font-black text-white uppercase drop-shadow-lg leading-tight ' + titleSize}>{ev.revealed ? ev.title : 'DATI OSCURATI'}</h4>
+                            {!ev.revealed && ev.reveal_at && <p className="text-[11px] text-white/90 font-bold mt-1 drop-shadow">Sblocco tra: {countdown(ev.reveal_at)}</p>}
+                            {!ev.revealed && !ev.reveal_at && <p className="text-[11px] text-white/90 font-bold mt-1 drop-shadow">In attesa di svelamento</p>}
+                          </div>
+
+                          <div className="absolute bottom-0 left-0 right-0 flex items-center px-4 py-2 bg-slate-900/80 border-t border-white/5 backdrop-blur-sm">
+                            <span className="flex items-center gap-2.5 text-[11px] font-bold text-slate-300">
+                              <span>{'\u{1F4AC}'} {evComments.length}</span>
+                              {ev.revealed && ev.location && (
+                                <button onClick={(e) => { e.stopPropagation(); navigateTo(ev.location!); }}
+                                  aria-label="Naviga fin qui" title="Naviga fin qui"
+                                  className="w-7 h-7 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                                  style={{ background: '#A3B585', color: '#14161A' }}>
+                                  <IconPin />
+                                </button>
+                              )}
+                            </span>
+                          </div>
                         </div>
-                      )}
-
-                      <div className="relative z-10">
-                        <h4 className={'font-black text-white uppercase drop-shadow-lg leading-tight ' + titleSize}>{ev.revealed ? ev.title : 'DATI OSCURATI'}</h4>
-                        {!ev.revealed && ev.reveal_at && (
-                          <p className="text-[11px] text-white/90 font-bold mt-1 drop-shadow">Sblocco tra: {countdown(ev.reveal_at)}</p>
-                        )}
-                        {!ev.revealed && !ev.reveal_at && (
-                          <p className="text-[11px] text-white/90 font-bold mt-1 drop-shadow">In attesa di svelamento</p>
-                        )}
                       </div>
-                    </div>
 
-                    <div onClick={() => openXp(ev.id)} className="flex items-center justify-between px-4 py-2.5 bg-slate-900/70 border-t border-white/5 cursor-pointer active:bg-slate-900 transition-colors">
-                      <span className="flex items-center gap-2.5 text-[11px] font-bold text-slate-300">
-                        <span>{'\u{1F4AC}'} {evComments.length}</span>
-                        {ev.revealed && ev.location && (
-                          <button onClick={(e) => { e.stopPropagation(); navigateTo(ev.location!); }}
-                            aria-label="Naviga fin qui" title="Naviga fin qui"
-                            className="w-7 h-7 rounded-full flex items-center justify-center active:scale-90 transition-transform"
-                            style={{ background: '#A3B585', color: '#14161A' }}>
-                            <IconPin />
-                          </button>
-                        )}
-                      </span>
-                      <span className={'flex items-center gap-1 px-3 py-1.5 rounded-full bg-gradient-to-r ' + theme.gradient + ' text-slate-950 text-[10px] font-black uppercase tracking-wide active:scale-95 transition-transform'}>
-                        Dettagli <span className="text-sm leading-none">{'\u203A'}</span>
-                      </span>
-                    </div>
-
-                    {isOwner && isSurprise && !archived && (
-                      <div className="px-4 py-2 bg-slate-950 border-t border-slate-800 flex gap-2">
-                        {ev.revealed_override !== true && (
-                          <button onClick={() => setOverride(ev.id, true)} className={'text-[9px] uppercase font-black px-3 py-1.5 rounded bg-gradient-to-r ' + theme.gradient + ' text-slate-950'}>Svela ora</button>
-                        )}
-                        {ev.revealed_override !== false && (
-                          <button onClick={() => setOverride(ev.id, false)} className="text-[9px] uppercase font-black px-3 py-1.5 rounded bg-slate-800 text-slate-300 border border-slate-600">Rinascondi</button>
-                        )}
-                        {ev.revealed_override !== null && (
-                          <button onClick={() => setOverride(ev.id, null)} className="text-[9px] uppercase font-black px-3 py-1.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Auto</button>
-                        )}
+                      {/* RETRO durante la rotazione: solo visivo. A rotazione finita si atterra sul ramo piatto. */}
+                      <div className={'absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] overflow-hidden rounded-[inherit] ' + (isFlip ? '' : 'pointer-events-none')}>
+                        {retro}
                       </div>
-                    )}
-                  </>
+
+                    </div>
+                  </div>
                 )}
               </div>
             );
@@ -436,99 +521,81 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
         </div>
       )}
 
-      {/* SCHERMATA EVENTO ESPANSA - z altissimo: copre l'intestazione dell'app, cosi' il tasto Home non e' raggiungibile per errore. */}
-      {xp && xpVis && (
-        <div className="fixed inset-0 bg-slate-950 z-[9999] overflow-y-auto" onClick={closeXp}>
-          <div onClick={(e) => e.stopPropagation()}>
-            <div className="relative h-72">
-              {xpVis.image && <img src={xpVis.image} alt="" className="absolute inset-0 w-full h-full object-cover" />}
-              {!xpVis.image && <div className={'absolute inset-0 bg-gradient-to-br ' + ('gradient' in xpVis ? xpVis.gradient : '')} />}
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-black/30 to-black/20" />
-              {!xp.revealed && <div aria-hidden className="absolute inset-0 overflow-hidden"><div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2.4s_ease-in-out_infinite]" /></div>}
+      {/* PANNELLO COMMENTI - fluttua sopra la card, fuori dal 3D. Stesso linguaggio della chat di Julie:
+          velo scuro sfocato, superficie che sale dal basso, bolle salvia trasparenti. */}
+      {commentiFor && (() => {
+        const ev = events.find((e) => e.id === commentiFor);
+        if (!ev) return null;
+        const cs = comments.filter((c) => c.event_id === ev.id);
+        const mine = myCommentOn(ev.id);
+        return (
+          <div onClick={chiudiCommenti}
+            className={'fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300 ' + (panelShown ? 'opacity-100' : 'opacity-0')}>
+            <div onClick={(e) => e.stopPropagation()}
+              className={'w-full max-w-md max-h-[75vh] flex flex-col rounded-t-3xl sm:rounded-3xl overflow-hidden backdrop-blur-md transition-all duration-300 ease-out ' + (panelShown ? 'opacity-100' : 'opacity-0 translate-y-4 sm:scale-95')}
+              style={{ background: 'rgba(20,22,26,0.82)', border: '1px solid rgba(163,181,133,0.22)' }}>
 
-              {/* Indietro: pieno, ad alto contrasto, sempre leggibile sopra qualunque copertina. */}
-              <button onClick={closeXp} aria-label="Torna al programma" title="Torna al programma"
-                className="absolute top-4 left-4 w-11 h-11 rounded-full flex items-center justify-center z-20 active:scale-90 transition-transform shadow-xl"
-                style={{ background: '#A3B585', color: '#14161A', border: '2px solid rgba(255,255,255,0.35)' }}>
-                <IconBack />
-              </button>
-
-              {!xp.revealed && <span className="absolute top-4 right-4 text-4xl drop-shadow-lg z-10">{'\u{1F512}'}</span>}
-              <div className="absolute bottom-4 left-5 right-5 z-10">
-                <p className="text-[10px] uppercase tracking-widest text-white/70 font-black">{dayLabel(dayOf(xp.scheduled_at))} &middot; {timeOf(xp.scheduled_at)}</p>
-                <h2 className="text-3xl font-black text-white uppercase leading-tight drop-shadow-lg [font-family:var(--font-display)]">{xp.revealed ? xp.title : 'DATI OSCURATI'}</h2>
+              <div className="flex items-center justify-between gap-3 p-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                <div className="min-w-0">
+                  <p className="text-[9px] uppercase tracking-[0.16em] text-slate-500 font-black">Commenti</p>
+                  <p className="text-white font-black text-sm truncate">{ev.title}</p>
+                </div>
+                <button onClick={chiudiCommenti} aria-label="Chiudi" className="text-slate-400 hover:text-white text-2xl leading-none shrink-0">&times;</button>
               </div>
-            </div>
 
-            <div className="p-5 space-y-4 pb-16">
-              {xpCd && xp.revealed && (
-                <div className={'eg-card border ' + theme.border + ' p-4 text-center ' + r}>
-                  <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black mb-1">Inizia tra</p>
-                  <p className={'text-3xl font-black ' + theme.text}>{xpCd}</p>
-                </div>
-              )}
-              {!xpCd && xp.revealed && (
-                <div className={'eg-card-n p-3 text-center ' + r}>
-                  <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black">Evento iniziato</p>
-                </div>
-              )}
-              {!xp.revealed && (
-                <div className={'eg-card-n p-4 text-center ' + r}>
-                  <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black mb-1">{xp.reveal_at ? 'Sblocco tra' : 'In attesa di svelamento'}</p>
-                  {xp.reveal_at && <p className="text-2xl font-black text-white">{countdown(xp.reveal_at)}</p>}
-                </div>
-              )}
-
-              {xp.revealed && xp.location && (
-                <div className="space-y-2">
-                  <button onClick={() => navigateTo(xp.location!)} className={'w-full bg-gradient-to-r ' + theme.gradient + ' text-slate-950 py-4 rounded-2xl font-black text-sm uppercase tracking-wide active:scale-[0.98] transition-transform flex items-center justify-center gap-2'}>
-                    <IconPin /> Portami a {xp.location}
-                  </button>
-                  <button onClick={() => schedaLocale(xp.title, xp.location!)}
-                    className="w-full py-3 rounded-2xl text-[12px] font-bold active:scale-[0.98] transition-transform flex items-center justify-center gap-2 border border-white/10 text-slate-300">
-                    <IconInfo /> Orari, telefono e recensioni
-                  </button>
-                </div>
-              )}
-
-              {xp.revealed && (
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-widest text-slate-400 font-black mb-3">Commenti ({xpComments.length})</h3>
-                  <div className="space-y-2">
-                    {xpComments.length === 0 && <p className="text-xs text-slate-500">Nessun commento. Rompa il ghiaccio.</p>}
-                    {xpComments.map((c) => (
-                      <div key={c.id} className="eg-card-n rounded-xl p-3">
-                        <div className="flex justify-between items-center">
-                          <span className={'text-[10px] font-black ' + theme.text}>{c.author}</span>
-                          {c.user_id === userId && !archived && editingC !== c.id && (
-                            <div className="flex gap-2">
-                              <button onClick={() => { setEditingC(c.id); setEditCText(c.content); }} className="text-[9px] text-slate-400">Modifica</button>
-                              <button onClick={() => handleDeleteComment(c.id)} className="text-[9px] text-red-500">Elimina</button>
-                            </div>
-                          )}
-                        </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+                {cs.length === 0 && <p className="text-[12px] text-slate-500 text-center py-6">Nessun commento. Rompa il ghiaccio.</p>}
+                {cs.map((c) => {
+                  const io = c.user_id === userId;
+                  return (
+                    <div key={c.id} className={'flex ' + (io ? 'justify-end' : 'justify-start')}>
+                      <div className={'max-w-[82%] px-3.5 py-2.5 rounded-2xl ' + (io ? 'rounded-br-sm' : 'rounded-bl-sm')}
+                        style={io
+                          ? { background: 'rgba(163,181,133,0.16)', border: '1px solid rgba(163,181,133,0.3)' }
+                          : { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        {!io && <p className={'text-[10px] font-black mb-0.5 ' + theme.text}>{c.author}</p>}
                         {editingC === c.id ? (
-                          <div className="flex gap-2 mt-1">
-                            <input value={editCText} onChange={(e) => setEditCText(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 rounded p-1.5 text-xs text-white outline-none" />
-                            <button onClick={() => handleUpdateComment(c.id)} className={'text-xs font-black ' + theme.text}>OK</button>
+                          <div className="flex gap-2 items-center">
+                            <input value={editCText} onChange={(e) => setEditCText(e.target.value)} autoFocus
+                              className="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-[13px] text-white outline-none" />
+                            <button onClick={() => handleUpdateComment(c.id)} className="text-[12px] font-black" style={{ color: '#A3B585' }}>OK</button>
+                            <button onClick={() => { setEditingC(null); setEditCText(''); }} className="text-[12px] text-slate-500">Annulla</button>
                           </div>
-                        ) : <p className="text-xs text-slate-200 mt-1">{c.content}</p>}
+                        ) : (
+                          <>
+                            <p className="text-[13px] text-slate-100 leading-relaxed">{c.content}</p>
+                            {io && !archived && (
+                              <div className="flex gap-3 mt-1.5 justify-end">
+                                <button onClick={() => { setEditingC(c.id); setEditCText(c.content); }} className="text-[10px] text-slate-400 active:opacity-60">Modifica</button>
+                                <button onClick={() => handleDeleteComment(c.id)} className="text-[10px] text-red-400/80 active:opacity-60">Elimina</button>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
-                    ))}
-                    {!xpMine && !archived && (
-                      <div className="flex gap-2 mt-2">
-                        <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Il tuo commento..." className="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white outline-none" />
-                        <button onClick={() => handlePostComment(xp.id)} disabled={!draft.trim()} className={'bg-gradient-to-r ' + theme.gradient + ' text-slate-950 px-4 rounded-lg font-black text-xs disabled:opacity-40'}>Invia</button>
-                      </div>
-                    )}
-                    {archived && <p className="text-[10px] text-slate-500 text-center pt-1">Archiviato - sola lettura</p>}
-                  </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {!mine && !archived && (
+                <div className="p-3 border-t flex gap-2" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                  <input value={draft} onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && draft.trim()) handlePostComment(ev.id); }}
+                    placeholder="Scriva un commento..." autoFocus
+                    className="flex-1 bg-slate-950/70 border border-slate-700 rounded-xl p-3 text-[13px] text-white outline-none" />
+                  <button onClick={() => handlePostComment(ev.id)} disabled={!draft.trim()}
+                    className="px-4 rounded-xl font-black text-[12px] disabled:opacity-40 active:scale-95 transition-transform"
+                    style={{ background: '#A3B585', color: '#14161A' }}>Invia</button>
                 </div>
               )}
+              {mine && !archived && <p className="text-[10px] text-slate-500 text-center py-3">Ha gi&agrave; commentato questo evento.</p>}
+              {archived && <p className="text-[10px] text-slate-500 text-center py-3">Archiviato - sola lettura</p>}
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
     </div>
   );
 }
