@@ -1,4 +1,5 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'openai/gpt-oss-120b';
@@ -42,9 +43,10 @@ Queste sono le SUE UNICHE capacita operative. Non ne ha altre.
 
 1. AGGIUNGERE UN EVENTO al programma del gruppo (titolo, data, ora, luogo).
 2. REGISTRARE UNA SPESA in Cassa - soltanto le spese pagate da chi Le parla, mai quelle altrui.
-3. CONVERSARE: consigliare, suggerire, ragionare insieme all'utente, aiutarlo a decidere.
+3. CERCARE LUOGHI VERI nei dintorni: ristoranti, cocktail bar, locali notturni, spiagge, parcheggi. Li mostra all'utente qui in chat, e puo fissarli subito nel programma.
+4. CONVERSARE: consigliare, ragionare insieme all'utente, aiutarlo a decidere.
 
-Se Le chiedono cosa sa fare, elenchi ESATTAMENTE queste tre cose, in modo breve e naturale.
+Se Le chiedono cosa sa fare, elenchi ESATTAMENTE queste quattro cose, in modo breve e naturale.
 
 === CIO' CHE NON SA FARE (E DEVE DIRLO) ===
 REGOLA ASSOLUTA: non inventi MAI capacita che non ha. Se non puo fare qualcosa, lo dica con garbo e indichi dove l'utente puo farlo da se.
@@ -69,19 +71,13 @@ DIVIETO: NIENTE ELENCHI DI COSE RISAPUTE
 Non elenchi mai tipi di pizza, nomi di piatti, categorie ovvie, generi musicali, cose che l'utente gia sa.
 Non riempia il vuoto con parole. Se non ha un dato reale, non lo inventi e non lo sostituisca con chiacchiera.
 
-DOVE STANNO I DATI VERI
-Lei NON conosce i locali dei dintorni. La sezione CONSIGLI si: contiene luoghi reali, veri, vicini al luogo dell'evento, con il meteo.
-Quando Le chiedono dove andare, dove mangiare, cosa fare in zona: LI MANDI AI CONSIGLI. E' li che c'e la risposta vera. Poi offra cio che Lei puo fare davvero: fissare l'evento nel programma.
+I LUOGHI VERI LI TROVA LEI, NON L'UTENTE
+Non mandi MAI l'utente ad aprire un'altra sezione dell'app: chi parla con Lei ha scelto Lei. Rimandarlo altrove e un passaggio in piu e una piccola sconfitta.
+Quando Le chiedono dove andare, dove mangiare, dove bere, cosa fare in zona: CERCHI LEI i luoghi reali (azione cerca_luoghi) e glieli mostri qui in chat, con il tasto per fissarli nel programma.
 
-ESEMPI DI RISPOSTA GIUSTA (brevi, concrete, che CHIUDONO)
-Utente: "Consigliami qualcosa per stasera"
-Lei: "I locali veri qui intorno li trova nei Consigli, gia scelti sulla zona dell'evento. Quando ha deciso, mi dica dove e a che ora: lo metto in programma."
-
-Utente: "Dove mangiamo?"
-Lei: "Guardi nei Consigli: c'e la lista dei posti in zona, con la navigazione. Appena sceglie, glielo fisso io nel calendario."
-
-Utente: "Come organizzo il viaggio?"
-Lei: "Parta dagli orari: fissi partenza e arrivo nel programma, il resto si incastra da se. Vuole che cominci con la partenza?"
+SE L'UTENTE E VAGO, PROPONGA LE CATEGORIE
+Non chieda "cosa desidera?". Offra le strade concrete che sa percorrere:
+"Cerco una cena, un aperitivo o un locale per dopo?"
 
 OGNI RISPOSTA DEVE AVVICINARE ALLA SOLUZIONE, NON AGGIUNGERE DOMANDE.
 Una direzione concreta. Al massimo UNA domanda breve, e solo se serve davvero per agire.
@@ -108,7 +104,47 @@ function azionePrompt(oggi: string): string {
     + '\nREGOLA INDEROGABILE: registri SOLO le spese di chi Le sta parlando. Se l\'utente Le chiede di registrare una spesa pagata da un\'altra persona, NON produca il JSON: spieghi con garbo che puo registrare soltanto le proprie spese, e che per quelle altrui c\'e il modulo Cassa.'
     + '\nSe manca l\'importo o la descrizione, li chieda in modo naturale e breve, senza produrre il JSON.'
 
-    + '\n\nPer ogni altra richiesta rispondi normalmente in italiano, senza JSON, con la postura del concierge: proponi, non interrogare.';
+    + '\n\nAZIONE RICERCA LUOGHI\nQuando l\'utente cerca un posto dove mangiare, bere, uscire, rilassarsi o parcheggiare, rispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo: '
+    + '{"action":"cerca_luoghi","categoria":"<una tra: food, aperitivo, night, beach, parking>","intro":"<una sola riga di presentazione, calda e breve>"}'
+    + '\nMappa: cena/pranzo/ristorante/mangiare -> food. aperitivo/drink/cocktail/bere -> aperitivo. discoteca/locale notturno/ballare/dopocena -> night. spiaggia/mare/relax -> beach. parcheggio/posteggio -> parking.'
+    + '\nIl campo intro e cio che dirai prima di mostrare i luoghi: UNA riga sola, mai un elenco. Esempi: "Ecco tre indirizzi a due passi. Mi dica quale e glielo fisso." oppure "Questi sono i posti migliori qui intorno."'
+    + '\nSe la richiesta e vaga (esempio: "cosa facciamo stasera?"), NON produrre il JSON: proponi le categorie in una riga ("Cerco una cena, un aperitivo o un locale per dopo?") e attendi.'
+
+    + '\n\nPer ogni altra richiesta rispondi normalmente in italiano, senza JSON, con la postura del concierge: breve, concreta, mai prolissa.';
+}
+
+// Julie cerca sulla zona dell'Hub: e' il luogo d'arrivo, valido anche prima che esistano eventi.
+async function luogoHub(hubId: string): Promise<string | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key || !hubId) return null;
+  try {
+    const sb = createClient(url, key);
+    const { data } = await sb.from('hubs').select('location').eq('id', hubId).single();
+    const l = (data as any)?.location;
+    return l && l !== '-' ? l : null;
+  } catch { return null; }
+}
+
+// Riusa /api/consigli: stessa cascata di risoluzione del luogo, stessi luoghi reali della sezione Consigli.
+async function cercaLuoghi(origin: string, location: string, categoria: string) {
+  try {
+    const res = await fetch(origin + '/api/consigli', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ location }),
+    });
+    const d = await res.json();
+    const sec = (d.sections ?? []).find((s: any) => s.id === categoria);
+    return { tips: sec?.tips ?? [], zona: d.risolto ?? null };
+  } catch { return { tips: [], zona: null }; }
+}
+
+// Estrae il JSON d'azione dalla risposta del modello, se presente.
+function jsonDi(testo: string): any | null {
+  const a = testo.indexOf('{'), b = testo.lastIndexOf('}');
+  if (a < 0 || b < 0) return null;
+  try { return JSON.parse(testo.slice(a, b + 1)); } catch { return null; }
 }
 
 export async function POST(req: NextRequest) {
@@ -125,7 +161,7 @@ export async function POST(req: NextRequest) {
   if (!key) return NextResponse.json({ reply: 'Mi perdoni, non sono al momento raggiungibile. Riprovi tra poco.' });
 
   try {
-    const { messages } = await req.json();
+    const { messages, hubId } = await req.json();
     const oggi = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Rome' }).replace(' ', 'T');
     const res = await fetch(GROQ_URL, {
       method: 'POST',
@@ -143,6 +179,23 @@ export async function POST(req: NextRequest) {
     }
     const data = await res.json();
     const reply = data.choices?.[0]?.message?.content ?? 'Mi scusi, non ho compreso.';
+
+    // cerca_luoghi: la ricerca la fa il server, in un solo giro. Il client riceve testo + luoghi pronti.
+    const az = jsonDi(reply);
+    if (az?.action === 'cerca_luoghi' && az.categoria) {
+      const loc = await luogoHub(hubId);
+      if (!loc) {
+        return NextResponse.json({ reply: 'Mi dica la zona in cui cercare e Le trovo i posti giusti.' });
+      }
+      const origin = new URL(req.url).origin;
+      const { tips, zona } = await cercaLuoghi(origin, loc, az.categoria);
+      if (tips.length === 0) {
+        return NextResponse.json({ reply: 'Non ho trovato nulla di valido' + (zona ? ' nei dintorni di ' + zona : ' in zona') + '. Provi a indicarmi un\u2019altra categoria.' });
+      }
+      const intro = typeof az.intro === 'string' && az.intro.trim() ? az.intro.trim() : 'Ecco cosa ho trovato qui intorno.';
+      return NextResponse.json({ reply: intro, luoghi: tips, zona });
+    }
+
     return NextResponse.json({ reply });
   } catch (e: any) {
     console.error('Julie exception', String(e));
