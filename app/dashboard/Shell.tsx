@@ -20,7 +20,7 @@ const SWIPE_MIN = 55;
 const H_DOMINANCE = 1.4;
 
 export default function Shell() {
-  const { memberships, activeHubId, setActiveHubId, username, postAction, immersive } = useHub();
+  const { memberships, activeHubId, setActiveHubId, username, postAction } = useHub();
   const [tab, setTab] = useState<ModuleId>('calendar');
   const [nudgeX, setNudgeX] = useState(0);            // rimbalzo economico agli estremi (strato removibile)
   const swipe = useRef<{ x: number; y: number; lx: number; ly: number } | null>(null);
@@ -72,8 +72,7 @@ export default function Shell() {
       {/* Glow ambientale: la categoria colora l'atmosfera dell'intera pagina */}
       <div aria-hidden className={'pointer-events-none fixed inset-x-0 top-0 h-96 bg-gradient-to-b ' + t.gradient + ' opacity-[0.08] blur-3xl'} />
 
-      {/* immersive: il backdrop-blur crea un contesto d'impilamento, nessuno z-index dell'overlay potrebbe coprire header e nav. Vanno nascosti. */}
-      <header className={'p-4 border-b border-white/5 bg-slate-950/80 sticky top-0 backdrop-blur-xl z-50 flex justify-between items-center' + (immersive ? ' hidden' : '')}>
+      <header className="p-4 border-b border-white/5 bg-slate-950/80 sticky top-0 backdrop-blur-xl z-50 flex justify-between items-center">
         <div>
           <h2 className={'text-transparent bg-clip-text bg-gradient-to-r ' + t.gradient + ' text-[10px] font-black uppercase tracking-widest'}>{active.hub.name}{archived ? ' - RICORDO' : ''}</h2>
           <p className="font-bold text-white text-sm">{greeting}</p>
@@ -87,7 +86,7 @@ export default function Shell() {
         <div key={currentTab} className="relative p-4 animate-[moduleIn_.25s_ease-out]">{render[currentTab]}</div>
       </div>
 
-      <nav className={'fixed bottom-0 left-0 right-0 bg-slate-950/70 backdrop-blur-xl border-t border-white/10 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] flex justify-around z-50' + (immersive ? ' hidden' : '')}>
+      <nav className="fixed bottom-0 left-0 right-0 bg-slate-950/70 backdrop-blur-xl border-t border-white/10 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] flex justify-around z-50">
         {mods.map((id) => (
           <button key={id} onClick={() => { navigator.vibrate?.(8); setTab(id); }} className={'flex flex-col items-center gap-1 shrink-0 px-3 py-1.5 rounded-xl transition-all duration-150 active:scale-95 ' + (currentTab === id ? t.text + ' bg-white/5' : 'text-slate-500')}>
             <span className="text-xl">{ICONS[id]}</span>

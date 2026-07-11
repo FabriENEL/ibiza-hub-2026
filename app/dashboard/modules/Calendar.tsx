@@ -32,7 +32,7 @@ const IconBack = () => (
 );
 
 export default function Calendar({ hubId, theme, isOwner, archived, words, rounded }: { hubId: string; theme: Theme; isOwner: boolean; archived: boolean; words: Words; rounded: string }) {
-  const { userId, postAction, setImmersive } = useHub();
+  const { userId, postAction } = useHub();
   const w = words;
   const r = rounded;
   const [events, setEvents] = useState<EventRow[]>([]);
@@ -238,9 +238,6 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
   const xpCd = xp ? eventCountdown(xp.scheduled_at) : null;
 
   const closeXp = () => { setOpenEvent(null); setDraft(''); setEditingC(null); };
-  // Modalita' immersiva: nasconde intestazione e barra di navigazione della Shell mentre il dettaglio e' aperto.
-  // Il backdrop-blur della Shell crea un contesto d'impilamento: nessuno z-index basterebbe a coprirla.
-  useEffect(() => { setImmersive(!!openEvent); return () => setImmersive(false); }, [openEvent]);
 
   const AudiencePicker = ({ selected, onToggle }: { selected: Set<string>; onToggle: (uid: string) => void }) => (
     <div className="bg-slate-950 border border-slate-700 rounded-lg p-2 space-y-1 max-h-40 overflow-y-auto">
@@ -330,8 +327,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
                       {!ev.revealed && <div aria-hidden className="absolute inset-0 overflow-hidden"><div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2.4s_ease-in-out_infinite]" /></div>}
 
-                      {/* Solo il lucchetto: comunica uno stato. Le emoji decorative sono state rimosse - rubavano la scena alla copertina. */}
-                      {!ev.revealed && <span className={'absolute top-3 text-3xl drop-shadow-lg opacity-90 z-10 ' + (editable ? 'right-14' : 'right-3')}>{'\u{1F512}'}</span>}
+                      {vis.icon && <span className={'absolute top-3 text-4xl drop-shadow-lg opacity-90 z-10 ' + (editable ? 'right-14' : 'right-3')}>{vis.icon}</span>}
                       <span className="absolute top-3 left-3 bg-black/50 text-white text-xs font-black px-2 py-1 rounded-lg z-10">{timeOf(ev.scheduled_at)}</span>
 
                       {/* Impostazioni della card: un solo ingranaggio raccoglie Modifica ed Elimina. */}
@@ -418,7 +414,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                 <IconBack />
               </button>
 
-              {!xp.revealed && <span className="absolute top-4 right-4 text-4xl drop-shadow-lg z-10">{'\u{1F512}'}</span>}
+              {xpVis.icon && <span className="absolute top-4 right-4 text-5xl drop-shadow-lg z-10">{xpVis.icon}</span>}
               <div className="absolute bottom-4 left-5 right-5 z-10">
                 <p className="text-[10px] uppercase tracking-widest text-white/70 font-black">{dayLabel(dayOf(xp.scheduled_at))} &middot; {timeOf(xp.scheduled_at)}</p>
                 <h2 className="text-3xl font-black text-white uppercase leading-tight drop-shadow-lg [font-family:var(--font-display)]">{xp.revealed ? xp.title : 'DATI OSCURATI'}</h2>
