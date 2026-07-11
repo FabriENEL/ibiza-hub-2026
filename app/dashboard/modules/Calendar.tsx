@@ -25,6 +25,12 @@ const IconPin = () => (
     <circle cx="12" cy="10" r="2.6" />
   </svg>
 );
+const IconInfo = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[15px] h-[15px]">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5M12 7.6v.6" />
+  </svg>
+);
 const IconBack = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-[20px] h-[20px]">
     <path d="M15 18l-6-6 6-6" />
@@ -189,6 +195,11 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
   };
 
   const navigateTo = (place: string) => window.open('https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(place), '_blank');
+  // Scheda dell'attivita': nome + indirizzo insieme portano alla pagina del locale, con orari, telefono e recensioni.
+  const schedaLocale = (titolo: string | null, place: string) => {
+    const q = [titolo ?? '', place].filter(Boolean).join(' ');
+    window.open('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q), '_blank');
+  };
   const myCommentOn = (eventId: string) => comments.find((c) => c.event_id === eventId && c.user_id === userId);
   const handlePostComment = async (eventId: string) => {
     if (!draft.trim() || !userId) return;
@@ -469,9 +480,15 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
               )}
 
               {xp.revealed && xp.location && (
-                <button onClick={() => navigateTo(xp.location!)} className={'w-full bg-gradient-to-r ' + theme.gradient + ' text-slate-950 py-4 rounded-2xl font-black text-sm uppercase tracking-wide active:scale-[0.98] transition-transform flex items-center justify-center gap-2'}>
-                  <IconPin /> Portami a {xp.location}
-                </button>
+                <div className="space-y-2">
+                  <button onClick={() => navigateTo(xp.location!)} className={'w-full bg-gradient-to-r ' + theme.gradient + ' text-slate-950 py-4 rounded-2xl font-black text-sm uppercase tracking-wide active:scale-[0.98] transition-transform flex items-center justify-center gap-2'}>
+                    <IconPin /> Portami a {xp.location}
+                  </button>
+                  <button onClick={() => schedaLocale(xp.title, xp.location!)}
+                    className="w-full py-3 rounded-2xl text-[12px] font-bold active:scale-[0.98] transition-transform flex items-center justify-center gap-2 border border-white/10 text-slate-300">
+                    <IconInfo /> Orari, telefono e recensioni
+                  </button>
+                </div>
               )}
 
               {xp.revealed && (
