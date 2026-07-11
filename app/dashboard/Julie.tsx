@@ -110,9 +110,13 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(spoken);
       u.lang = 'it-IT';
-      u.rate = 1.1; // un filo piu' svelta: toglie la cantilena
-      const itVoice = voicesRef.current.find((v) => v.lang.startsWith('it'));
-      if (itVoice) u.voice = itVoice;
+      u.rate = 1.25;  // piu' svelta: la lentezza era meta' della cantilena
+      u.pitch = 1.05; // un soffio piu' alta: toglie il tono robotico-basso
+      // La cantilena dipende soprattutto dalla VOCE: su Android la "prima it" e' spesso la peggiore.
+      // Preferiamo le voci di qualita' (Google/Natural/Premium), poi ripiego sulla prima italiana.
+      const its = voicesRef.current.filter((v) => v.lang.toLowerCase().startsWith('it'));
+      const best = its.find((v) => /google|natural|premium|enhanced|siri/i.test(v.name)) ?? its[0];
+      if (best) u.voice = best;
       window.speechSynthesis.speak(u);
       window.speechSynthesis.resume(); // aggira il pause-bug di Chrome dopo cancel()
     } catch {}
