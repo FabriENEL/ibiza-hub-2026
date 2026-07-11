@@ -1,5 +1,5 @@
 ﻿'use client'
-import { useState, useEffect, type ReactElement } from 'react';
+import { useState, useEffect, useRef, type ReactElement } from 'react';
 import { useHub } from './lib/HubContext';
 import { getConfig } from './lib/blueprints';
 import type { ModuleId } from './lib/blueprints';
@@ -15,9 +15,15 @@ const ICONS: Record<ModuleId, string> = {
   gallery: '\u{1F4F8}', consigli: '\u{1F4A1}', group: '\u{1F465}',
 };
 
+// Swipe: soglia orizzontale minima e dominanza sull'asse verticale (per non rubare lo scroll).
+const SWIPE_MIN = 55;
+const H_DOMINANCE = 1.4;
+
 export default function Shell() {
   const { memberships, activeHubId, setActiveHubId, username, postAction } = useHub();
   const [tab, setTab] = useState<ModuleId>('calendar');
+  const [nudgeX, setNudgeX] = useState(0);            // rimbalzo economico agli estremi (strato removibile)
+  const swipe = useRef<{ x: number; y: number } | null>(null);
   const active = memberships.find((m) => m.hub_id === activeHubId);
   if (!active) return null;
 
@@ -32,6 +38,23 @@ export default function Shell() {
   const mods = bp.modules.filter((m) => m !== 'votes' || votesEnabled);
   const currentTab: ModuleId = mods.includes(tab) ? tab : 'calendar'; useEffect(() => { if (postAction && mods.includes(postAction.module as ModuleId)) setTab(postAction.module as ModuleId); }, [postAction]);
   const greeting = w.greeting(username ?? '') + (isOwner ? w.ownerTag : '');
+
+  // Rimbalzo: micro-scatto di 12px nella direzione tentata, poi ritorno. Nessun keyframe globale.
+  const bump = (dir: number) => { setNudgeX(dir * 12); window.setTimeout(() => setNudgeX(0), 160); };
+
+  const onSwipeStart = (e: React.PointerEvent) => { swipe.current = { x: e.clientX, y: e.clientY }; };
+  const onSwipeEnd = (e: React.PointerEvent) => {
+    const s = swipe.current; swipe.current = null; if (!s) return;
+    const dx = e.clientX - s.x, dy = e.clientY - s.y;
+    // Non abbastanza orizzontale: lascio vivere lo scroll verticale.
+    if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) < Math.abs(dy) * H_DOMINANCE) return;
+    const idx = mods.indexOf(currentTab);
+    if (dx < 0) {                                   // dito verso SINISTRA = indietro
+      if (idx > 0) { navigator.vibrate?.(8); setTab(mods[idx - 1]); } else bump(-1);
+    } else {                                        // dito verso DESTRA = avanti
+      if (idx < mods.length - 1) { navigator.vibrate?.(8); setTab(mods[idx + 1]); } else bump(1);
+    }
+  };
 
   const render: Record<ModuleId, ReactElement> = {
     calendar: <Calendar hubId={active.hub_id} theme={t} isOwner={isOwner} archived={archived} words={w} rounded={p.vibe.rounded} />,
@@ -55,8 +78,11 @@ export default function Shell() {
         <button onClick={() => setActiveHubId(null)} title="Torna alla lobby" aria-label="Torna alla lobby" className={'w-10 h-10 bg-slate-900 border-2 flex items-center justify-center hover:text-white active:scale-95 transition-all ' + t.border + ' ' + t.text + ' ' + p.vibe.rounded}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" /></svg></button>
       </header>
 
-      {/* key={currentTab}: rimonta il contenitore al cambio tab e fa ripartire l'animazione */}
-      <div key={currentTab} className="relative p-4 animate-[moduleIn_.25s_ease-out]">{render[currentTab]}</div>
+      {/* Swipe orizzontale = cambio tab. Il wrapper esterno porta il rimbalzo; l'interno l'animazione moduleIn. */}
+      <div onPointerDown={onSwipeStart} onPointerUp={onSwipeEnd} style={{ transform: 'translateX(' + nudgeX + 'px)', transition: 'transform .16s ease-out' }}>
+        {/* key={currentTab}: rimonta il contenitore al cambio tab e fa ripartire l'animazione */}
+        <div key={currentTab} className="relative p-4 animate-[moduleIn_.25s_ease-out]">{render[currentTab]}</div>
+      </div>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-slate-950/70 backdrop-blur-xl border-t border-white/10 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] flex justify-around z-50">
         {mods.map((id) => (
@@ -69,7 +95,3 @@ export default function Shell() {
     </main>
   );
 }
-
-
-
-
