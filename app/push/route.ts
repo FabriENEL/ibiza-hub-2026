@@ -13,11 +13,33 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const scegli = (frasi: string[]) => frasi[Math.floor(Math.random() * frasi.length)];
+
 // Risale dall'UUID al nome leggibile; se il profilo manca, resta un fallback neutro.
 async function nomeDi(userId: string | null): Promise<string> {
   if (!userId) return 'Qualcuno';
   const { data } = await supabase.from('profiles').select('username').eq('id', userId).single();
   return data?.username ?? 'Qualcuno';
+}
+
+// Julie parla in prima persona e dichiara cosa ha gia' fatto: toglie ansia, non riporta dati.
+function voceSpesa(chi: string, importo: string, cosa: string): string {
+  const oggetto = cosa ? cosa : 'una spesa';
+  return scegli([
+    chi + ' ha aggiunto ' + oggetto + ', ' + importo + ' euro. Ho gi\u00E0 aggiornato i saldi, non deve pensarci.',
+    'Ho registrato ' + oggetto + ' di ' + chi + ': ' + importo + ' euro. I conti sono in ordine.',
+    chi + ' ha appena messo a cassa ' + oggetto + ' (' + importo + ' euro). Me ne sono occupata io.',
+    'Nuova spesa da ' + chi + ': ' + oggetto + ', ' + importo + ' euro. Saldi ricalcolati.',
+  ]);
+}
+
+function voceEvento(chi: string, titolo: string): string {
+  return scegli([
+    chi + ' ha fissato "' + titolo + '". L\u2019ho messo in programma per Lei.',
+    'Ho aggiunto "' + titolo + '" al calendario, su indicazione di ' + chi + '.',
+    'Novit\u00E0 in programma: "' + titolo + '", voluta da ' + chi + '. \u00C8 tutto annotato.',
+    chi + ' ha organizzato "' + titolo + '". Trova ogni dettaglio nel programma.',
+  ]);
 }
 
 export async function POST(request: Request) {
@@ -32,19 +54,16 @@ export async function POST(request: Request) {
     // Chi ha generato l'azione: non va notificato a se stesso.
     const autore: string | null = record.created_by ?? record.payer_id ?? null;
 
-    let title = 'EventGarden';
-    let body = 'Novita nel tuo Hub.';
+    const title = 'J.U.L.I.E.';
+    let body = '';
 
     if (table === 'expenses') {
       const chi = await nomeDi(record.payer_id);
-      const importo = Number(record.amount ?? 0).toFixed(2);
-      const cosa = record.description ? ' per ' + record.description : '';
-      title = 'Nuova spesa';
-      body = chi + ' ha inserito ' + importo + ' EUR' + cosa + '.';
+      const importo = Number(record.amount ?? 0).toFixed(2).replace('.', ',');
+      body = voceSpesa(chi, importo, record.description ?? '');
     } else if (table === 'events') {
       const chi = await nomeDi(record.created_by);
-      title = 'Nuovo evento';
-      body = chi + ' ha aggiunto "' + (record.title ?? 'un evento') + '" al programma.';
+      body = voceEvento(chi, record.title ?? 'un nuovo appuntamento');
     } else {
       return NextResponse.json({ success: false, message: 'Tabella non gestita.' });
     }
