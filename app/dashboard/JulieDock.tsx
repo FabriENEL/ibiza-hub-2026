@@ -48,6 +48,13 @@ export default function JulieDock() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  // Scopribilita': l'avviso appare alla PRIMA comparsa della J nella sessione, non al primo drag,
+  // cosi' l'utente sa subito che la puo' spostare e buttare fuori. Una sola volta per sessione.
+  useEffect(() => {
+    if (!activeHubId || !julieOn) return;
+    try { if (!sessionStorage.getItem(HINT_KEY)) { sessionStorage.setItem(HINT_KEY, '1'); setShowHint(true); const t = setTimeout(() => setShowHint(false), 4600); return () => clearTimeout(t); } } catch {}
+  }, [activeHubId, julieOn]);
+
   // Aprire Julie (anche dal tasto in Gruppo) la fa sempre riapparire: e' il richiamo, senza toccare altri file.
   useEffect(() => { if (julieOpen) setHidden(false); }, [julieOpen]);
 
@@ -56,23 +63,7 @@ export default function JulieDock() {
   const active = memberships.find((m) => m.hub_id === activeHubId);
   const groupLabel = active ? getConfig(active.hub.category).blueprint.words.tabs.group : 'Gruppo';
 
-  const onDown = (e: React.PointerEvent) => {
-    if (!pos) return;
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    drag.current = { px: e.clientX, py: e.clientY, ox: pos.x, oy: pos.y, moved: false };
-  };
-  const onMove = (e: React.PointerEvent) => {
-    const d = drag.current; if (!d) return;
-    const dx = e.clientX - d.px, dy = e.clientY - d.py;
-    if (!d.moved && Math.hypot(dx, dy) < TAP_SLOP) return; // ancora dentro la soglia: potrebbe essere un tap
-    if (!d.moved) {
-      d.moved = true; setDragging(true); navigator.vibrate?.(6);
-      // Avviso una sola volta per sessione, al primo trascinamento.
-      try { if (!sessionStorage.getItem(HINT_KEY)) { sessionStorage.setItem(HINT_KEY, '1'); setShowHint(true); setTimeout(() => setShowHint(false), 4200); } } catch {}
-    }
-    setPos({ x: d.ox + dx, y: d.oy + dy }); // durante il drag NON si clampa: si puo' uscire per nascondere
-  };
-  const onUp = () => {
+  const endDrag = (): void => {
     const d = drag.current; drag.current = null; setDragging(false);
     if (!d) return;
     if (!d.moved) { openJulie(); return; }          // tap secco = apre
@@ -87,11 +78,26 @@ export default function JulieDock() {
     });
   };
 
+  const onDown = (e: React.PointerEvent) => {
+    if (!pos) return;
+    // Cattura sul BOTTONE (currentTarget), non sul figlio toccato: il puntatore resta agganciato
+    // alla J per tutta la durata, cosi' nessun bordo e' sordo allo scroll (fix nascondimento a destra).
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    drag.current = { px: e.clientX, py: e.clientY, ox: pos.x, oy: pos.y, moved: false };
+  };
+  const onMove = (e: React.PointerEvent) => {
+    const d = drag.current; if (!d) return;
+    const dx = e.clientX - d.px, dy = e.clientY - d.py;
+    if (!d.moved && Math.hypot(dx, dy) < TAP_SLOP) return; // ancora dentro la soglia: potrebbe essere un tap
+    if (!d.moved) { d.moved = true; setDragging(true); navigator.vibrate?.(6); }
+    setPos({ x: d.ox + dx, y: d.oy + dy }); // durante il drag NON si clampa: si puo' uscire per nascondere
+  };
+
   return (
     <>
       {!julieOpen && !hidden && pos && (
         <button
-          onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+          onPointerDown={onDown} onPointerMove={onMove} onPointerUp={endDrag} onPointerCancel={endDrag} onLostPointerCapture={endDrag}
           aria-label="J.U.L.I.E. - tocca per aprire, trascina per spostare" title="Tocca per aprire - trascina per spostare - buttala fuori per nascondere"
           style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 90, touchAction: 'none' }}
           className={'w-14 h-14 rounded-full flex items-center justify-center select-none ' + (dragging ? 'cursor-grabbing scale-105' : 'cursor-grab active:scale-90 transition-transform')}>
@@ -104,11 +110,11 @@ export default function JulieDock() {
         </button>
       )}
 
-      {showHint && !julieOpen && (
+      {showHint && !julieOpen && !hidden && (
         <div role="status"
           className="fixed bottom-6 left-1/2 -translate-x-1/2 max-w-[86vw] px-3.5 py-2 rounded-xl text-[12px] leading-snug text-center animate-[eg-fade-in_.25s_ease]"
           style={{ zIndex: 91, background: '#262b2e', color: '#e9e7e1', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 6px 20px -8px rgba(0,0,0,0.6)' }}>
-          Trascina fuori per nascondere &middot; richiamala da <b>{groupLabel}</b>
+          Trascina la J per spostarla &middot; buttala fuori per nascondere &middot; la richiami da <b>{groupLabel}</b>
         </div>
       )}
 
