@@ -286,7 +286,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
   // Altezza minima adattiva: pochi eventi -> cartoline scenografiche; molti -> piu' compatte.
   // Il retro puo' chiedere di piu': allora la card cresce, ma resta uguale su entrambe le facce.
   const n = dayEvents.length;
-  const minH = 300;
+  const minH = 210;
   const titleSize = 'text-2xl';
 
 
@@ -352,7 +352,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
       {dayEvents.length === 0 ? (
         <p className="text-slate-500 text-center py-10 text-sm">{canCreate ? w.emptyEvents : 'Nessun evento in questa giornata.'}</p>
       ) : (
-        <div className="space-y-3 overflow-y-auto snap-y snap-mandatory" style={{ maxHeight: 'calc(100vh - 15rem)', scrollbarWidth: 'none' }}>
+        <div className="space-y-3 overflow-y-auto snap-y snap-mandatory" style={{ maxHeight: 'calc(100vh - 19rem)', scrollbarWidth: 'none' }}>
           {dayEvents.map((ev) => {
             const evComments = comments.filter((c) => c.event_id === ev.id);
             const editable = canManageEvent(ev) && !archived;
