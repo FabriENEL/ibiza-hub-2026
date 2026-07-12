@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 
@@ -11,6 +11,7 @@ type Membership = {
 type HubContextValue = {
   userId: string | null;
   username: string | null;
+  email: string | null;
   avatarUrl: string | null;
   memberships: Membership[];
   activeHubId: string | null;
@@ -29,6 +30,7 @@ const HubContext = createContext<HubContextValue | null>(null);
 export function HubProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [activeHubId, setActiveHubIdState] = useState<string | null>(null);
@@ -48,6 +50,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
     setUserId(user.id);
+    setEmail(user.email ?? null);
 
     const { data: profile } = await supabase
       .from('profiles').select('username, avatar_url').eq('id', user.id).single();
@@ -90,7 +93,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
   useEffect(() => { load(); }, []);
 
   return (
-    <HubContext.Provider value={{ userId, username, avatarUrl, memberships, activeHubId, setActiveHubId, loading, refresh: load, postAction, signalPostAction, julieOpen, openJulie, closeJulie, julieSeed, seedJulie, clearJulieSeed, setHubHidden, immersive, setImmersive }}>
+    <HubContext.Provider value={{ userId, username, email, avatarUrl, memberships, activeHubId, setActiveHubId, loading, refresh: load, postAction, signalPostAction, julieOpen, openJulie, closeJulie, julieSeed, seedJulie, clearJulieSeed, setHubHidden, immersive, setImmersive }}>
       {children}
     </HubContext.Provider>
   );

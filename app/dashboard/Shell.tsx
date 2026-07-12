@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useRef, type ReactElement } from 'react';
 import { useHub } from './lib/HubContext';
 import { getConfig } from './lib/blueprints';
@@ -20,9 +20,10 @@ const SWIPE_MIN = 55;
 const H_DOMINANCE = 1.4;
 
 export default function Shell() {
-  const { memberships, activeHubId, setActiveHubId, username, postAction, immersive } = useHub();
+  const { memberships, activeHubId, setActiveHubId, username, email, postAction, immersive } = useHub();
   const [tab, setTab] = useState<ModuleId>('calendar');
-  const [nudgeX, setNudgeX] = useState(0);            // rimbalzo economico agli estremi (strato removibile)
+  const [nudgeX, setNudgeX] = useState(0);
+  const [profiloAperto, setProfiloAperto] = useState(false);            // rimbalzo economico agli estremi (strato removibile)
   const swipe = useRef<{ x: number; y: number; lx: number; ly: number } | null>(null);
   const active = memberships.find((m) => m.hub_id === activeHubId);
   if (!active) return null;
@@ -76,14 +77,53 @@ export default function Shell() {
       <div aria-hidden className={'pointer-events-none fixed inset-x-0 top-0 h-96 bg-gradient-to-b ' + t.gradient + ' opacity-[0.08] blur-3xl'} />
 
       {/* immersive: il backdrop-blur crea un contesto d'impilamento, nessuno z-index dell'overlay potrebbe coprire header e nav. Vanno nascosti. */}
-      <header className={'p-4 border-b border-white/5 bg-slate-950/80 sticky top-0 backdrop-blur-xl z-50 flex justify-between items-center' + (immersive ? ' hidden' : '')}>
-        <div>
-          <h2 className={'text-transparent bg-clip-text bg-gradient-to-r ' + t.gradient + ' text-[10px] font-black uppercase tracking-widest'}>{active.hub.name}{archived ? ' - RICORDO' : ''}</h2>
-          <p className="font-bold text-white text-sm">{greeting}</p>
+      {/* Intestazione snella: il saluto diventa un'icona. Lo spazio recuperato va alle card. */}
+      <header className={'px-4 py-2.5 border-b border-white/5 bg-slate-950/80 sticky top-0 backdrop-blur-xl z-50 flex justify-between items-center gap-3' + (immersive ? ' hidden' : '')}>
+        <h2 className={'min-w-0 truncate text-transparent bg-clip-text bg-gradient-to-r ' + t.gradient + ' text-[13px] font-black uppercase tracking-widest'}>{active.hub.name}{archived ? ' \u00B7 RICORDO' : ''}</h2>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button onClick={() => setProfiloAperto(true)} title="Il tuo profilo" aria-label="Il tuo profilo"
+            className={'w-9 h-9 bg-slate-900 border-2 flex items-center justify-center active:scale-95 transition-all ' + t.border + ' ' + t.text + ' ' + p.vibe.rounded}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" /></svg>
+          </button>
+          <button onClick={() => setActiveHubId(null)} title="Torna alla lobby" aria-label="Torna alla lobby"
+            className={'w-9 h-9 bg-slate-900 border-2 flex items-center justify-center active:scale-95 transition-all ' + t.border + ' ' + t.text + ' ' + p.vibe.rounded}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" /></svg>
+          </button>
         </div>
-        <button onClick={() => setActiveHubId(null)} title="Torna alla lobby" aria-label="Torna alla lobby" className={'w-10 h-10 bg-slate-900 border-2 flex items-center justify-center hover:text-white active:scale-95 transition-all ' + t.border + ' ' + t.text + ' ' + p.vibe.rounded}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" /></svg></button>
       </header>
 
+      {profiloAperto && (
+        <div onClick={() => setProfiloAperto(false)} className="fixed inset-0 z-[100] flex items-start justify-center pt-24 px-6" style={{ background: 'rgba(10,12,14,0.72)', backdropFilter: 'blur(6px)' }}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-2xl p-5 animate-[eg-fade-in_.22s_ease]"
+            style={{ background: '#1C1F22', border: '1px solid rgba(163,181,133,0.28)' }}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center font-black text-lg shrink-0" style={{ background: '#A3B585', color: '#1C1F22' }}>
+                {(username ?? '?').slice(0, 1).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="text-white font-black text-base truncate">{username ?? 'Ospite'}</p>
+                <p className="text-[11px] font-bold" style={{ color: '#A3B585' }}>{isOwner ? 'Organizzatore' : 'Partecipante'}</p>
+              </div>
+            </div>
+            <div className="space-y-2.5 text-[12px]">
+              {email && (
+                <div className="flex items-start gap-2.5">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A3B585" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 5L2 7" /></svg>
+                  <span className="text-slate-300 break-all">{email}</span>
+                </div>
+              )}
+              <div className="flex items-start gap-2.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A3B585" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>
+                <span className="text-slate-300">{active.hub.name}</span>
+              </div>
+            </div>
+            <button onClick={() => setProfiloAperto(false)} className="mt-5 w-full rounded-xl py-2.5 text-[12px] font-black active:scale-[0.98] transition-all" style={{ background: 'rgba(163,181,133,0.14)', color: '#A3B585' }}>
+              Chiudi
+            </button>
+          </div>
+        </div>
+      )}
       {/* Swipe orizzontale = cambio tab. Il wrapper esterno porta il rimbalzo; l'interno l'animazione moduleIn. */}
       <div onTouchStart={onSwipeStart} onTouchMove={onSwipeMove} onTouchEnd={onSwipeEnd} onTouchCancel={onSwipeEnd} className="min-h-[calc(100vh-9rem)]" style={{ touchAction: 'pan-y', transform: 'translateX(' + nudgeX + 'px)', transition: 'transform .16s ease-out' }}>
         {/* key={currentTab}: rimonta il contenitore al cambio tab e fa ripartire l'animazione */}
