@@ -162,3 +162,7 @@ body::after {
 /* Leggibilita': alza il minimo dei caratteri piu' piccoli, difficili da leggere. */
 .text-\[7px\], .text-\[8px\] { font-size: 10px !important; }
 .text-\[9px\], .text-\[10px\] { font-size: 11px !important; }
+
+/* Impaginazione calendario: la card non resta mai tagliata a meta'. */
+.snap-y > * { scroll-snap-align: start; }
+.snap-y::-webkit-scrollbar { display: none; }
