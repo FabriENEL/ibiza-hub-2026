@@ -28,13 +28,14 @@ async function toEnglishQuery(title: string): Promise<string> {
           { role: 'system', content: 'You turn a short Italian event title into 3-5 English keywords for a stock photo search. Reply ONLY with the keywords, no punctuation, no quotes. Capture the atmosphere and setting. Example: \'torneo di padel tra amici\' -> padel tennis tournament friends outdoor' },
           { role: 'user', content: title },
         ],
-        temperature: 0.3, max_tokens: 30,
+        temperature: 0.3, max_tokens: 200, reasoning_effort: 'low',
       }),
     });
-    if (!res.ok) return title;
+    if (!res.ok) { console.error('GROQ regista', res.status, await res.text()); return title; }
     const data = await res.json();
     const kw = data.choices?.[0]?.message?.content?.trim();
-    return kw && kw.length > 2 ? kw.slice(0, 80) : title;
+if (!res.ok) return title;
+return kw && kw.length > 2 ? kw.slice(0, 80) : title;
   } catch { return title; }
 }
 
