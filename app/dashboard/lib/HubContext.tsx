@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 
@@ -19,6 +19,7 @@ type HubContextValue = {
   refresh: () => Promise<void>; postAction: { module: string; ts: number } | null; signalPostAction: (module: string) => void; julieOpen: boolean; openJulie: () => void; closeJulie: () => void;
   julieSeed: { title: string; location: string | null } | null; seedJulie: (s: { title: string; location: string | null }) => void; clearJulieSeed: () => void;
   // Immersivo: quando un dettaglio a schermo pieno e' aperto, la Shell nasconde intestazione e barra di navigazione.
+  setHubHidden: (hubId: string, hidden: boolean) => Promise<void>;
   immersive: boolean;
   setImmersive: (v: boolean) => void;
 };
@@ -55,7 +56,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
 
     const { data: rows } = await supabase
       .from('hub_members')
-      .select('hub_id, role, hub:hubs ( id, name, category, status, vote_label, votes_enabled )')
+      .select('hub_id, role, hidden, hub:hubs ( id, name, category, status, vote_label, votes_enabled )')
       .eq('user_id', user.id);
 
     const list = (rows as any) ?? [];
@@ -69,10 +70,21 @@ export function HubProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   };
 
+  const setHubHidden = async (hubId: string, hidden: boolean) => {
+    if (!userId) return;
+    setMemberships(prev => prev.map(m => m.hub_id === hubId ? { ...m, hidden } : m));
+    const { error } = await supabase
+      .from('hub_members')
+      .update({ hidden })
+      .eq('hub_id', hubId)
+      .eq('user_id', userId);
+    if (error) { console.error('setHubHidden', error.message); await load(); }
+  };
+
   useEffect(() => { load(); }, []);
 
   return (
-    <HubContext.Provider value={{ userId, username, avatarUrl, memberships, activeHubId, setActiveHubId, loading, refresh: load, postAction, signalPostAction, julieOpen, openJulie, closeJulie, julieSeed, seedJulie, clearJulieSeed, immersive, setImmersive }}>
+    <HubContext.Provider value={{ userId, username, avatarUrl, memberships, activeHubId, setActiveHubId, loading, refresh: load, postAction, signalPostAction, julieOpen, openJulie, closeJulie, julieSeed, seedJulie, clearJulieSeed, setHubHidden, immersive, setImmersive }}>
       {children}
     </HubContext.Provider>
   );
