@@ -352,7 +352,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
       {dayEvents.length === 0 ? (
         <p className="text-slate-500 text-center py-10 text-sm">{canCreate ? w.emptyEvents : 'Nessun evento in questa giornata.'}</p>
       ) : (
-        <div className="space-y-3 overflow-y-auto snap-y snap-mandatory" style={{ height: 'calc(100vh - 13rem)', scrollbarWidth: 'none' }}>
+        <div className="space-y-3 overflow-y-auto snap-y snap-mandatory" style={{ height: 'calc(100vh - 15.5rem)', scrollbarWidth: 'none' }}>
           {dayEvents.map((ev) => {
             const evComments = comments.filter((c) => c.event_id === ev.id);
             const editable = canManageEvent(ev) && !archived;
@@ -429,7 +429,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
             return (
               <div key={ev.id} ref={ev.id === freshId ? freshRef : null}
                 className={'eg-card border overflow-hidden transition-all duration-700 ' + (ev.id === freshId ? '' : theme.border) + ' ' + r}
-                style={ev.id === freshId ? { borderColor: 'rgba(163,181,133,0.85)', boxShadow: '0 0 0 3px rgba(163,181,133,0.22)' } : {}}>
+                style={ev.id === freshId ? { borderColor: 'rgba(163,181,133,0.85)', boxShadow: '0 0 0 3px rgba(163,181,133,0.22), 0 14px 30px -10px rgba(0,0,0,0.8)' } : { boxShadow: '0 1px 2px rgba(0,0,0,0.45), 0 14px 30px -10px rgba(0,0,0,0.8)' }}>
                 {editId === ev.id ? (
                   <div className="space-y-2 p-4">
                     <input value={eTitle} onChange={(e) => setETitle(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white outline-none" />
@@ -453,7 +453,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                 ) : (
                   <div className="[perspective:1400px]">
                     <div className="relative w-full transition-transform duration-500 ease-out [transform-style:preserve-3d]"
-                      style={{ height: backH[ev.id] ? cardH + 'px' : 'calc((100vh - 13rem) / 2 - 0.375rem)', transform: isFlip ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
+                      style={{ height: backH[ev.id] ? cardH + 'px' : 'calc((100vh - 16.5rem) / 2)', transform: isFlip ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
 
                       {/* FRONTE: la copertina riempie tutta l'altezza. Nessun salto quando la card gira. */}
                       <div className={'absolute inset-0 [backface-visibility:hidden] overflow-hidden rounded-[inherit] ' + (isFlip ? 'pointer-events-none' : '')}>
