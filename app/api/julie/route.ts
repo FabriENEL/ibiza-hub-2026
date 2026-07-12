@@ -172,7 +172,8 @@ export async function POST(req: NextRequest) {
         model: MODEL,
         messages: [{ role: 'system', content: SYSTEM + azionePrompt(oggi) }, ...(messages ?? [])],
         temperature: 0.6,
-        max_tokens: 500,
+        max_tokens: 1200,
+        reasoning_effort: 'low',
       }),
     });
     if (!res.ok) {
