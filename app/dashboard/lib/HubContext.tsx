@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 type Membership = {
   hub_id: string;
   role: string;
-  hub: { id: string; name: string; category: string; status: string; vote_label: string; votes_enabled: boolean };
+  hub: { id: string; name: string; category: string; status: string; vote_label: string; votes_enabled: boolean; start_date: string | null; end_date: string | null };
 };
 
 type HubContextValue = {
@@ -56,10 +56,16 @@ export function HubProvider({ children }: { children: ReactNode }) {
 
     const { data: rows } = await supabase
       .from('hub_members')
-      .select('hub_id, role, hidden, hub:hubs ( id, name, category, status, vote_label, votes_enabled )')
+      .select('hub_id, role, hidden, hub:hubs ( id, name, category, status, vote_label, votes_enabled, start_date, end_date )')
       .eq('user_id', user.id);
 
-    const list = (rows as any) ?? [];
+    // Ordine per imminenza: l'evento piu' vicino in cima. Chi apre l'app vuole vedere cosa sta per succedere.
+    // Gli Hub senza data finiscono in fondo (Infinity), non in testa.
+    const list = ((rows as any) ?? []).slice().sort((a: any, b: any) => {
+      const ta = a.hub?.start_date ? new Date(a.hub.start_date).getTime() : Infinity;
+      const tb = b.hub?.start_date ? new Date(b.hub.start_date).getTime() : Infinity;
+      return ta - tb;
+    });
     setMemberships(list);
     // Ripristino difensivo: l'Hub salvato vale solo se l'utente ne e' ancora membro.
     if (typeof window !== 'undefined') {
