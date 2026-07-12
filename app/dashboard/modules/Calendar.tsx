@@ -453,7 +453,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                 ) : (
                   <div className="[perspective:1400px]">
                     <div className="relative w-full transition-transform duration-500 ease-out [transform-style:preserve-3d]"
-                      style={{ height: backH[ev.id] ? cardH + 'px' : 'calc((100vh - 16.5rem) / 2)', transform: isFlip ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
+                      style={{ height: backH[ev.id] ? cardH + 'px' : 'calc((100vh - 16.25rem) / 2)', transform: isFlip ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
 
                       {/* FRONTE: la copertina riempie tutta l'altezza. Nessun salto quando la card gira. */}
                       <div className={'absolute inset-0 [backface-visibility:hidden] overflow-hidden rounded-[inherit] ' + (isFlip ? 'pointer-events-none' : '')}>
