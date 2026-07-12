@@ -112,6 +112,14 @@ function azionePrompt(oggi: string): string {
     + '\nIl campo intro e cio che dirai prima di mostrare i luoghi: UNA riga sola, mai un elenco. Esempi: "Ecco tre indirizzi a due passi. Mi dica quale e glielo fisso." oppure "Questi sono i posti migliori qui intorno."'
     + '\nSe la richiesta e vaga (esempio: "cosa facciamo stasera?"), NON produrre il JSON: proponi le categorie in una riga ("Cerco una cena, un aperitivo o un locale per dopo?") e attendi.'
 
+    + '\n\nAZIONE PROGRAMMA\nQuando l\'utente chiede di ORGANIZZARE o PROGRAMMARE piu giorni, un weekend, un viaggio o una gita, rispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo: '
+    + '{"action":"proponi_programma","zona":"<comune, oppure null per usare quello dell Hub>","intro":"<una riga calda di presentazione>","giorni":[{"data":"<YYYY-MM-DD>","voci":[{"ora":"HH:MM","titolo":"<titolo breve>","categoria":"<una tra: colazione, food, aperitivo, night, beach, cultura, natura>"}]}]}'
+    + '\nRITMO: da 3 a 5 voci per giorno. Mai due voci della stessa categoria di seguito. La categoria night solo dopo una cena. Ogni giornata deve essere DIVERSA dalle altre.'
+    + '\nORARI plausibili: colazione 08:30-09:30, cultura/natura/beach 10:00-17:00, aperitivo 18:30-19:30, food 20:00-21:00, night 23:00-23:30.'
+    + '\nDATE: se l\'utente non le indica, usi le date dell Hub riportate piu sotto.'
+    + '\nNON inventi nomi di locali: si limiti al titolo generico e alla categoria. I luoghi VERI li trovo io e li inserisco al Suo posto.'
+    + '\nIl campo intro e UNA riga sola, mai un elenco.'
+
     + '\n\nPer ogni altra richiesta rispondi normalmente in italiano, senza JSON, con la postura del concierge: breve, concreta, mai prolissa.';
 }
 
@@ -142,6 +150,49 @@ async function cercaLuoghi(origin: string, location: string, categoria: string) 
   } catch { return { tips: [], zona: null }; }
 }
 
+
+// Le date dell'Hub entrano nel prompt: Julie non deve chiederle a chi le ha gia' scritte alla creazione.
+async function dateHub(hubId: string): Promise<{ inizio: string; fine: string } | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key || !hubId) return null;
+  try {
+    const sb = createClient(url, key);
+    const { data } = await sb.from('hubs').select('start_date, end_date').eq('id', hubId).single();
+    const i = (data as any)?.start_date, f = (data as any)?.end_date;
+    return i ? { inizio: String(i).slice(0, 10), fine: String(f ?? i).slice(0, 10) } : null;
+  } catch { return null; }
+}
+
+// Julie compone lo scheletro con titoli generici; qui ogni voce riceve un LUOGO VERO.
+// Una sola chiamata per CATEGORIA (non per voce): la cache di /api/consigli fa il resto.
+// Nessuna ripetizione: due cene nello stesso weekend non finiscono nello stesso ristorante.
+async function vestiProgramma(origin: string, zona: string, giorni: any[]) {
+  const categorie = Array.from(new Set(
+    giorni.flatMap((g: any) => (g?.voci ?? []).map((v: any) => v?.categoria)).filter(Boolean)
+  )) as string[];
+  const catalogo: Record<string, any[]> = {};
+  await Promise.all(categorie.map(async (c) => {
+    const { tips } = await cercaLuoghi(origin, zona, c);
+    catalogo[c] = tips ?? [];
+  }));
+  const usati = new Set<string>();
+  return giorni.map((g: any) => ({
+    data: g?.data ?? null,
+    voci: (g?.voci ?? []).map((v: any) => {
+      const pool = catalogo[v?.categoria] ?? [];
+      const scelto = pool.find((x: any) => !usati.has(x.name)) ?? pool[0] ?? null;
+      if (scelto) usati.add(scelto.name);
+      return {
+        ora: v?.ora ?? null,
+        titolo: v?.titolo ?? '-',
+        categoria: v?.categoria ?? null,
+        luogo: scelto ? { name: scelto.name, address: scelto.address, lat: scelto.lat, lon: scelto.lon } : null,
+      };
+    }),
+  }));
+}
+
 // Estrae il JSON d'azione dalla risposta del modello, se presente.
 function jsonDi(testo: string): any | null {
   const a = testo.indexOf('{'), b = testo.lastIndexOf('}');
@@ -165,12 +216,14 @@ export async function POST(req: NextRequest) {
   try {
     const { messages, hubId } = await req.json();
     const oggi = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Rome' }).replace(' ', 'T');
+    const dh = await dateHub(hubId);
+    const ctxHub = dh ? '\n\nDATE DELL HUB: dal ' + dh.inizio + ' al ' + dh.fine + '. Usi queste date per il programma, se l utente non ne indica altre.' : '';
     const res = await fetch(GROQ_URL, {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
-        messages: [{ role: 'system', content: SYSTEM + azionePrompt(oggi) }, ...(messages ?? [])],
+        messages: [{ role: 'system', content: SYSTEM + azionePrompt(oggi) + ctxHub }, ...(messages ?? [])],
         temperature: 0.6,
         max_tokens: 1200,
         reasoning_effort: 'low',
@@ -200,6 +253,19 @@ export async function POST(req: NextRequest) {
       }
       const intro = typeof az.intro === 'string' && az.intro.trim() ? az.intro.trim() : 'Ecco cosa ho trovato qui intorno.';
       return NextResponse.json({ reply: intro, luoghi: tips, zona });
+    }
+
+    // proponi_programma: Julie compone lo scheletro, il server gli cuce addosso i luoghi veri.
+    if (az?.action === 'proponi_programma' && Array.isArray(az.giorni) && az.giorni.length > 0) {
+      const dettaP = typeof az.zona === 'string' && az.zona.trim() && az.zona.trim().toLowerCase() !== 'null' ? az.zona.trim() : null;
+      const locP = dettaP ?? (await luogoHub(hubId));
+      if (!locP) return NextResponse.json({ reply: 'Mi dica in quale citta e Le compongo il programma.' });
+      const originP = new URL(req.url).origin;
+      const giorni = await vestiProgramma(originP, locP, az.giorni);
+      const vuoto = giorni.every((g: any) => g.voci.every((v: any) => !v.luogo));
+      if (vuoto) return NextResponse.json({ reply: 'Non ho trovato luoghi validi a ' + locP + '. Provi con un altra zona.' });
+      const introP = typeof az.intro === 'string' && az.intro.trim() ? az.intro.trim() : 'Ecco cosa Le propongo. Tenga cio che Le piace, scarti il resto.';
+      return NextResponse.json({ reply: introP, programma: { zona: locP, giorni } });
     }
 
     return NextResponse.json({ reply });
