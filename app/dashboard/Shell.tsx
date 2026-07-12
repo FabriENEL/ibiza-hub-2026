@@ -42,19 +42,22 @@ export default function Shell() {
   // Rimbalzo: micro-scatto di 12px nella direzione tentata, poi ritorno. Nessun keyframe globale.
   const bump = (dir: number) => { setNudgeX(dir * 12); window.setTimeout(() => setNudgeX(0), 160); };
 
-  const onSwipeStart = (e: React.PointerEvent) => { swipe.current = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY }; };
+  // Touch nativi, non pointer: Chrome Android emette pointercancel appena decide che il gesto e' uno scroll,
+  // e da quel momento pointermove non arriva piu'. I touchmove invece continuano sempre.
+  const onSwipeStart = (e: React.TouchEvent) => { const p = e.touches[0]; swipe.current = { x: p.clientX, y: p.clientY, lx: p.clientX, ly: p.clientY }; };
   // Android/Chrome chiude lo swipe con pointercancel e a volte azzera le coordinate: tengo l'ultima nota nel move.
-  const onSwipeMove = (e: React.PointerEvent) => { const s = swipe.current; if (s) { s.lx = e.clientX; s.ly = e.clientY; } };
+  const onSwipeMove = (e: React.TouchEvent) => { const s = swipe.current; const p = e.touches[0]; if (s && p) { s.lx = p.clientX; s.ly = p.clientY; } };
   const onSwipeEnd = () => {
     const s = swipe.current; swipe.current = null; if (!s) return;
     const dx = s.lx - s.x, dy = s.ly - s.y;
     // Non abbastanza orizzontale: lascio vivere lo scroll verticale.
     if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) < Math.abs(dy) * H_DOMINANCE) return;
     const idx = mods.indexOf(currentTab);
-    if (dx < 0) {                                   // dito verso SINISTRA = indietro
-      if (idx > 0) { navigator.vibrate?.(8); setTab(mods[idx - 1]); } else bump(-1);
-    } else {                                        // dito verso DESTRA = avanti
-      if (idx < mods.length - 1) { navigator.vibrate?.(8); setTab(mods[idx + 1]); } else bump(1);
+    // Metafora dello sfogliare: il dito trascina la pagina. Dito a SINISTRA = pagina successiva.
+    if (dx < 0) {
+      if (idx < mods.length - 1) { navigator.vibrate?.(8); setTab(mods[idx + 1]); } else bump(-1);
+    } else {
+      if (idx > 0) { navigator.vibrate?.(8); setTab(mods[idx - 1]); } else bump(1);
     }
   };
 
@@ -82,7 +85,7 @@ export default function Shell() {
       </header>
 
       {/* Swipe orizzontale = cambio tab. Il wrapper esterno porta il rimbalzo; l'interno l'animazione moduleIn. */}
-      <div onPointerDown={onSwipeStart} onPointerMove={onSwipeMove} onPointerUp={onSwipeEnd} onPointerCancel={onSwipeEnd} style={{ touchAction: 'pan-y', transform: 'translateX(' + nudgeX + 'px)', transition: 'transform .16s ease-out' }}>
+      <div onTouchStart={onSwipeStart} onTouchMove={onSwipeMove} onTouchEnd={onSwipeEnd} onTouchCancel={onSwipeEnd} style={{ touchAction: 'pan-y', transform: 'translateX(' + nudgeX + 'px)', transition: 'transform .16s ease-out' }}>
         {/* key={currentTab}: rimonta il contenitore al cambio tab e fa ripartire l'animazione */}
         <div key={currentTab} className="relative p-4 animate-[moduleIn_.25s_ease-out]">{render[currentTab]}</div>
       </div>
