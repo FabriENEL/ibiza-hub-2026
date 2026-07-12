@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 const UNSPLASH_URL = 'https://api.unsplash.com/search/photos';
 
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     const data = await res.json();
     const photo = data.results?.[0];
-    if (!photo) return NextResponse.json({ url: null });
+    if (!photo) return NextResponse.json({ url: null, diag: 'ok ma 0 foto per: ' + q });
 
     return NextResponse.json({
       url: photo.urls?.regular ?? null,
