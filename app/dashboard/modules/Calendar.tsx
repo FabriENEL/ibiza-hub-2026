@@ -286,7 +286,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
   // Altezza minima adattiva: pochi eventi -> cartoline scenografiche; molti -> piu' compatte.
   // Il retro puo' chiedere di piu': allora la card cresce, ma resta uguale su entrambe le facce.
   const n = dayEvents.length;
-  const minH = 210;
+  const minH = 0;
   const titleSize = 'text-2xl';
 
 
@@ -352,7 +352,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
       {dayEvents.length === 0 ? (
         <p className="text-slate-500 text-center py-10 text-sm">{canCreate ? w.emptyEvents : 'Nessun evento in questa giornata.'}</p>
       ) : (
-        <div className="space-y-3 overflow-y-auto snap-y snap-mandatory" style={{ maxHeight: 'calc(100vh - 19rem)', scrollbarWidth: 'none' }}>
+        <div className="space-y-3 overflow-y-auto snap-y snap-mandatory" style={{ height: 'calc(100vh - 16rem)', scrollbarWidth: 'none' }}>
           {dayEvents.map((ev) => {
             const evComments = comments.filter((c) => c.event_id === ev.id);
             const editable = canManageEvent(ev) && !archived;
@@ -453,7 +453,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                 ) : (
                   <div className="[perspective:1400px]">
                     <div className="relative w-full transition-transform duration-500 ease-out [transform-style:preserve-3d]"
-                      style={{ height: cardH + 'px', transform: isFlip ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
+                      style={{ height: backH[ev.id] ? cardH + 'px' : 'calc((100vh - 16rem) / 2 - 0.375rem)', transform: isFlip ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
 
                       {/* FRONTE: la copertina riempie tutta l'altezza. Nessun salto quando la card gira. */}
                       <div className={'absolute inset-0 [backface-visibility:hidden] overflow-hidden rounded-[inherit] ' + (isFlip ? 'pointer-events-none' : '')}>
