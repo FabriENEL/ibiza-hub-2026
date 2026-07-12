@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useState, useEffect, useRef, type ReactElement } from 'react';
 import { useHub } from './lib/HubContext';
 import { getConfig } from './lib/blueprints';
@@ -82,7 +82,7 @@ export default function Shell() {
       </header>
 
       {/* Swipe orizzontale = cambio tab. Il wrapper esterno porta il rimbalzo; l'interno l'animazione moduleIn. */}
-      <div onPointerDown={onSwipeStart} onPointerMove={onSwipeMove} onPointerUp={onSwipeEnd} onPointerCancel={onSwipeEnd} style={{ transform: 'translateX(' + nudgeX + 'px)', transition: 'transform .16s ease-out' }}>
+      <div onPointerDown={onSwipeStart} onPointerMove={onSwipeMove} onPointerUp={onSwipeEnd} onPointerCancel={onSwipeEnd} style={{ touchAction: 'pan-y', transform: 'translateX(' + nudgeX + 'px)', transition: 'transform .16s ease-out' }}>
         {/* key={currentTab}: rimonta il contenitore al cambio tab e fa ripartire l'animazione */}
         <div key={currentTab} className="relative p-4 animate-[moduleIn_.25s_ease-out]">{render[currentTab]}</div>
       </div>
