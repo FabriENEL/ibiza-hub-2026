@@ -85,7 +85,7 @@ export default function Shell() {
       </header>
 
       {/* Swipe orizzontale = cambio tab. Il wrapper esterno porta il rimbalzo; l'interno l'animazione moduleIn. */}
-      <div onTouchStart={onSwipeStart} onTouchMove={onSwipeMove} onTouchEnd={onSwipeEnd} onTouchCancel={onSwipeEnd} className="min-h-[70vh]" style={{ touchAction: 'pan-y', transform: 'translateX(' + nudgeX + 'px)', transition: 'transform .16s ease-out' }}>
+      <div onTouchStart={onSwipeStart} onTouchMove={onSwipeMove} onTouchEnd={onSwipeEnd} onTouchCancel={onSwipeEnd} className="min-h-[calc(100vh-9rem)]" style={{ touchAction: 'pan-y', transform: 'translateX(' + nudgeX + 'px)', transition: 'transform .16s ease-out' }}>
         {/* key={currentTab}: rimonta il contenitore al cambio tab e fa ripartire l'animazione */}
         <div key={currentTab} className="relative p-4 animate-[moduleIn_.25s_ease-out]">{render[currentTab]}</div>
       </div>
