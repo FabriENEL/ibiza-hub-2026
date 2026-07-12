@@ -110,7 +110,7 @@ function azionePrompt(oggi: string): string {
     + '\nCAMPO ZONA: se in QUALSIASI punto della conversazione l\'utente ha indicato un comune, una citta o una localita (anche solo scrivendone il nome, esempio: "Merone" oppure "Merone (CO)"), riportalo nel campo zona. Se non l\'ha mai indicata, metti null: la zona verra presa dall\'Hub.'
     + '\nSe hai appena chiesto la zona e l\'utente risponde con un nome di luogo, quella E la zona: produci subito il JSON con quel valore. NON richiederla una seconda volta.'
     + '\nIl campo intro e cio che dirai prima di mostrare i luoghi: UNA riga sola, mai un elenco. Esempi: "Ecco tre indirizzi a due passi. Mi dica quale e glielo fisso." oppure "Questi sono i posti migliori qui intorno."'
-    + '\nSe la richiesta e vaga (esempio: "cosa facciamo stasera?"), NON produrre il JSON: proponi le categorie in una riga ("Cerco una cena, un aperitivo o un locale per dopo?") e attendi.'
+    + '\nSe la richiesta e vaga E NON contiene un verbo di organizzazione (esempio: "cosa facciamo stasera?"), NON produrre il JSON: proponi le categorie in una riga ("Cerco una cena, un aperitivo o un locale per dopo?") e attendi.'
 
     + '\n\nAZIONE PROGRAMMA\nQuando l\'utente chiede di ORGANIZZARE o PROGRAMMARE piu giorni, un weekend, un viaggio o una gita, rispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo: '
     + '{"action":"proponi_programma","zona":"<comune, oppure null per usare quello dell Hub>","intro":"<una riga calda di presentazione>","giorni":[{"data":"<YYYY-MM-DD>","voci":[{"ora":"HH:MM","titolo":"<titolo breve>","categoria":"<una tra: colazione, food, aperitivo, night, beach, cultura, natura>"}]}]}'
@@ -119,6 +119,7 @@ function azionePrompt(oggi: string): string {
     + '\nDATE: se l\'utente non le indica, usi le date dell Hub riportate piu sotto.'
     + '\nNON inventi nomi di locali: si limiti al titolo generico e alla categoria. I luoghi VERI li trovo io e li inserisco al Suo posto.'
     + '\nIl campo intro e UNA riga sola, mai un elenco.'
+    + '\nPAROLE CHE ATTIVANO IL PROGRAMMA, senza chiedere altro: organizza, organizzami, programma, programmami, pianifica, itinerario, giornata, weekend, viaggio, gita, cosa facciamo domani. Con queste, produca SUBITO il JSON del programma usando le date dell Hub. Non chieda categorie: le sceglie Lei.'
 
     + '\n\nPer ogni altra richiesta rispondi normalmente in italiano, senza JSON, con la postura del concierge: breve, concreta, mai prolissa.';
 }
