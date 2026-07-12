@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import AuthGuard from './AuthGuard';
 import { HubProvider, useHub } from './lib/HubContext';
 import { useState, useEffect } from 'react';
@@ -64,6 +64,20 @@ function Lobby() {
   const visibili = memberships.filter((m: any) => !m.hidden);
   const nascosti = memberships.filter((m: any) => m.hidden);
 
+  // Scala adattiva: il countdown al minuto ha valore perche' e' raro. Oltre le 24 ore diventa rumore.
+  const quando = (iso: string | null, fine: string | null) => {
+    if (!iso) return null;
+    const t = new Date(iso).getTime(); const now = Date.now();
+    const tf = fine ? new Date(fine).getTime() : t;
+    if (now > tf) return { testo: 'Ricordo', vivo: false };
+    if (now >= t) return { testo: 'In corso', vivo: true };
+    const ms = t - now, gg = Math.floor(ms / 86400000);
+    if (gg > 7) return { testo: new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' }), vivo: false };
+    if (gg >= 1) return { testo: 'tra ' + gg + (gg === 1 ? ' giorno' : ' giorni'), vivo: false };
+    const h = Math.floor(ms / 3600000), mi = Math.floor((ms % 3600000) / 60000);
+    return { testo: 'tra ' + h + 'h ' + mi + 'm', vivo: true };
+  };
+
   // Card dell'Hub. E' un div, non un button: dentro deve poterci stare il menu, e un bottone
   // dentro un bottone e' HTML non valido (il tocco impazzisce).
   const CardHub = ({ m, spenta }: { m: any; spenta?: boolean }) => {
@@ -82,6 +96,9 @@ function Lobby() {
           <div className="relative h-full flex flex-col justify-center pl-6 pr-14">
             <span className={'font-black text-white drop-shadow [font-family:var(--font-display)] ' + (spenta ? 'text-base' : 'text-xl')}>{hub.name}</span>
             <span className={'text-[10px] uppercase font-black tracking-widest ' + th.text}>{hub.category}{archived ? ' \u00B7 Ricordo' : ''}</span>
+            {!spenta && (() => { const q = quando(hub.start_date, hub.end_date); return q ? (
+              <span className={'mt-1 text-[10px] font-bold tracking-wide ' + (q.vivo ? 'text-[#A3B585]' : 'text-white/45')}>{q.testo}</span>
+            ) : null; })()}
           </div>
           {role === 'OWNER' && !spenta && <span className="absolute bottom-3 right-3 text-[9px] uppercase font-black text-white/80 bg-black/50 px-2 py-1 rounded border border-white/10">Owner</span>}
         </div>
