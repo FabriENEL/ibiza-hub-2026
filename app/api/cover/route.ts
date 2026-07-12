@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     const url = UNSPLASH_URL + '?query=' + encodeURIComponent(q)
       + '&per_page=1&orientation=landscape&content_filter=high';
     const res = await fetch(url, { headers: { 'Authorization': 'Client-ID ' + key } });
-    if (!res.ok) return NextResponse.json({ url: null });
+    if (!res.ok) return NextResponse.json({ url: null, diag: 'HTTP ' + res.status + ' ' + (await res.text()).slice(0, 160) });
 
     const data = await res.json();
     const photo = data.results?.[0];
