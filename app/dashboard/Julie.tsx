@@ -5,8 +5,9 @@ import { useHub } from './lib/HubContext';
 import { ruleSignature } from './lib/eventVisuals';
 import DateTimePicker from './lib/DateTimePicker';
 import LuoghiCard, { type Luogo } from './LuoghiCard';
+import ProgrammaCard, { type Giorno, type Voce } from './ProgrammaCard';
 
-type Msg = { role: 'user' | 'assistant'; content: string; luoghi?: Luogo[]; zona?: string | null };
+type Msg = { role: 'user' | 'assistant'; content: string; luoghi?: Luogo[]; zona?: string | null; programma?: { zona: string; giorni: Giorno[] } };
 type PendingEvent = { kind: 'evento'; title: string; scheduled_at: string; location: string | null; description: string | null; fromConsiglio?: boolean };
 type PendingExpense = { kind: 'spesa'; description: string; amount: number };
 type Pending = PendingEvent | PendingExpense;
@@ -155,6 +156,14 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
         setBusy(false);
         return;
       }
+      // Julie ha composto un programma: il testo viaggia con le voci da spuntare.
+      if (data.programma && Array.isArray(data.programma.giorni) && data.programma.giorni.length > 0) {
+        setMessages((m) => [...m, { role: 'assistant', content: reply, programma: data.programma }]);
+        if (speakOn) speak(reply);
+        setBusy(false);
+        return;
+      }
+
       const action = parseAction(reply);
       if (action) {
         setPending(action);
@@ -169,6 +178,38 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     } finally {
       setBusy(false);
     }
+  };
+
+
+  // Scrive in calendario SOLO le voci spuntate. Le copertine si chiedono in parallelo:
+  // in sequenza, sei eventi significherebbero sei attese sommate.
+  const fissaProgramma = async (scelte: Voce[]) => {
+    if (!hubId || !userId || scelte.length === 0) return;
+    setSaving(true);
+    const righe = await Promise.all(scelte.map(async (v) => {
+      let cover_url: string | null = null;
+      try {
+        const cr = await fetch('/api/cover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: v.titolo }) });
+        const cd = await cr.json(); cover_url = cd.url ?? null;
+      } catch { cover_url = null; }
+      return {
+        hub_id: hubId,
+        title: v.luogo ? v.luogo.name : v.titolo,
+        scheduled_at: v.ora,
+        cover_url,
+        location: v.luogo ? (v.luogo.address || v.luogo.name) : null,
+        description: v.luogo ? (v.titolo + (v.luogo.address ? ' \u00B7 ' + v.luogo.address : '')) : null,
+        created_by: userId,
+        reveal_visible_to: [],
+        revealed_override: null,
+      };
+    }));
+    const { error } = await supabase.from('events').insert(righe);
+    setSaving(false);
+    const n = scelte.length;
+    const ok = n === 1 ? 'Fatto. La voce e in calendario.' : 'Fatto. Le ' + n + ' voci sono in calendario.';
+    setMessages((m) => [...m, { role: 'assistant', content: error ? 'Mi perdoni, non sono riuscita a fissarle. Riprovi.' : ok }]);
+    if (!error) signalPostAction('calendar');
   };
 
   const confirmPending = async () => {
@@ -249,6 +290,11 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
               </div>
             </div>
           ))}
+{messages.map((m, i) => m.programma ? (
+            <ProgrammaCard key={'P' + i} zona={m.programma.zona} giorni={m.programma.giorni}
+              saving={saving} onConferma={(scelte) => fissaProgramma(scelte)} />
+          ) : null)}
+
 {messages.map((m, i) => m.luoghi ? (
             <LuoghiCard key={'L' + i} luoghi={m.luoghi} zona={m.zona}
               onScegli={(l) => {
