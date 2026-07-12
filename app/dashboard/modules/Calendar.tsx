@@ -366,8 +366,8 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
             // Il contenuto del retro, usato sia nella faccia 3D (durante la rotazione) sia da fermo (piatto).
             const retro = (
               <div ref={(el) => { backRefs.current[ev.id] = el; }} className="relative h-full overflow-y-auto">
-                {vis.image && <img src={vis.image} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover opacity-[0.13] pointer-events-none" />}
-                <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(180deg, rgba(20,22,26,0.86), rgba(20,22,26,0.96))' }} />
+                {vis.image && <img src={vis.image} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover opacity-[0.28] pointer-events-none" />}
+                <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(180deg, rgba(20,22,26,0.70), rgba(20,22,26,0.88))' }} />
 
                 <div className="relative z-10 p-4 space-y-3">
                   <div className="min-w-0 cursor-pointer active:opacity-70 transition-opacity" onClick={() => gira(ev.id)}>
