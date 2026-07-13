@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
+import { segna } from '../../lib/usage';
 export const dynamic = 'force-dynamic';
 
 // Serve la foto di Google Places senza esporre la chiave al browser.
@@ -13,6 +14,7 @@ export async function GET(req: NextRequest) {
     + '/media?maxWidthPx=800&key=' + key;
 
   try {
+    segna('google_foto', 'photo');
     const res = await fetch(url, { redirect: 'follow' });
     if (!res.ok) return new NextResponse(null, { status: 404 });
     const buf = await res.arrayBuffer();

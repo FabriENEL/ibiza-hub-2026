@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { segna } from '../../lib/usage';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'openai/gpt-oss-120b';
@@ -243,17 +244,32 @@ export async function POST(req: NextRequest) {
   if (!key) return NextResponse.json({ reply: 'Mi perdoni, non sono al momento raggiungibile. Riprovi tra poco.' });
 
   try {
-    const { messages, hubId } = await req.json();
+    const { messages, hubId, cats, ritmo } = await req.json();
     const oggi = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Rome' }).replace(' ', 'T');
     const dh = await dateHub(hubId);
     const ctxHub = dh ? '\n\nDATE DELL HUB: dal ' + dh.inizio + ' al ' + dh.fine + '. Usi queste date per il programma, se l utente non ne indica altre.' : '';
     const ctxEventi = await eventiHub(hubId);
+    // Le categorie scelte dall'utente sono un VINCOLO: Julie compone solo su quelle.
+    // Il ritmo decide QUANDO, le categorie decidono COSA. Due assi indipendenti.
+    const RITMI: Record<string, string> = {
+      mattiniera: 'RITMO MATTINIERO: colazione 07:15-08:00, attivita del mattino dalle 09:00, pranzo 12:30, mare/cultura/natura nel pomeriggio presto, aperitivo 18:00, cena 19:30, niente serate oltre le 22:30.',
+      equilibrata: 'RITMO EQUILIBRATO: colazione 08:30-09:30, attivita 10:00-17:00, aperitivo 18:30, cena 20:30, serata dalle 23:00.',
+      notturna: 'RITMO NOTTURNO: il gruppo rientra tardi e dorme la mattina. NESSUNA voce prima delle 11:00. Colazione tardiva o brunch 11:00-12:00, attivita dal primo pomeriggio, aperitivo 19:30, cena 22:00, serata dall una di notte.',
+    };
+    const ctxRitmo = typeof ritmo === 'string' && RITMI[ritmo] ? '\n\n' + RITMI[ritmo] : '';
+
+    const ctxCats = Array.isArray(cats) && cats.length > 0
+      ? '\n\n=== VINCOLO ASSOLUTO SULLE CATEGORIE ===\nL utente ha scelto ESATTAMENTE queste categorie: ' + cats.join(', ') + '.\nOgni singola voce del programma DEVE avere il campo categoria uguale a uno di questi valori: ' + cats.join(', ') + '.\nE VIETATO usare qualsiasi altra categoria. Se una categoria non e in questo elenco, NON esiste per Lei.\nSe l utente ha scelto beach, il programma DEVE contenere almeno una voce beach. Se ha scelto natura, almeno una natura. Ogni categoria scelta deve comparire almeno una volta.\nRiuso delle categorie: puo ripetere la stessa categoria in giorni diversi, purche il luogo sia diverso.\n=== FINE VINCOLO ==='
+      : '';
+    const ctxNoChiedi = Array.isArray(cats) && cats.length > 0
+      ? '\n\nL utente ha GIA scelto le categorie e il ritmo. NON faccia altre domande. NON chieda cosa cercare. Produca IMMEDIATAMENTE il JSON del programma con action proponi_programma. Qualsiasi risposta che non sia quel JSON e un errore.'
+      : '';
     const res = await fetch(GROQ_URL, {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
-        messages: [{ role: 'system', content: SYSTEM + azionePrompt(oggi) + ctxHub + ctxEventi }, ...(messages ?? [])],
+        messages: [{ role: 'system', content: SYSTEM + azionePrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi }, ...(messages ?? [])],
         temperature: 0.6,
         max_tokens: 1200,
         reasoning_effort: 'low',
@@ -264,6 +280,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ reply: 'Mi perdoni, sono momentaneamente non disponibile. Riprovi tra qualche istante.' });
     }
     const data = await res.json();
+    segna('groq', 'chat', { token: data?.usage?.total_tokens ?? 0, meta: { in: data?.usage?.prompt_tokens, out: data?.usage?.completion_tokens } });
     const reply = data.choices?.[0]?.message?.content ?? 'Mi scusi, non ho compreso.';
 
     // cerca_luoghi: la ricerca la fa il server, in un solo giro. Il client riceve testo + luoghi pronti.
@@ -291,6 +308,32 @@ export async function POST(req: NextRequest) {
       const locP = dettaP ?? (await luogoHub(hubId));
       if (!locP) return NextResponse.json({ reply: 'Mi dica in quale citta e Le compongo il programma.' });
       const originP = new URL(req.url).origin;
+      // Il modello disobbedisce al vincolo: qui il server lo impone.
+      // 1) scarta le voci con categoria non richiesta
+      // 2) se una categoria scelta non compare, la aggiunge al giorno piu' scarico
+      const richieste: string[] = Array.isArray(cats) && cats.length > 0 ? cats : [];
+      if (richieste.length > 0) {
+        az.giorni.forEach((g: any) => {
+          g.voci = (g.voci ?? []).filter((v: any) => richieste.includes(v?.categoria));
+        });
+        const usate = new Set(az.giorni.flatMap((g: any) => (g.voci ?? []).map((v: any) => v.categoria)));
+        const mancanti = richieste.filter((c) => !usate.has(c));
+        const ORARIO: Record<string, string> = {
+          colazione: '08:45', cultura: '10:30', natura: '11:00', beach: '15:00',
+          food: '20:30', aperitivo: '18:45', night: '23:15',
+        };
+        const TITOLO: Record<string, string> = {
+          colazione: 'Colazione', cultura: 'Visita culturale', natura: 'Passeggiata nella natura',
+          beach: 'Mare e relax', food: 'Pranzo o cena', aperitivo: 'Aperitivo', night: 'Serata',
+        };
+        for (const c of mancanti) {
+          const g = az.giorni.slice().sort((a: any, b: any) => (a.voci?.length ?? 0) - (b.voci?.length ?? 0))[0];
+          if (g) (g.voci = g.voci ?? []).push({ ora: ORARIO[c] ?? '12:00', titolo: TITOLO[c] ?? c, categoria: c });
+        }
+        az.giorni.forEach((g: any) => {
+          g.voci.sort((a: any, b: any) => String(a.ora ?? '').localeCompare(String(b.ora ?? '')));
+        });
+      }
       const giorni = await vestiProgramma(originP, locP, az.giorni);
       giorni.forEach((g: any) => { g.voci = g.voci.filter((v: any) => v.luogo); });
       const vuoto = giorni.every((g: any) => g.voci.length === 0);

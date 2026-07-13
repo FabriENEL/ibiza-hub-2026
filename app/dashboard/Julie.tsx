@@ -6,8 +6,9 @@ import { ruleSignature } from './lib/eventVisuals';
 import DateTimePicker from './lib/DateTimePicker';
 import LuoghiCard, { type Luogo } from './LuoghiCard';
 import ProgrammaCard, { type Giorno, type Voce } from './ProgrammaCard';
+import CategorieCard from './CategorieCard';
 
-type Msg = { role: 'user' | 'assistant'; content: string; luoghi?: Luogo[]; zona?: string | null; programma?: { zona: string; giorni: Giorno[] } };
+type Msg = { role: 'user' | 'assistant'; content: string; luoghi?: Luogo[]; zona?: string | null; programma?: { zona: string; giorni: Giorno[] }; chiediCat?: string };
 type PendingEvent = { kind: 'evento'; title: string; scheduled_at: string; location: string | null; description: string | null; fromConsiglio?: boolean };
 type PendingExpense = { kind: 'spesa'; description: string; amount: number };
 type Pending = PendingEvent | PendingExpense;
@@ -134,9 +135,20 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   const sendVoice = (text: string) => { const t = text.trim(); if (t && !busy) send(t); };
   useEffect(() => { sendVoiceRef.current = sendVoice; });
 
-  const send = async (voiceText?: string) => {
+  // Parole che annunciano una programmazione. Julie chiede le preferenze prima di comporre:
+  // e' il momento in cui l'assistente smette di indovinare e ascolta.
+  const vuoleProgramma = (t: string) =>
+    /(organizzam|organizz|programmam|programm|pianific|itinerari|gita|weekend|giornat|viaggi)/i.test(t);
+
+  const send = async (voiceText?: string, cats?: string[], ritmo?: string) => {
     const text = (voiceText ?? input).trim();
     if (!text || busy) return;
+    // Prima volta che chiede un programma, senza aver ancora scelto: mostro le categorie.
+    if (!cats && vuoleProgramma(text)) {
+      setMessages((m) => [...m, { role: 'user', content: text }, { role: 'assistant', content: 'Volentieri. Su cosa devo costruire la giornata?', chiediCat: text }]);
+      setInput('');
+      return;
+    }
     const next = [...messages, { role: 'user' as const, content: text }];
     setMessages(next);
     setInput('');
@@ -145,7 +157,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
       const res = await fetch('/api/julie', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: next, hubId }),
+        body: JSON.stringify({ messages: next.map((m: any) => ({ role: m.role, content: m.content })), hubId, cats, ritmo }),
       });
       const data = await res.json();
       const reply = data.reply ?? 'Mi scusi, non ho compreso.';
@@ -299,6 +311,11 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
               </div>
             </div>
           ))}
+{messages.map((m, i) => m.chiediCat ? (
+            <CategorieCard key={'C' + i} saving={busy}
+              onConferma={(cats, ritmo) => send(m.chiediCat, cats, ritmo)} />
+          ) : null)}
+
 {messages.map((m, i) => m.programma ? (
             <ProgrammaCard key={'P' + i} zona={m.programma.zona} giorni={m.programma.giorni}
               saving={saving} onConferma={(scelte) => fissaProgramma(scelte)} />

@@ -1,5 +1,6 @@
 ﻿import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { segna } from '../../lib/usage';
 export const dynamic = 'force-dynamic';
 // Chiave letta solo lato server: non raggiunge mai il browser.
 const GP_KEY = process.env.GOOGLE_PLACES_KEY;
@@ -118,6 +119,7 @@ async function googleTop3(lat: number, lon: number, query: string, comune: strin
         locationBias: { circle: { center: { latitude: lat, longitude: lon }, radius: 6000 } },
       }),
     });
+    segna('google_places', 'search', { meta: { query, comune } });
     const body = await res.text();
     if (!res.ok) return { tips: [], error: 'HTTP ' + res.status + ' ' + body.slice(0, 160) };
     let d: any = {};

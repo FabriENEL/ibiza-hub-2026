@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
+import { segna } from '../../lib/usage';
 
 const UNSPLASH_URL = 'https://api.unsplash.com/search/photos';
 
@@ -54,6 +55,7 @@ export async function POST(req: NextRequest) {
 
     const url = UNSPLASH_URL + '?query=' + encodeURIComponent(q)
       + '&per_page=1&orientation=landscape&content_filter=high';
+    segna('unsplash', 'cover', { meta: { q } });
     const res = await fetch(url, { headers: { 'Authorization': 'Client-ID ' + key } });
     if (!res.ok) return NextResponse.json({ url: null, diag: 'HTTP ' + res.status + ' ' + (await res.text()).slice(0, 160) });
 
