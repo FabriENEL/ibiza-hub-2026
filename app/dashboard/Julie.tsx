@@ -213,7 +213,12 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     const n = scelte.length;
     const ok = n === 1 ? 'Fatto. La voce e in calendario.' : 'Fatto. Le ' + n + ' voci sono in calendario.';
     setMessages((m) => [...m, { role: 'assistant', content: error ? 'Mi perdoni, non sono riuscita a fissarle. Riprovi.' : ok }]);
-    if (!error) signalPostAction('calendar');
+    // Il gesto piu' bello del prodotto deve avere un finale: la chat si congeda
+    // e porta l'utente al calendario, dove il suo programma lo aspetta.
+    if (!error) {
+      setTimeout(() => setClosing(true), 900);
+      setTimeout(() => { signalPostAction('calendar'); onClose(); }, 1300);
+    }
   };
 
   const confirmPending = async () => {
