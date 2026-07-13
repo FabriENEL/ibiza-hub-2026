@@ -187,11 +187,15 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     if (!hubId || !userId || scelte.length === 0) return;
     setSaving(true);
     const righe = await Promise.all(scelte.map(async (v) => {
-      let cover_url: string | null = null;
-      try {
-        const cr = await fetch('/api/cover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: v.titolo }) });
-        const cd = await cr.json(); cover_url = cd.url ?? null;
-      } catch { cover_url = null; }
+      // Piano A: la foto REALE del luogo (Google). Zero ridondanza: il Roadhouse mostra il Roadhouse.
+      // Piano B: Unsplash sull'attivita'. Piano C: lo stock locale, gestito dalla card.
+      let cover_url: string | null = v.luogo?.photo ? '/api/foto?n=' + encodeURIComponent(v.luogo.photo) : null;
+      if (!cover_url) {
+        try {
+          const cr = await fetch('/api/cover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: v.titolo }) });
+          const cd = await cr.json(); cover_url = cd.url ?? null;
+        } catch { cover_url = null; }
+      }
       return {
         hub_id: hubId,
         title: v.luogo ? v.luogo.name : v.titolo,

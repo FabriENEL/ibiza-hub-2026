@@ -5,7 +5,7 @@ export type Voce = {
   ora: string | null;
   titolo: string;
   categoria: string | null;
-  luogo: { name: string; address: string | null; lat: number | null; lon: number | null } | null;
+  luogo: { name: string; address: string | null; lat: number | null; lon: number | null; photo?: string | null } | null;
 };
 export type Giorno = { data: string | null; voci: Voce[] };
 

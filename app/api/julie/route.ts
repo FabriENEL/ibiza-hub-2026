@@ -118,6 +118,8 @@ function azionePrompt(oggi: string): string {
     + '\nORARI plausibili: colazione 08:30-09:30, cultura/natura/beach 10:00-17:00, aperitivo 18:30-19:30, food 20:00-21:00, night 23:00-23:30.'
     + '\nDATE: se l\'utente non le indica, usi le date dell Hub riportate piu sotto.'
     + '\nNON inventi nomi di locali: si limiti al titolo generico e alla categoria. I luoghi VERI li trovo io e li inserisco al Suo posto.'
+    + '\nSOLO ATTIVITA CON UN LUOGO REALE: ogni voce deve corrispondere a un posto che esiste su una mappa (un bar, un museo, un ristorante, un parco, una spiaggia, un locale). NON proponga attivita generiche e senza indirizzo come escursioni in barca, gite alle isole, passeggiate lungo la costa: se non c e una porta a cui bussare, la voce e inutile. Ogni titolo deve poter essere associato a una delle sette categorie.'
+    + '\nNIENTE RIPETIZIONI: non proponga due volte lo stesso tipo di attivita nella stessa giornata (non due pranzi, non due aperitivi), e vari le categorie tra un giorno e l altro.'
     + '\nIl campo intro e UNA riga sola, mai un elenco.'
     + '\nPAROLE CHE ATTIVANO IL PROGRAMMA, senza chiedere altro: organizza, organizzami, programma, programmami, pianifica, itinerario, giornata, weekend, viaggio, gita, cosa facciamo domani. Con queste, produca SUBITO il JSON del programma usando le date dell Hub. Non chieda categorie: le sceglie Lei.'
 
@@ -188,7 +190,7 @@ async function vestiProgramma(origin: string, zona: string, giorni: any[]) {
         ora: v?.ora ?? null,
         titolo: v?.titolo ?? '-',
         categoria: v?.categoria ?? null,
-        luogo: scelto ? { name: scelto.name, address: scelto.address, lat: scelto.lat, lon: scelto.lon } : null,
+        luogo: scelto ? { name: scelto.name, address: scelto.address, lat: scelto.lat, lon: scelto.lon, photo: scelto.photo ?? null } : null,
       };
     }),
   }));
@@ -290,7 +292,8 @@ export async function POST(req: NextRequest) {
       if (!locP) return NextResponse.json({ reply: 'Mi dica in quale citta e Le compongo il programma.' });
       const originP = new URL(req.url).origin;
       const giorni = await vestiProgramma(originP, locP, az.giorni);
-      const vuoto = giorni.every((g: any) => g.voci.every((v: any) => !v.luogo));
+      giorni.forEach((g: any) => { g.voci = g.voci.filter((v: any) => v.luogo); });
+      const vuoto = giorni.every((g: any) => g.voci.length === 0);
       if (vuoto) return NextResponse.json({ reply: 'Non ho trovato luoghi validi a ' + locP + '. Provi con un altra zona.' });
       const introP = typeof az.intro === 'string' && az.intro.trim() ? az.intro.trim() : 'Ecco cosa Le propongo. Tenga cio che Le piace, scarti il resto.';
       return NextResponse.json({ reply: introP, programma: { zona: locP, giorni } });

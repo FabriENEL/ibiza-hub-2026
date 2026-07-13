@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 export const dynamic = 'force-dynamic';
 // Chiave letta solo lato server: non raggiunge mai il browser.
@@ -6,7 +6,7 @@ const GP_KEY = process.env.GOOGLE_PLACES_KEY;
 const GP_URL = 'https://places.googleapis.com/v1/places:searchText';
 // Field mask: chiediamo SOLO i campi del livello Pro. rating/reviews farebbero salire
 // la chiamata al livello Enterprise (35-40$/1000 invece di 32$). Non li chiediamo mai.
-const GP_FIELDS = 'places.displayName,places.formattedAddress,places.location,places.primaryTypeDisplayName';
+const GP_FIELDS = 'places.displayName,places.formattedAddress,places.location,places.primaryTypeDisplayName,places.photos';
 const CACHE_GIORNI = 30;
 const GROQ_KEY = process.env.GROQ_API_KEY;
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
@@ -114,7 +114,7 @@ async function googleTop3(lat: number, lon: number, query: string, comune: strin
       body: JSON.stringify({
         textQuery: query + ' a ' + comune,
         languageCode: 'it',
-        maxResultCount: 3,
+        maxResultCount: 6,
         locationBias: { circle: { center: { latitude: lat, longitude: lon }, radius: 6000 } },
       }),
     });
@@ -124,12 +124,13 @@ async function googleTop3(lat: number, lon: number, query: string, comune: strin
     try { d = JSON.parse(body); } catch { return { tips: [], error: 'risposta non-JSON' }; }
     const raw = (d?.places ?? []) as any[];
     if (raw.length === 0) return { tips: [], error: 'ok ma 0 risultati' };
-    const tips = raw.slice(0, 3).map((p) => ({
+    const tips = raw.slice(0, 6).map((p) => ({
       name: p.displayName?.text ?? '-',
       type: p.primaryTypeDisplayName?.text ?? '',
       lat: typeof p.location?.latitude === 'number' ? p.location.latitude : null,
       lon: typeof p.location?.longitude === 'number' ? p.location.longitude : null,
       address: p.formattedAddress ?? null,
+      photo: p.photos?.[0]?.name ?? null,
     }));
     return { tips, error: null };
   } catch {
