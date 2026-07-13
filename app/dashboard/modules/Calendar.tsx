@@ -70,7 +70,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
 
   // Il dettaglio non e' piu' un overlay a schermo pieno: la card GIRA e mostra il retro.
   // Niente schermo mezzo vuoto, niente intestazione da coprire: il dettaglio ha la misura del suo contenuto.
-  const [flipped, setFlipped] = useState<string | null>(null);
+  const [flipped, setFlipped] = useState<Set<string>>(new Set());
   // I commenti vivono in un pannello che fluttua SOPRA la card, fuori dal 3D:
   // dentro una trasformazione 3D i campi di testo non ricevono il fuoco. Cosi' il flip resta puro.
   const [commentiFor, setCommentiFor] = useState<string | null>(null);
@@ -292,7 +292,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
 
   const gira = (id: string) => {
     setMenuFor(null);
-    setFlipped(flipped === id ? null : id);
+    setFlipped((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   };
 
   // Il pannello commenti sale dal basso come la chat di Julie: stesso velo, stessa dissolvenza.
@@ -358,7 +358,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
             const editable = canManageEvent(ev) && !archived;
             const vis = ev.revealed && ev.title ? (ev.cover_url ? { image: ev.cover_url, gradient: 'from-slate-800 to-slate-900', icon: '', matched: true } : eventVisual(ev.title, variantMap.get(ev.id) ?? 0)) : { image: undefined, gradient: 'from-slate-700 to-slate-900', icon: '\u{1F512}', matched: true };
             const isSurprise = !!ev.reveal_at || ev.revealed_override !== null;
-            const isFlip = flipped === ev.id;
+            const isFlip = flipped.has(ev.id);
             const evCd = eventCountdown(ev.scheduled_at);
             // Una misura sola per fronte e retro: la card non cresce quando gira.
             const cardH = Math.max(backH[ev.id] ?? 0, minH);
