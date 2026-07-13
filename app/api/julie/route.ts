@@ -194,6 +194,32 @@ async function vestiProgramma(origin: string, zona: string, giorni: any[]) {
   }));
 }
 
+
+// Julie deve programmare ATTORNO a cio' che l'utente ha gia' fissato: voli, check-in, impegni.
+// Senza questi vincoli componeva nel vuoto - una colazione a Lampedusa prima dell'atterraggio.
+async function eventiHub(hubId: string): Promise<string> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key || !hubId) return '';
+  try {
+    const sb = createClient(url, key);
+    const { data } = await sb.from('events')
+      .select('title, scheduled_at, location')
+      .eq('hub_id', hubId)
+      .order('scheduled_at', { ascending: true })
+      .limit(40);
+    const righe = (data as any[]) ?? [];
+    if (righe.length === 0) return '';
+    const elenco = righe.map((e) => {
+      const q = String(e.scheduled_at ?? '');
+      const giorno = q.slice(0, 10), ora = q.slice(11, 16);
+      return '- ' + giorno + ' ' + ora + ' : ' + (e.title ?? 'evento') + (e.location ? ' (' + e.location + ')' : '');
+    }).join('\\n');
+    return '\\n\\nIMPEGNI GIA FISSATI DALL UTENTE (vincoli INVALICABILI):\\n' + elenco
+      + '\\n\\nREGOLE SUI VINCOLI: 1) NON sovrapponga mai una voce a questi impegni. 2) Ne rispetti la LOGICA: nulla nella citta di destinazione PRIMA dell arrivo, nulla DOPO la partenza. 3) Lasci respiro: almeno 60 minuti tra un impegno fissato e una Sua proposta. 4) Se un impegno occupa gia una fascia (es. il pranzo), non ne proponga un altro dello stesso tipo. 5) Se dopo questi vincoli un giorno non ha spazio, lo lasci vuoto anziche forzare.';
+  } catch { return ''; }
+}
+
 // Estrae il JSON d'azione dalla risposta del modello, se presente.
 function jsonDi(testo: string): any | null {
   const a = testo.indexOf('{'), b = testo.lastIndexOf('}');
@@ -219,12 +245,13 @@ export async function POST(req: NextRequest) {
     const oggi = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Rome' }).replace(' ', 'T');
     const dh = await dateHub(hubId);
     const ctxHub = dh ? '\n\nDATE DELL HUB: dal ' + dh.inizio + ' al ' + dh.fine + '. Usi queste date per il programma, se l utente non ne indica altre.' : '';
+    const ctxEventi = await eventiHub(hubId);
     const res = await fetch(GROQ_URL, {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
-        messages: [{ role: 'system', content: SYSTEM + azionePrompt(oggi) + ctxHub }, ...(messages ?? [])],
+        messages: [{ role: 'system', content: SYSTEM + azionePrompt(oggi) + ctxHub + ctxEventi }, ...(messages ?? [])],
         temperature: 0.6,
         max_tokens: 1200,
         reasoning_effort: 'low',
