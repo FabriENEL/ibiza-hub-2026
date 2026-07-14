@@ -108,7 +108,7 @@ export default function JulieDock() {
           onPointerDown={onDown} onPointerMove={onMove} onPointerUp={endDrag} onPointerCancel={endDrag} onLostPointerCapture={endDrag}
           aria-label="J.U.L.I.E. - tocca per aprire, trascina per spostare" title="Tocca per aprire - trascina per spostare - buttala fuori per nascondere"
           style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 90, touchAction: 'none' }}
-          className={'w-14 h-14 rounded-full flex items-center justify-center select-none ' + (dragging ? 'cursor-grabbing scale-105' : 'cursor-grab active:scale-90 transition-transform')}>
+          className={'w-14 h-14 rounded-full flex items-center justify-center select-none animate-[eg-fade-in_.3s_ease] ' + (dragging ? 'cursor-grabbing scale-105' : 'cursor-grab active:scale-90 transition-transform')}>
           {!dragging && <>
             <span aria-hidden className="eg-ripple-ring absolute inset-0 rounded-full animate-[eg-ripple_2.2s_ease-out_infinite]" style={{ border: '2px solid rgba(34,197,94,0.85)' }} />
             <span aria-hidden className="eg-ripple-ring absolute inset-0 rounded-full animate-[eg-ripple_2.2s_ease-out_infinite]" style={{ border: '2px solid rgba(34,197,94,0.6)', animationDelay: '1.1s' }} />
