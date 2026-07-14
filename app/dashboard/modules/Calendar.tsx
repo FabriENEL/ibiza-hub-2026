@@ -39,7 +39,16 @@ const IconInfo = () => (
 
 export default function Calendar({ hubId, theme, isOwner, archived, words, rounded }: { hubId: string; theme: Theme; isOwner: boolean; archived: boolean; words: Words; rounded: string }) {
   // NB: non si tocca il contesto da qui. Aggiornarlo rimonta la Shell, Calendar rinasce e perde lo stato del flip.
-  const { userId, postAction } = useHub();
+  const { userId, postAction, memberships, activeHubId } = useHub();
+  const hubRow = memberships.find((m) => m.hub_id === activeHubId)?.hub;
+  // Un evento fuori dalle date dell'Hub non esiste: il calendario non lo mostrerebbe nemmeno.
+  const fuoriDate = (iso: string): string | null => {
+    if (!iso || !hubRow?.start_date || !hubRow?.end_date) return null;
+    const g = iso.split('T')[0];
+    if (g < hubRow.start_date) return 'L\'Hub comincia il ' + hubRow.start_date + '. Non posso mettere nulla prima.';
+    if (g > hubRow.end_date) return 'L\'Hub finisce il ' + hubRow.end_date + '. Non posso mettere nulla dopo.';
+    return null;
+  };
   const w = words;
   const r = rounded;
   const [events, setEvents] = useState<EventRow[]>([]);
@@ -167,6 +176,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
 
   const handleAddEvent = async () => {
     if (!title.trim() || !when || busy) return;
+    const koAdd = fuoriDate(when); if (koAdd) { alert(koAdd); return; }
     if (surprise && revealAt && when && new Date(revealAt) > new Date(when)) { alert('Lo svelamento deve precedere l\'evento.'); return; }
     setBusy(true);
     // Copertina on-demand come Julie: solo se il titolo non ha gia' un'immagine-regola locale.
@@ -200,6 +210,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
   };
   const saveEdit = async () => {
     if (!eTitle.trim() || !eWhen) return;
+    const koEdit = fuoriDate(eWhen); if (koEdit) { alert(koEdit); return; }
     if (eSurprise && eRevealAt && new Date(eRevealAt) > new Date(eWhen)) { alert('Lo svelamento deve precedere l\'evento.'); return; }
     const { error } = await supabase.from('events').update({
       title: eTitle.trim(), scheduled_at: eWhen, location: eWhere.trim() || null,
