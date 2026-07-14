@@ -298,7 +298,18 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     </div>
   );
 
-  const days = Array.from(new Set(events.map((e) => dayOf(e.scheduled_at)))).sort();
+  const giorniHub = (): string[] => {
+    if (!hubRow?.start_date || !hubRow?.end_date) return [];
+    const out: string[] = [];
+    const d = new Date(hubRow.start_date + 'T00:00:00Z');
+    const fine = new Date(hubRow.end_date + 'T00:00:00Z');
+    while (d <= fine && out.length < 90) { out.push(d.toISOString().slice(0, 10)); d.setUTCDate(d.getUTCDate() + 1); }
+    return out;
+  };
+  const dellHub = giorniHub();
+  const days = dellHub.length > 0
+    ? Array.from(new Set([...dellHub, ...events.map((e) => dayOf(e.scheduled_at))])).sort()
+    : Array.from(new Set(events.map((e) => dayOf(e.scheduled_at)))).sort();
   const dayEvents = events.filter((e) => dayOf(e.scheduled_at) === selectedDay);
 
   // variantMap: per ogni evento, indice progressivo della sua firma-regola nel giorno => sfondi distinti a parita' di contesto.
@@ -376,7 +387,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
         <div className={'eg-card-n p-4 space-y-3 ' + r}>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titolo evento" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white outline-none" />
           <DateTimePicker value={when} onChange={setWhen} />
-          <input value={where} onChange={(e) => setWhere(e.target.value)} placeholder="Luogo (opzionale)" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white outline-none" />
+          <input value={where} onChange={(e) => setWhere(e.target.value)} placeholder="Citta, via, civico, nome del posto" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white outline-none" />
           <label className="flex items-center gap-2 text-xs text-white cursor-pointer">
             <input type="checkbox" checked={surprise} onChange={(e) => setSurprise(e.target.checked)} />
             <span className="font-black uppercase tracking-wide">Sorpresa</span>
