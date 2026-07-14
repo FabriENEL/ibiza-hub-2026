@@ -47,7 +47,10 @@ export default function Shell() {
 
   // Touch nativi, non pointer: Chrome Android emette pointercancel appena decide che il gesto e' uno scroll,
   // e da quel momento pointermove non arriva piu'. I touchmove invece continuano sempre.
-  const onSwipeStart = (e: React.TouchEvent) => { const p = e.touches[0]; swipe.current = { x: p.clientX, y: p.clientY, lx: p.clientX, ly: p.clientY }; };
+  const onSwipeStart = (e: React.TouchEvent) => {
+    if ((e.target as HTMLElement)?.closest?.('[data-hscroll]')) { swipe.current = null; return; }
+    const p = e.touches[0]; swipe.current = { x: p.clientX, y: p.clientY, lx: p.clientX, ly: p.clientY };
+  };
   // Android/Chrome chiude lo swipe con pointercancel e a volte azzera le coordinate: tengo l'ultima nota nel move.
   const onSwipeMove = (e: React.TouchEvent) => { const s = swipe.current; const p = e.touches[0]; if (s && p) { s.lx = p.clientX; s.ly = p.clientY; } };
   const onSwipeEnd = () => {
