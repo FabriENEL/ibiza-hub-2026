@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -20,6 +20,14 @@ export default function LoginPage() {
 
   const handleSignup = async () => {
     if (!email.trim() || !username.trim() || !validPin || busy) return;
+    // Accesso su invito durante il periodo di test: solo le mail nella lista ammessi
+    // possono iscriversi. La lista vive in NEXT_PUBLIC_ALLOWED_EMAILS su Vercel (mail separate da virgola).
+    // Lista vuota o assente = nessun filtro (comportamento normale).
+    const ammesse = (process.env.NEXT_PUBLIC_ALLOWED_EMAILS ?? '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
+    if (ammesse.length > 0 && !ammesse.includes(email.trim().toLowerCase())) {
+      setErr('EventGarden e in test privato: l accesso e su invito. Contatti l organizzatore.');
+      return;
+    }
     setBusy(true); setErr('');
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(), password: pinToPassword(pin),
