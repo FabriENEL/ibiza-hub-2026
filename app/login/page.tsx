@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
+  const [invito, setInvito] = useState('');
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -20,12 +21,10 @@ export default function LoginPage() {
 
   const handleSignup = async () => {
     if (!email.trim() || !username.trim() || !validPin || busy) return;
-    // Accesso su invito durante il periodo di test: solo le mail nella lista ammessi
-    // possono iscriversi. La lista vive in NEXT_PUBLIC_ALLOWED_EMAILS su Vercel (mail separate da virgola).
-    // Lista vuota o assente = nessun filtro (comportamento normale).
-    const ammesse = (process.env.NEXT_PUBLIC_ALLOWED_EMAILS ?? '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
-    if (ammesse.length > 0 && !ammesse.includes(email.trim().toLowerCase())) {
-      setErr('EventGarden e in test privato: l accesso e su invito. Contatti l organizzatore.');
+    // Accesso su invito durante il test: serve il codice fornito dall'organizzatore.
+    // Fisso nel codice: nessun pannello da gestire, si detta a voce. Da rendere dinamico dopo il test.
+    if (invito.trim().toUpperCase() !== '18-S74RK') {
+      setErr('Codice invito non valido. Lo chieda all organizzatore.');
       return;
     }
     setBusy(true); setErr('');
@@ -77,6 +76,9 @@ export default function LoginPage() {
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={mode === 'signin' ? 'Email o username' : 'Email'} className={fld} />
         {mode === 'signup' && (
           <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Nome utente" className={fld} />
+        )}
+        {mode === 'signup' && (
+          <input value={invito} onChange={(e) => setInvito(e.target.value)} placeholder="Codice invito" className={fld} />
         )}
         <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
           type="password" inputMode="numeric" placeholder="PIN (4 cifre)"
