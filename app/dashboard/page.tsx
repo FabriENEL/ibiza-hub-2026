@@ -6,6 +6,7 @@ import CreateHub from './CreateHub';
 import JoinHub from './JoinHub';
 import Shell from './Shell';
 import JulieDock from './JulieDock';
+import PushInvito from './PushInvito';
 import Garden from './Garden';
 import { logEvent } from './lib/logEvent';
 
@@ -198,7 +199,7 @@ function DashboardRouter() {
     return () => window.removeEventListener('popstate', onPop);
   }, [activeHubId, setActiveHubId]);
   if (!activeHubId) return <Lobby />;
-  return <><Shell /><JulieDock /></>;
+  return <><Shell /><JulieDock /><PushInvito /></>;
 }
 
 export default function DashboardPage() {
