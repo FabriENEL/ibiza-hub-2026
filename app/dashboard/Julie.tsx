@@ -226,7 +226,15 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
         revealed_override: null,
       };
     }));
-    const { error } = await supabase.from('events').insert(righe);
+    const { data: hb } = await supabase.from('hubs').select('start_date, end_date').eq('id', hubId).single();
+    const dentro = (iso: string) => !hb?.start_date || !hb?.end_date || (iso.slice(0, 10) >= hb.start_date && iso.slice(0, 10) <= hb.end_date);
+    const buone = righe.filter((r: any) => dentro(String(r.scheduled_at ?? '')));
+    if (buone.length === 0) {
+      setSaving(false);
+      setMessages((m) => [...m, { role: 'assistant', content: 'Quelle date cadono fuori dal periodo dell\u2019Hub. Non le ho fissate.' }]);
+      return;
+    }
+    const { error } = await supabase.from('events').insert(buone);
     setSaving(false);
     const n = scelte.length;
     const ok = n === 1 ? 'Fatto. La voce e in calendario.' : 'Fatto. Le ' + n + ' voci sono in calendario.';
@@ -252,6 +260,13 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
           const cr = await fetch('/api/cover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: pending.title }) });
           const cd = await cr.json(); cover_url = cd.url ?? null;
         } catch { cover_url = null; }
+      }
+      const { data: hb1 } = await supabase.from('hubs').select('start_date, end_date').eq('id', hubId).single();
+      const g = String(pending.scheduled_at ?? '').slice(0, 10);
+      if (hb1?.start_date && hb1?.end_date && (g < hb1.start_date || g > hb1.end_date)) {
+        setPending(null); setSaving(false);
+        setMessages((m) => [...m, { role: 'assistant', content: 'Quel giorno cade fuori dal periodo dell\u2019Hub (' + hb1.start_date + ' \u2013 ' + hb1.end_date + '). Non l\u2019ho fissato.' }]);
+        return;
       }
       const r = await supabase.from('events').insert({
         hub_id: hubId, title: pending.title, scheduled_at: pending.scheduled_at, cover_url,
