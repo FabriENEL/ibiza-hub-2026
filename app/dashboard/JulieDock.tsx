@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useEffect, useRef, useState } from 'react';
 import { useHub } from './lib/HubContext';
 import { getConfig } from './lib/blueprints';
@@ -102,11 +102,21 @@ export default function JulieDock() {
           style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 90, touchAction: 'none' }}
           className={'w-14 h-14 rounded-full flex items-center justify-center select-none ' + (dragging ? 'cursor-grabbing scale-105' : 'cursor-grab active:scale-90 transition-transform')}>
           {!dragging && <>
-            <span aria-hidden className="eg-ripple-ring absolute inset-0 rounded-full animate-[eg-ripple_2.2s_ease-out_infinite]" style={{ border: '2px solid rgba(163,181,133,0.85)' }} />
-            <span aria-hidden className="eg-ripple-ring absolute inset-0 rounded-full animate-[eg-ripple_2.2s_ease-out_infinite]" style={{ border: '2px solid rgba(163,181,133,0.6)', animationDelay: '1.1s' }} />
+            <span aria-hidden className="eg-ripple-ring absolute inset-0 rounded-full animate-[eg-ripple_2.2s_ease-out_infinite]" style={{ border: '2px solid rgba(34,197,94,0.85)' }} />
+            <span aria-hidden className="eg-ripple-ring absolute inset-0 rounded-full animate-[eg-ripple_2.2s_ease-out_infinite]" style={{ border: '2px solid rgba(34,197,94,0.6)', animationDelay: '1.1s' }} />
           </>}
-          <span className="relative w-full h-full rounded-full flex items-center justify-center text-2xl font-black [font-family:var(--font-display)]"
-            style={{ background: 'linear-gradient(145deg, #A9C08C, #7C8E60)', color: '#191B1D', border: '2px solid rgba(255,255,255,0.30)', boxShadow: '0 0 18px -2px rgba(163,181,133,0.55), 0 6px 18px -6px rgba(0,0,0,0.6)' }}>J</span>
+          <span className="relative w-full h-full rounded-full flex items-center justify-center"
+            style={{ boxShadow: '0 0 18px -2px rgba(34,197,94,0.5), 0 6px 18px -6px rgba(0,0,0,0.6)', borderRadius: '9999px' }}>
+            <svg viewBox="0 0 56 56" width="56" height="56" aria-hidden>
+              <circle cx="28" cy="28" r="26.7" fill="#1C1F23" stroke="#22C55E" strokeWidth="2.6" />
+              <circle cx="28" cy="28" r="23.2" fill="#2E4030" />
+              <g transform="translate(4,4) scale(2)" fill="none" stroke="#F2F4EF" strokeWidth="2.6" strokeLinecap="round">
+                <path d="M11 6.8 H18.8" />
+                <path d="M15.2 6.8 V13.6 C15.2 18.4 11 20.6 7.4 18.4" />
+              </g>
+              <path transform="translate(4,4) scale(2)" d="M15.2 10.6 C17.4 9.4 19.6 10 20.4 12 C18.2 13.2 16 12.6 15.2 10.6 Z" fill="#22C55E" />
+            </svg>
+          </span>
         </button>
       )}
 
