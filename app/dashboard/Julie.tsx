@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useHub } from './lib/HubContext';
@@ -28,7 +28,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   const sendVoiceRef = useRef<(t: string) => void>(() => {});
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
-  const [saving, setSaving] = useState(false); const [closing, setClosing] = useState(false); const [shown, setShown] = useState(false); const softClose = () => { setClosing(true); setTimeout(onClose, 300); };
+  const [saving, setSaving] = useState(false); const [closing, setClosing] = useState(false); const [shown, setShown] = useState(false); const softClose = () => { if (!shown) return; setClosing(true); setTimeout(onClose, 300); };
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, busy, pending]);
