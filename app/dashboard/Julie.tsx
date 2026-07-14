@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useHub } from './lib/HubContext';
 import { ruleSignature } from './lib/eventVisuals';
@@ -12,6 +12,34 @@ type Msg = { role: 'user' | 'assistant'; content: string; luoghi?: Luogo[]; zona
 type PendingEvent = { kind: 'evento'; title: string; scheduled_at: string; location: string | null; description: string | null; fromConsiglio?: boolean };
 type PendingExpense = { kind: 'spesa'; description: string; amount: number };
 type Pending = PendingEvent | PendingExpense;
+
+// Rivela il testo una parola alla volta e pilota la bocca dell'avatar.
+// Vive FUORI dal padre; le callback stanno in un ref, cosi' il ciclo non si resetta
+// quando il padre ri-renderizza (era questo a fermare la scrittura alla prima parola).
+function Scrive({ testo, onBocca, onFine }: { testo: string; onBocca: (b: boolean) => void; onFine: () => void }) {
+  const [n, setN] = useState(0);
+  const parole = useMemo(() => testo.split(/(\s+)/), [testo]);
+  const cb = useRef({ onBocca, onFine });
+  useEffect(() => { cb.current = { onBocca, onFine }; });
+  useEffect(() => {
+    setN(0);
+    let i = 0;
+    let timer: any;
+    const passo = () => {
+      if (i >= parole.length) { cb.current.onBocca(false); cb.current.onFine(); return; }
+      const tok = parole[i] ?? '';
+      // apre solo su parole lunghe, e alterna: non ogni parola muove la bocca
+      cb.current.onBocca(tok.trim().length >= 7 && i % 2 === 0);
+      i += 1;
+      setN(i);
+      const attesa = tok.trim() === '' ? 90 : Math.min(130 + tok.length * 18, 320);
+      timer = setTimeout(passo, attesa);
+    };
+    timer = setTimeout(passo, 60);
+    return () => clearTimeout(timer);
+  }, [parole]);
+  return <>{parole.slice(0, n).join('')}</>;
+}
 
 export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: string }) {
   const { userId, signalPostAction, julieSeed, clearJulieSeed } = useHub();
@@ -30,6 +58,8 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   const [pending, setPending] = useState<Pending | null>(null);
   const [saving, setSaving] = useState(false); const [closing, setClosing] = useState(false); const [shown, setShown] = useState(false); const softClose = () => { if (!shown) return; setClosing(true); setTimeout(onClose, 300); };
   const endRef = useRef<HTMLDivElement>(null);
+  // La bocca dell'avatar segue il testo che Julie sta scrivendo: parola lunga = bocca aperta.
+  const [parla, setParla] = useState(false);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, busy, pending]);
   useEffect(() => { const id = requestAnimationFrame(() => setShown(true)); return () => cancelAnimationFrame(id); }, []);
@@ -306,7 +336,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
           <div className={'relative shrink-0 w-20 h-20 ' + (busy ? 'animate-[eg-breathe_1.6s_ease-in-out_infinite]' : 'animate-[eg-breathe_4s_ease-in-out_infinite]')}>
             <span aria-hidden className="absolute -inset-1.5 rounded-full blur-lg" style={{ background: 'radial-gradient(circle, rgba(163,181,133,0.40), transparent 70%)' }} />
             {busy && <span aria-hidden className="eg-aura absolute -inset-3 rounded-full blur-xl animate-[eg-aura_1.6s_ease-in-out_infinite]" style={{ background: 'radial-gradient(circle, rgba(163,181,133,0.55), transparent 65%)' }} />}
-            <img src="/julie-avatar.png" alt="J.U.L.I.E." className="relative w-20 h-20 rounded-full object-cover" />
+            <img src={parla ? "/julie-talking.png" : "/julie-avatar.png"} alt="J.U.L.I.E." className="relative w-20 h-20 rounded-full object-cover" />
           </div>
           <div className="flex-1">
             <p className="text-white font-black text-base leading-tight">J.U.L.I.E.</p>
@@ -329,7 +359,9 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
               <div className={'max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm ' +
                 (m.role === 'user' ? 'bg-white text-slate-950 rounded-br-sm' : 'text-emerald-50 rounded-bl-sm animate-[eg-fade-in_0.22s_ease-out]')}
                 style={m.role === 'assistant' ? { background: 'rgba(163,181,133,0.12)', border: '1px solid rgba(163,181,133,0.2)' } : {}}>
-                {m.content}
+                {(m.role === 'assistant' && i === messages.length - 1 && !m.luoghi && !m.programma && !m.chiediCat && typeof m.content === 'string')
+                  ? <Scrive testo={m.content} onBocca={setParla} onFine={() => setParla(false)} />
+                  : m.content}
               </div>
             </div>
           ))}
