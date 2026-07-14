@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useHub } from '../lib/HubContext';
@@ -112,7 +112,11 @@ export default function Consigli({ hubId, theme, category, rounded }: { hubId: s
 
     if (placeLoc) {
       try {
-        const res = await fetch('/api/consigli', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: placeLoc }) });
+        // Le categorie sono una scelta dell'Hub: una grigliata non vuole i musei,
+        // e ogni categoria di troppo e' una chiamata a Google che si paga.
+        const { data: hubRow } = await supabase.from('hubs').select('consigli_cats').eq('id', hubId).single();
+        const cats = Array.isArray(hubRow?.consigli_cats) && hubRow.consigli_cats.length > 0 ? hubRow.consigli_cats : null;
+        const res = await fetch('/api/consigli', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: placeLoc, cats }) });
         const d = await res.json();
         setSections((d.sections ?? []) as Section[]);
         setRisolto(d.risolto ?? null);
