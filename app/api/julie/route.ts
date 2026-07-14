@@ -24,68 +24,31 @@ function rateLimited(id: string): boolean {
 // Julie mentira' all'utente su cosa sa fare. Se ne togliamo una e resta qui, idem.
 // Stato al 12 luglio 2026: Julie sa fare DUE cose (aggiungi_evento, aggiungi_spesa).
 // ============================================================================
-const SYSTEM = `Sei J.U.L.I.E. (Join Us Living In EventGarden), la custode dell'app EventGarden, dove i gruppi organizzano viaggi, feste e cene insieme.
+const SYSTEM = `Lei e' J.U.L.I.E., l'assistente di EventGarden.
 
-IL SUO CARATTERE
-Lei e una presenza rassicurante: toglie l'ansia dell'organizzazione dalle spalle di chi Le parla. Non e un modulo da compilare, e qualcuno che si prende cura.
-Si rivolge sempre all'utente con il "Lei", con calore ed eleganza. Concisa, mai prolissa, mai burocratica.
-Usa frasi brevi e naturali. Evita formule rigide come "Potrebbe indicarmi il titolo esatto dell'evento". Preferisce: "Certo. Come lo chiamiamo?".
-E' ASCIUTTA. Tre o quattro righe bastano quasi sempre. Chi ha fretta non vuole un tema: vuole una risposta.
-Quando conferma qualcosa, lo fa con quieta soddisfazione: "Fatto, e nel calendario." - non "Operazione completata."
-Non si scusa eccessivamente. Non ripete se stessa.
+=== LA SUA VOCE ===
+Si rivolge all'utente con il "Lei". Calda, gentile, sorridente, seria. Un maggiordomo di fiducia che tiene davvero alla soddisfazione di chi ha davanti.
+Parla al plurale quando si tratta del programma: "lo abbiamo messo", "se Le va lo inseriamo", "lo aggiungiamo insieme". Il programma e' cosa loro, non un servizio che consegna.
+Non dice "la tenga", "ce l'ha gia'": suonano come imposizioni. Dice "se vuole lo mettiamo in programma", "l'abbiamo gia' fissato".
+Se non trova qualcosa, se ne dispiace davvero - ma ha gia' pensato a un'alternativa, e la offre con entusiasmo sincero.
+ASCIUTTA: tre o quattro righe bastano quasi sempre. Mai elenchi di cose ovvie. Mai riempire il vuoto con parole.
+Italiano impeccabile. Il "Lei" richiede cura: "le Sue spese", "se desidera", "come preferisce". Mai "Lei stessa", "da parte Sua stessa".
 
-ITALIANO IMPECCABILE
-Il "Lei" di cortesia richiede attenzione. Forme corrette: "le Sue spese", "quanto ha speso Lei", "posso registrare soltanto le Sue spese", "se desidera", "come preferisce".
-Forme SBAGLIATE da non usare mai: "le spese da Lei stessa", "da parte Sua stessa", "Lei stesso/a".
-Scriva un italiano naturale e corretto, come una persona colta che da del Lei. Nel dubbio, semplifichi la frase.
+=== COSA SA FARE ===
+1. COMPORRE UN PROGRAMMA di uno o piu' giorni, con luoghi veri, orari sensati, rispettando gli impegni gia' fissati.
+2. CERCARE LUOGHI REALI nei dintorni: ristoranti, bar, spiagge, musei, parchi, locali.
+3. AGGIUNGERE UN EVENTO su misura (titolo, data, ora, luogo).
+4. REGISTRARE UNA SPESA in Cassa - solo quelle pagate da chi Le parla.
+5. CONVERSARE: consigliare, ragionare insieme, aiutare a decidere.
+Ricordi all'utente, quando e' utile, che puo' chiederLe eventi personalizzati - a voce o per iscritto - oltre ai programmi.
 
-=== CIO' CHE SA FARE DAVVERO ===
-Queste sono le SUE UNICHE capacita operative. Non ne ha altre.
-
-1. AGGIUNGERE UN EVENTO al programma del gruppo (titolo, data, ora, luogo).
-2. REGISTRARE UNA SPESA in Cassa - soltanto le spese pagate da chi Le parla, mai quelle altrui.
-3. CERCARE LUOGHI VERI nei dintorni: ristoranti, cocktail bar, locali notturni, spiagge, parcheggi. Li mostra all'utente qui in chat, e puo fissarli subito nel programma.
-4. CONVERSARE: consigliare, ragionare insieme all'utente, aiutarlo a decidere.
-
-Se Le chiedono cosa sa fare, elenchi ESATTAMENTE queste quattro cose, in modo breve e naturale.
-
-=== CIO' CHE NON SA FARE (E DEVE DIRLO) ===
-REGOLA ASSOLUTA: non inventi MAI capacita che non ha. Se non puo fare qualcosa, lo dica con garbo e indichi dove l'utente puo farlo da se.
-
-Lei NON puo:
-- LEGGERE i dati dell'Hub. Non vede il calendario, non vede le spese registrate, non vede i saldi, non vede i membri, non vede la galleria. Se Le chiedono "quanto ho speso?", "che eventi ho?", "chi mi deve dei soldi?", "quanto siamo in totale?" - NON INVENTI numeri ne elenchi. Risponda con onesta: non ha accesso a quei dati, e li indirizzi alla sezione giusta (Cassa per spese e saldi, Programma per gli eventi, Gruppo per i membri).
-- ELIMINARE o MODIFICARE eventi e spese gia registrati. Per questo l'utente usa l'icona a ingranaggio sulla card dell'evento, o il cestino nella riga della spesa.
-- Registrare spese pagate da ALTRI.
-- Inviare messaggi, prenotare tavoli, chiamare locali, pagare, effettuare bonifici.
-- Mostrare il meteo o i luoghi reali dei dintorni: quelli vivono nella sezione Consigli, che li calcola sul luogo dell'evento.
-
-Se non sa, dica che non sa. Un'assistente che millanta e peggio di una che ammette un limite.
-
-=== LA SUA POSTURA: CONCIERGE BREVE ===
-Un concierge non recita la carta dei vini a memoria: accompagna al tavolo. Lei fa lo stesso.
-
-REGOLA DI BREVITA - LA PIU' IMPORTANTE
-La chat e piccola e l'utente ha fretta di risolvere. Risponda in TRE O QUATTRO RIGHE. Mai di piu, salvo richiesta esplicita.
-Meglio UNA riga utile che dieci righe di conoscenza generica.
-
-DIVIETO: NIENTE ELENCHI DI COSE RISAPUTE
-Non elenchi mai tipi di pizza, nomi di piatti, categorie ovvie, generi musicali, cose che l'utente gia sa.
-Non riempia il vuoto con parole. Se non ha un dato reale, non lo inventi e non lo sostituisca con chiacchiera.
-
-I LUOGHI VERI LI TROVA LEI, NON L'UTENTE
-Non mandi MAI l'utente ad aprire un'altra sezione dell'app: chi parla con Lei ha scelto Lei. Rimandarlo altrove e un passaggio in piu e una piccola sconfitta.
-Quando Le chiedono dove andare, dove mangiare, dove bere, cosa fare in zona: CERCHI LEI i luoghi reali (azione cerca_luoghi) e glieli mostri qui in chat, con il tasto per fissarli nel programma.
-
-SE L'UTENTE E VAGO, PROPONGA LE CATEGORIE
-Non chieda "cosa desidera?". Offra le strade concrete che sa percorrere:
-"Cerco una cena, un aperitivo o un locale per dopo?"
-
-OGNI RISPOSTA DEVE AVVICINARE ALLA SOLUZIONE, NON AGGIUNGERE DOMANDE.
-Una direzione concreta. Al massimo UNA domanda breve, e solo se serve davvero per agire.
-
-IL SUO RUOLO
-Aiuta a gestire eventi, spese e ricordi del gruppo. Risponde sempre in italiano.
-Se le chiedono qualcosa fuori dal Suo mondo, riporta con garbo al contesto dell'app.`;
+=== COSA NON SA FARE ===
+Non legge le spese registrate, i saldi, la galleria, l'elenco dei membri: per quelli indichi la sezione giusta (Cassa, Gruppo).
+Non elimina ne' modifica cio' che e' gia' registrato: l'utente usa l'ingranaggio sulla card, o il cestino nella riga della spesa.
+Non registra spese pagate da altri. Non prenota, non telefona, non paga.
+Se non sa, lo dica. Un'assistente che millanta e' peggio di una che ammette un limite.
+Non inventi MAI numeri, nomi di locali, o dati che non ha ricevuto.
+`;
 
 function azionePrompt(oggi: string): string {
   const schemaEvento = '{"action":"aggiungi_evento","title":"<titolo>","scheduled_at":"<YYYY-MM-DDTHH:MM:SS>","location":"<luogo o null>","description":"<descrizione o null>"}';
@@ -125,6 +88,18 @@ function azionePrompt(oggi: string): string {
     + '\nPAROLE CHE ATTIVANO IL PROGRAMMA, senza chiedere altro: organizza, organizzami, programma, programmami, pianifica, itinerario, giornata, weekend, viaggio, gita, cosa facciamo domani. Con queste, produca SUBITO il JSON del programma usando le date dell Hub. Non chieda categorie: le sceglie Lei.'
 
     + '\n\nPer ogni altra richiesta rispondi normalmente in italiano, senza JSON, con la postura del concierge: breve, concreta, mai prolissa.';
+}
+
+
+// Prompt ridotto per il turno di composizione: solo cio' che serve a produrre il JSON del programma.
+function programmaPrompt(oggi: string): string {
+  return '\\n\\nDATA E ORA ATTUALE: ' + oggi
+    + '\\n\\nAZIONE PROGRAMMA\\nRispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo: '
+    + '{"action":"proponi_programma","zona":"<comune, oppure null per usare quello dell Hub>","intro":"<una riga calda>","giorni":[{"data":"<YYYY-MM-DD>","voci":[{"ora":"HH:MM","titolo":"<titolo breve>","categoria":"<una delle categorie richieste>"}]}]}'
+    + '\\nDa 3 a 5 voci per giorno. Mai due voci della stessa categoria di seguito. Ogni giornata diversa dalle altre.'
+    + '\\nNON inventi nomi di locali: solo titolo generico e categoria. I luoghi veri li trovo io.'
+    + '\\nSOLO attivita con un luogo reale su una mappa. Niente escursioni o gite generiche senza indirizzo.'
+    + '\\nIl campo intro e UNA riga sola.';
 }
 
 // Julie cerca sulla zona dell'Hub: e' il luogo d'arrivo, valido anche prima che esistano eventi.
@@ -169,9 +144,26 @@ async function dateHub(hubId: string): Promise<{ inizio: string; fine: string } 
 }
 
 // Julie compone lo scheletro con titoli generici; qui ogni voce riceve un LUOGO VERO.
+
+// I luoghi GIA' fissati in calendario. Julie programma il giorno 2 senza sapere cosa ha messo
+// il giorno 1 in una sessione precedente: senza questo elenco, ripropone lo stesso ristorante.
+async function luoghiGiaUsati(hubId: string): Promise<Set<string>> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const vuoto = new Set<string>();
+  if (!url || !key || !hubId) return vuoto;
+  try {
+    const sb = createClient(url, key);
+    const { data } = await sb.from('events').select('title').eq('hub_id', hubId).limit(200);
+    const s = new Set<string>();
+    ((data as any[]) ?? []).forEach((e) => { if (e?.title) s.add(String(e.title).trim().toLowerCase()); });
+    return s;
+  } catch { return vuoto; }
+}
+
 // Una sola chiamata per CATEGORIA (non per voce): la cache di /api/consigli fa il resto.
 // Nessuna ripetizione: due cene nello stesso weekend non finiscono nello stesso ristorante.
-async function vestiProgramma(origin: string, zona: string, giorni: any[]) {
+async function vestiProgramma(origin: string, zona: string, giorni: any[], gia: Set<string> = new Set()) {
   const categorie = Array.from(new Set(
     giorni.flatMap((g: any) => (g?.voci ?? []).map((v: any) => v?.categoria)).filter(Boolean)
   )) as string[];
@@ -180,23 +172,49 @@ async function vestiProgramma(origin: string, zona: string, giorni: any[]) {
     const { tips } = await cercaLuoghi(origin, zona, c);
     catalogo[c] = tips ?? [];
   }));
-  const usati = new Set<string>();
-  return giorni.map((g: any) => ({
+
+  const usati = new Set<string>(gia);
+  const esauriti: string[] = [];                              // categorie senza piu' luoghi liberi
+  const alternative: { nome: string; da: string }[] = [];     // ripieghi da dichiarare all'utente
+
+  const out = giorni.map((g: any) => ({
     data: g?.data ?? null,
     voci: (g?.voci ?? []).map((v: any) => {
-      const pool = catalogo[v?.categoria] ?? [];
-      const scelto = pool.find((x: any) => !usati.has(x.name)) ?? pool[0] ?? null;
-      if (scelto) usati.add(scelto.name);
+      const catOrig = v?.categoria ?? null;
+      const pool = catalogo[catOrig] ?? [];
+      const norm = (s: string) => String(s ?? '').trim().toLowerCase();
+      let scelto = pool.find((x: any) => !usati.has(norm(x.name))) ?? null;
+      let catFinale = catOrig;
+      let ripiego = false;
+
+      // Mai un doppione. Se la scorta e' finita, si cerca un luogo libero tra le ALTRE
+      // categorie scelte dall'utente: l'alternativa viene poi DICHIARATA, mai imposta di nascosto.
+      if (!scelto) {
+        for (const altra of Object.keys(catalogo)) {
+          if (altra === catOrig) continue;
+          const alt = (catalogo[altra] ?? []).find((x: any) => !usati.has(norm(x.name)));
+          if (alt) { scelto = alt; catFinale = altra; ripiego = true; break; }
+        }
+        if (!scelto && catOrig) esauriti.push(catOrig);
+      }
+
+      if (scelto) {
+        usati.add(norm(scelto.name));
+        if (ripiego && catOrig) alternative.push({ nome: scelto.name, da: catOrig });
+      }
+
       return {
         ora: v?.ora ?? null,
-        titolo: v?.titolo ?? '-',
-        categoria: v?.categoria ?? null,
+        titolo: ripiego ? (scelto?.type || scelto?.name || v?.titolo) : (v?.titolo ?? '-'),
+        categoria: catFinale,
+        alternativa: ripiego,
         luogo: scelto ? { name: scelto.name, address: scelto.address, lat: scelto.lat, lon: scelto.lon, photo: scelto.photo ?? null } : null,
       };
     }),
   }));
-}
 
+  return { out, esauriti, alternative };
+}
 
 // Julie deve programmare ATTORNO a cio' che l'utente ha gia' fissato: voli, check-in, impegni.
 // Senza questi vincoli componeva nel vuoto - una colazione a Lampedusa prima dell'atterraggio.
@@ -261,6 +279,7 @@ export async function POST(req: NextRequest) {
     const ctxCats = Array.isArray(cats) && cats.length > 0
       ? '\n\n=== VINCOLO ASSOLUTO SULLE CATEGORIE ===\nL utente ha scelto ESATTAMENTE queste categorie: ' + cats.join(', ') + '.\nOgni singola voce del programma DEVE avere il campo categoria uguale a uno di questi valori: ' + cats.join(', ') + '.\nE VIETATO usare qualsiasi altra categoria. Se una categoria non e in questo elenco, NON esiste per Lei.\nSe l utente ha scelto beach, il programma DEVE contenere almeno una voce beach. Se ha scelto natura, almeno una natura. Ogni categoria scelta deve comparire almeno una volta.\nRiuso delle categorie: puo ripetere la stessa categoria in giorni diversi, purche il luogo sia diverso.\n=== FINE VINCOLO ==='
       : '';
+    const componendo = Array.isArray(cats) && cats.length > 0;
     const ctxNoChiedi = Array.isArray(cats) && cats.length > 0
       ? '\n\nL utente ha GIA scelto le categorie e il ritmo. NON faccia altre domande. NON chieda cosa cercare. Produca IMMEDIATAMENTE il JSON del programma con action proponi_programma. Qualsiasi risposta che non sia quel JSON e un errore.'
       : '';
@@ -269,7 +288,7 @@ export async function POST(req: NextRequest) {
       headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
-        messages: [{ role: 'system', content: SYSTEM + azionePrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi }, ...(messages ?? [])],
+        messages: [{ role: 'system', content: componendo ? (SYSTEM + programmaPrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi) : (SYSTEM + azionePrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi) }, ...(messages ?? [])],
         temperature: 0.6,
         max_tokens: 1200,
         reasoning_effort: 'low',
@@ -334,14 +353,35 @@ export async function POST(req: NextRequest) {
           g.voci.sort((a: any, b: any) => String(a.ora ?? '').localeCompare(String(b.ora ?? '')));
         });
       }
-      const giorni = await vestiProgramma(originP, locP, az.giorni);
+      const gia = await luoghiGiaUsati(hubId);
+      const { out: giorni, esauriti, alternative } = await vestiProgramma(originP, locP, az.giorni, gia);
+
       giorni.forEach((g: any) => { g.voci = g.voci.filter((v: any) => v.luogo); });
       const vuoto = giorni.every((g: any) => g.voci.length === 0);
-      if (vuoto) return NextResponse.json({ reply: 'Non ho trovato luoghi validi a ' + locP + '. Provi con un altra zona.' });
-      const introP = typeof az.intro === 'string' && az.intro.trim() ? az.intro.trim() : 'Ecco cosa Le propongo. Tenga cio che Le piace, scarti il resto.';
+      if (vuoto) {
+        const NM: Record<string, string> = { colazione: 'per la colazione', cultura: 'di culturale', natura: 'nella natura', beach: 'di spiagge', food: 'di ristoranti', aperitivo: 'per l\u2019aperitivo', night: 'di locali serali' };
+        const q = esauriti.length > 0 ? (NM[esauriti[0]] ?? '') : '';
+        return NextResponse.json({ reply: 'Mi dispiace: a ' + locP + ' non trovo nulla di nuovo ' + q + ' oltre a cio\u2019 che abbiamo gia\u2019 in programma. Se ha un\u2019idea Sua, me la dica pure e la sistemiamo insieme \u2014 a voce o per iscritto. Oppure scelga altre categorie, e vediamo cosa si puo\u2019 fare.' });
+      }
+
+      // Julie dichiara sempre cio' che ha dovuto cambiare: non decide di nascosto.
+      // Il tono e' quello di chi si dispiace davvero, ma ha gia' pensato a un'alternativa.
+      const NOMI: Record<string, string> = {
+        colazione: 'una colazione', cultura: 'qualcosa di culturale', natura: 'una passeggiata nella natura',
+        beach: 'una spiaggia', food: 'un altro ristorante', aperitivo: 'un altro aperitivo', night: 'un altro locale serale',
+      };
+      let coda = '';
+      if (alternative.length > 0) {
+        const a = alternative[0];
+        coda += ' Su ' + (NOMI[a.da] ?? a.da) + ' non trovo altro che valga la pena, e mi dispiace: le ho proposto ' + a.nome + ' al suo posto. Se Le va, lo inseriamo.';
+      }
+      if (esauriti.length > 0) {
+        coda += ' Su ' + (NOMI[esauriti[0]] ?? esauriti[0]) + ' non trovo davvero nulla di nuovo a ' + locP + '. Mi spiace. Se ha un\u2019idea, me la dica e la sistemiamo insieme \u2014 a voce o per iscritto.';
+      }
+
+      const introP = (typeof az.intro === 'string' && az.intro.trim() ? az.intro.trim() : 'Ecco cosa ho pensato per Lei.') + coda;
       return NextResponse.json({ reply: introP, programma: { zona: locP, giorni } });
     }
-
     return NextResponse.json({ reply });
   } catch (e: any) {
     console.error('Julie exception', String(e));

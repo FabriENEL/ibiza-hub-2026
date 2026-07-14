@@ -168,6 +168,12 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
         setBusy(false);
         return;
       }
+      // Nessun programma possibile (categorie esaurite): la card si sblocca e Julie parla.
+      if (cats && !data.programma) {
+        setMessages((m) => [...m.filter((x: any) => !x.chiediCat), { role: 'assistant', content: reply }]);
+        setBusy(false);
+        return;
+      }
       // Julie ha composto un programma: il testo viaggia con le voci da spuntare.
       if (data.programma && Array.isArray(data.programma.giorni) && data.programma.giorni.length > 0) {
         setMessages((m) => [...m, { role: 'assistant', content: reply, programma: data.programma }]);
