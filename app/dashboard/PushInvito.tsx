@@ -27,8 +27,17 @@ export default function PushInvito() {
     if (!ok || !userId || !vapid) return;
     if (Notification.permission !== 'default') return;
     try { if (localStorage.getItem(KEY)) return; } catch {}
-    const t = setTimeout(() => setApri(true), 2500);
-    return () => clearTimeout(t);
+    let t: any;
+    // L'invito appare SOLO se l'utente sta guardando EventGarden in questo momento:
+    // altrimenti Chrome, ridisegnando la scheda in secondo piano, lo mostrava fuori contesto.
+    const forse = () => {
+      if (document.visibilityState !== 'visible') return;
+      clearTimeout(t);
+      t = setTimeout(() => { if (document.visibilityState === 'visible' && document.hasFocus()) setApri(true); }, 4000);
+    };
+    forse();
+    document.addEventListener('visibilitychange', forse);
+    return () => { clearTimeout(t); document.removeEventListener('visibilitychange', forse); };
   }, [userId, vapid]);
 
   const chiudi = () => { try { localStorage.setItem(KEY, '1'); } catch {} setApri(false); };
@@ -68,7 +77,7 @@ export default function PushInvito() {
             className="flex-1 py-2.5 rounded-xl text-[12px] font-black text-slate-300 border border-white/15">Non ora</button>
           <button onClick={attiva} disabled={busy}
             className="flex-1 py-2.5 rounded-xl text-[12px] font-black text-slate-950 disabled:opacity-50"
-            style={{ background: '#A3B585' }}>{busy ? '...' : 'Sì, avvisami'}</button>
+            style={{ background: '#A3B585' }}>{busy ? '...' : 'SÃ¬, avvisami'}</button>
         </div>
       </div>
     </div>
