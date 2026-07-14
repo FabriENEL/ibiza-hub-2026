@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useState, useEffect, useRef, type ReactElement } from 'react';
 import { useHub } from './lib/HubContext';
 import { getConfig } from './lib/blueprints';
@@ -36,8 +36,10 @@ export default function Shell() {
   const voteLabel = active.hub.vote_label ?? bp.defaults.voteLabel;
   const votesEnabled = active.hub.votes_enabled ?? bp.defaults.votesEnabled;
 
-  const mods = bp.modules.filter((m) => m !== 'votes' || votesEnabled);
-  const currentTab: ModuleId = mods.includes(tab) ? tab : 'calendar'; useEffect(() => { if (postAction && mods.includes(postAction.module as ModuleId)) setTab(postAction.module as ModuleId); }, [postAction]);
+  // I Voti escono dalla barra in basso (sei icone non ci stavano) e salgono nell'intestazione:
+  // si entra, non ci si passa sopra sfogliando.
+  const mods: ModuleId[] = bp.modules.filter((m) => m !== 'votes');
+  const currentTab: ModuleId = (mods.includes(tab) || (tab === 'votes' && votesEnabled)) ? tab : 'calendar'; useEffect(() => { if (postAction && mods.includes(postAction.module as ModuleId)) setTab(postAction.module as ModuleId); }, [postAction]);
   const greeting = w.greeting(username ?? '') + (isOwner ? w.ownerTag : '');
 
   // Rimbalzo: micro-scatto di 12px nella direzione tentata, poi ritorno. Nessun keyframe globale.
@@ -82,6 +84,12 @@ export default function Shell() {
         <h2 className={'min-w-0 truncate text-transparent bg-clip-text bg-gradient-to-r ' + t.gradient + ' text-[13px] font-black uppercase tracking-widest'}>{active.hub.name}{archived ? ' \u00B7 RICORDO' : ''}</h2>
 
         <div className="flex items-center gap-2 shrink-0">
+          {votesEnabled && (
+            <button onClick={() => { navigator.vibrate?.(8); setTab('votes'); }} title={w.tabs.votes} aria-label={w.tabs.votes}
+              className={'w-9 h-9 bg-slate-900 border-2 flex items-center justify-center active:scale-95 transition-all ' + (currentTab === 'votes' ? 'bg-white/10 ' : '') + t.border + ' ' + t.text + ' ' + p.vibe.rounded}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3" /></svg>
+            </button>
+          )}
           <button onClick={() => setProfiloAperto(true)} title="Il tuo profilo" aria-label="Il tuo profilo"
             className={'w-9 h-9 bg-slate-900 border-2 flex items-center justify-center active:scale-95 transition-all ' + t.border + ' ' + t.text + ' ' + p.vibe.rounded}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" /></svg>
