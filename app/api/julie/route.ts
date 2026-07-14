@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { segna } from '../../lib/usage';
 
@@ -213,7 +213,12 @@ async function vestiProgramma(origin: string, zona: string, giorni: any[], gia: 
     }),
   }));
 
-  return { out, esauriti, alternative };
+  // Nessuna voce senza una porta a cui bussare: se Google non ha trovato il posto, la voce
+  // non arriva alla carta. Meglio un programma piu' corto che una promessa vuota.
+  const pulito = (out as any[])
+    .map((g: any) => ({ ...g, voci: (g.voci ?? []).filter((v: any) => v && v.luogo) }))
+    .filter((g: any) => (g.voci ?? []).length > 0);
+  return { out: pulito, esauriti, alternative };
 }
 
 // Julie deve programmare ATTORNO a cio' che l'utente ha gia' fissato: voli, check-in, impegni.
