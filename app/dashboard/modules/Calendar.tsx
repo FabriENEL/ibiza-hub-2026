@@ -39,7 +39,7 @@ const IconInfo = () => (
 
 export default function Calendar({ hubId, theme, isOwner, archived, words, rounded }: { hubId: string; theme: Theme; isOwner: boolean; archived: boolean; words: Words; rounded: string }) {
   // NB: non si tocca il contesto da qui. Aggiornarlo rimonta la Shell, Calendar rinasce e perde lo stato del flip.
-  const { userId, postAction, memberships, activeHubId } = useHub();
+  const { userId, postAction, memberships, activeHubId, openJulie } = useHub();
   const hubRow = memberships.find((m) => m.hub_id === activeHubId)?.hub;
   // Un evento fuori dalle date dell'Hub non esiste: il calendario non lo mostrerebbe nemmeno.
   const fuoriDate = (iso: string): string | null => {
@@ -406,7 +406,20 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
       )}
 
       {dayEvents.length === 0 ? (
-        <p className="text-slate-500 text-center py-10 text-sm">{canCreate ? w.emptyEvents : 'Nessun evento in questa giornata.'}</p>
+        // Il vuoto non e' un vicolo cieco: e' il momento in cui Julie si presenta.
+        <div className="flex flex-col items-center text-center px-8 py-16 gap-4">
+          <img src="/julie-avatar.png" alt="" className="w-20 h-20 rounded-full object-cover" style={{ border: '2px solid #22C55E' }} />
+          <p className="text-slate-300 text-sm leading-snug max-w-[15rem]">
+            {canCreate ? 'Questa giornata e ancora bianca. Vuole che la organizzi io?' : 'Nessun evento in questa giornata.'}
+          </p>
+          {canCreate && (
+            <button onClick={openJulie}
+              className="px-5 py-2.5 rounded-xl text-[12px] font-black text-slate-950 active:scale-95 transition-transform"
+              style={{ background: '#A3B585' }}>
+              Chiedi a Julie
+            </button>
+          )}
+        </div>
       ) : (
         <div className="space-y-3 overflow-y-auto snap-y snap-mandatory" style={{ height: 'calc(100dvh - 15.5rem)', scrollbarWidth: 'none' }}>
           {dayEvents.map((ev) => {
