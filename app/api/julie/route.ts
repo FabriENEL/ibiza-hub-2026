@@ -301,6 +301,11 @@ export async function POST(req: NextRequest) {
     });
     if (!res.ok) {
       console.error('Groq error', res.status, await res.text());
+      // 429 = il gruppo mi sta tenendo occupata tutti insieme. Non e' un guasto: e' traffico.
+      // Lo dico all'utente in chiaro, cosi' aspetta invece di pensare che io sia rotta.
+      if (res.status === 429) {
+        return NextResponse.json({ reply: 'In questo momento sto seguendo diversi membri del gruppo insieme. Mi conceda una quindicina di secondi e torni pure a chiedermelo.' });
+      }
       return NextResponse.json({ reply: 'Mi perdoni, sono momentaneamente non disponibile. Riprovi tra qualche istante.' });
     }
     const data = await res.json();
