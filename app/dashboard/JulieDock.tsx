@@ -11,7 +11,7 @@ import Julie from './Julie';
 
 const SIZE = 56;          // w-14/h-14
 const TAP_SLOP = 8;       // sotto questa soglia di movimento e' un tap, non un drag
-const M = 8;              // margine dai bordi quando resta in campo
+const M = 18;             // margine dai bordi: gli anelli eg-ripple si espandono oltre la J, senza spazio si vedono tagliati
 const TOP_MIN = 72;       // sotto l'header
 const BOT_GAP = 72;       // sopra la navbar
 const POS_KEY = 'junction_julie_pos';   // preferenza di DISPOSITIVO: globale, non per-Hub
