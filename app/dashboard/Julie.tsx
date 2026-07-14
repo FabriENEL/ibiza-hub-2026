@@ -290,6 +290,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
         <div className="flex items-center gap-3.5 p-4 border-b border-white/10" style={{ background: 'linear-gradient(180deg, rgba(163,181,133,0.10), transparent)' }}>
           <div className={'relative shrink-0 w-20 h-20 ' + (busy ? 'animate-[eg-breathe_1.6s_ease-in-out_infinite]' : 'animate-[eg-breathe_4s_ease-in-out_infinite]')}>
             <span aria-hidden className="absolute -inset-1.5 rounded-full blur-lg" style={{ background: 'radial-gradient(circle, rgba(163,181,133,0.40), transparent 70%)' }} />
+            {busy && <span aria-hidden className="eg-aura absolute -inset-3 rounded-full blur-xl animate-[eg-aura_1.6s_ease-in-out_infinite]" style={{ background: 'radial-gradient(circle, rgba(163,181,133,0.55), transparent 65%)' }} />}
             <img src="/julie-avatar.png" alt="J.U.L.I.E." className="relative w-20 h-20 rounded-full object-cover" />
           </div>
           <div className="flex-1">
@@ -311,7 +312,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
           {messages.map((m, i) => (
             <div key={i} className={'flex ' + (m.role === 'user' ? 'justify-end' : 'justify-start')}>
               <div className={'max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm ' +
-                (m.role === 'user' ? 'bg-white text-slate-950 rounded-br-sm' : 'text-emerald-50 rounded-bl-sm')}
+                (m.role === 'user' ? 'bg-white text-slate-950 rounded-br-sm' : 'text-emerald-50 rounded-bl-sm animate-[eg-fade-in_0.22s_ease-out]')}
                 style={m.role === 'assistant' ? { background: 'rgba(163,181,133,0.12)', border: '1px solid rgba(163,181,133,0.2)' } : {}}>
                 {m.content}
               </div>
@@ -379,9 +380,9 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
             <div className="flex justify-start">
               <div className="px-4 py-3 rounded-2xl" style={{ background: 'rgba(163,181,133,0.12)' }}>
                 <span className="inline-flex gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-300/60 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-300/60 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-300/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <span className="eg-dot w-1.5 h-1.5 rounded-full bg-emerald-300/70 animate-[eg-dot_1.1s_ease-in-out_infinite]" />
+                  <span className="eg-dot w-1.5 h-1.5 rounded-full bg-emerald-300/70 animate-[eg-dot_1.1s_ease-in-out_infinite]" style={{ animationDelay: '160ms' }} />
+                  <span className="eg-dot w-1.5 h-1.5 rounded-full bg-emerald-300/70 animate-[eg-dot_1.1s_ease-in-out_infinite]" style={{ animationDelay: '320ms' }} />
                 </span>
               </div>
             </div>
