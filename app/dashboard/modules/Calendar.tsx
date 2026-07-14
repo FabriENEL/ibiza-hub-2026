@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { logEvent } from '../lib/logEvent';
@@ -115,8 +115,11 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     } else {
       const days = Array.from(new Set(evs.map((e) => dayOf(e.scheduled_at)))).sort();
       if (days.length > 0) {
-        const today = new Date().toISOString().split('T')[0];
-        setSelectedDay(days.includes(today) ? today : days[0]);
+        setSelectedDay((cur) => {
+          if (cur && days.includes(cur)) return cur;
+          const today = new Date().toISOString().split('T')[0];
+          return days.includes(today) ? today : days[0];
+        });
       }
     }
     setLoading(false);
