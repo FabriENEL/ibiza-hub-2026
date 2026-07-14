@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useHub } from './lib/HubContext';
 import { getConfig } from './lib/blueprints';
 import Julie from './Julie';
@@ -93,7 +94,13 @@ export default function JulieDock() {
     setPos({ x: d.ox + dx, y: d.oy + dy }); // durante il drag NON si clampa: si puo' uscire per nascondere
   };
 
-  return (
+  const [monta, setMonta] = useState(false);
+  useEffect(() => { setMonta(true); }, []);
+  if (!monta) return null;
+
+  // Il backdrop-blur dell'header crea un contesto d'impilamento: nessuno z-index puo' scavalcarlo
+  // dall'interno. La J vive su document.body, cosi' il tocco la raggiunge ovunque sia trascinata.
+  return createPortal(
     <>
       {!julieOpen && !hidden && pos && (
         <button
@@ -129,6 +136,7 @@ export default function JulieDock() {
       )}
 
       {julieOpen && <Julie onClose={closeJulie} hubId={activeHubId} />}
-    </>
+    </>,
+    document.body
   );
 }
