@@ -67,7 +67,8 @@ export default function JulieDock() {
   const endDrag = (): void => {
     const d = drag.current; drag.current = null; setDragging(false);
     if (!d) return;
-    if (!d.moved) { openJulie(); return; }          // tap secco = apre
+    // Il tocco che apre non deve raggiungere l'overlay che si sta montando (lo chiuderebbe subito).
+    if (!d.moved) { setTimeout(() => openJulie(), 0); return; }
     setPos((p) => {
       if (!p) return p;
       const cx = p.x + SIZE / 2, cy = p.y + SIZE / 2;
