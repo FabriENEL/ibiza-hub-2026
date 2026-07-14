@@ -91,6 +91,22 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
   const [editCText, setEditCText] = useState('');
   // Menu impostazioni della card: raccoglie Modifica ed Elimina sotto una sola icona.
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  // Selezione multipla: si entra tenendo premuta una card, si esce svuotando la scelta.
+  const [selMode, setSelMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const pressTimer = useRef<any>(null);
+  const spunta = (id: string) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); if (n.size === 0) setSelMode(false); return n; });
+  const iniziaPressione = (id: string) => { pressTimer.current = setTimeout(() => { navigator.vibrate?.(12); setSelMode(true); setSelected(new Set([id])); }, 500); };
+  const fermaPressione = () => { if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; } };
+  const annullaSelezione = () => { setSelMode(false); setSelected(new Set()); };
+  const eliminaSelezionati = async () => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    if (!confirm('Eliminare ' + ids.length + (ids.length === 1 ? ' evento?' : ' eventi?'))) return;
+    await supabase.from('events').delete().in('id', ids);
+    annullaSelezione();
+    load();
+  };
   // Evento appena creato: il calendario ci salta sopra e lo illumina. Nessuna caccia al tesoro dopo un'azione di Julie.
   const [freshId, setFreshId] = useState<string | null>(null);
   const freshRef = useRef<HTMLDivElement | null>(null);
@@ -328,6 +344,21 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
 
   return (
     <div className="space-y-4">
+      {selMode && (
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-24 z-[80] flex items-center gap-3 px-4 py-2.5 rounded-2xl animate-[eg-fade-in_.2s_ease]"
+          style={{ background: '#1C1F22', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 8px 28px -10px rgba(0,0,0,0.7)' }}>
+          <span className="text-[12px] font-black text-slate-300">{selected.size} selezionat{selected.size === 1 ? 'o' : 'i'}</span>
+          <button onClick={eliminaSelezionati} aria-label="Elimina i selezionati"
+            className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+            style={{ background: '#c05656', color: '#fff' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></svg>
+          </button>
+          <button onClick={annullaSelezione} aria-label="Annulla"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 border border-white/15 active:scale-90 transition-transform">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+      )}
       <div className="flex justify-between items-center">
         <h3 className="font-black uppercase text-white tracking-wider">{w.schedule}</h3>
         {canCreate && !archived && (
@@ -471,7 +502,16 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
 
                       {/* FRONTE: la copertina riempie tutta l'altezza. Nessun salto quando la card gira. */}
                       <div className={'absolute inset-0 [backface-visibility:hidden] overflow-hidden rounded-[inherit] ' + (isFlip ? 'pointer-events-none' : '')}>
-                        <div onClick={() => gira(ev.id)} className="relative h-full flex flex-col justify-end p-4 bg-slate-800 cursor-pointer">
+                        <div
+                          onClick={() => { if (selMode) spunta(ev.id); else gira(ev.id); }}
+                          onPointerDown={() => { if (editable && !selMode) iniziaPressione(ev.id); }}
+                          onPointerUp={fermaPressione} onPointerLeave={fermaPressione} onPointerCancel={fermaPressione}
+                          className="relative h-full flex flex-col justify-end p-4 bg-slate-800 cursor-pointer">
+                          {selMode && (
+                            <span aria-hidden className={'absolute top-3 right-3 z-20 w-7 h-7 rounded-full border-2 flex items-center justify-center ' + (selected.has(ev.id) ? 'bg-white border-white' : 'border-white/70 bg-black/40')}>
+                              {selected.has(ev.id) && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14161A" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5L20 7" /></svg>}
+                            </span>
+                          )}
                           {vis.image && <img src={vis.image} alt="" className="absolute inset-0 w-full h-full object-cover" />}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
                           {!ev.revealed && <div aria-hidden className="absolute inset-0 overflow-hidden"><div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2.4s_ease-in-out_infinite]" /></div>}
