@@ -387,6 +387,9 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
         <div className={'eg-card-n p-4 space-y-3 ' + r}>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titolo evento" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white outline-none" />
           <DateTimePicker value={when} onChange={setWhen} />
+          {when && fuoriDate(when) && (
+            <p className="text-[11px] font-bold px-1 -mt-1" style={{ color: '#e0866f' }}>{fuoriDate(when)}</p>
+          )}
           <input value={where} onChange={(e) => setWhere(e.target.value)} placeholder="Citta, via, civico, nome del posto" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white outline-none" />
           <label className="flex items-center gap-2 text-xs text-white cursor-pointer">
             <input type="checkbox" checked={surprise} onChange={(e) => setSurprise(e.target.checked)} />
@@ -401,7 +404,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
               <AudiencePicker selected={audience} onToggle={(u) => toggleAudience(audience, setAudience, u)} />
             </div>
           )}
-          <button onClick={handleAddEvent} disabled={busy || !title.trim() || !when} className={'w-full bg-gradient-to-r ' + theme.gradient + ' text-slate-950 py-2.5 rounded-lg font-black text-xs uppercase disabled:opacity-40'}>{busy ? 'Salvo...' : 'Salva'}</button>
+          <button onClick={handleAddEvent} disabled={busy || !title.trim() || !when || !!fuoriDate(when)} className={'w-full bg-gradient-to-r ' + theme.gradient + ' text-slate-950 py-2.5 rounded-lg font-black text-xs uppercase disabled:opacity-40'}>{busy ? 'Salvo...' : 'Salva'}</button>
         </div>
       )}
 
