@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useHub } from '../lib/HubContext';
@@ -121,7 +121,7 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
       <button onClick={openJulie}
         className="w-full flex items-center gap-3 p-3.5 rounded-2xl active:scale-[0.99] transition-transform"
         style={{ background: "linear-gradient(135deg, rgba(163,181,133,0.18), rgba(163,181,133,0.06))", border: "1px solid rgba(163,181,133,0.3)" }}>
-        <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black shrink-0" style={{ background: "#A3B585", color: "#14161A" }}>J</div>
+        <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black shrink-0" style={{ background: "#2E4030", color: "#F2F4EF", border: "2px solid #22C55E" }}>J</div>
         <div className="text-left flex-1">
           <p className="text-white font-black text-sm">Parla con J.U.L.I.E.</p>
           <p className="text-emerald-200/50 text-[11px]">La Sua assistente per eventi e spese</p>
