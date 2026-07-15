@@ -29,6 +29,13 @@ const HubContext = createContext<HubContextValue | null>(null);
 
 export function HubProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null);
+  useEffect(() => {
+    // Espelle in tempo reale chi perde la sessione (token revocato lato server).
+    const { data: sub } = supabase.auth.onAuthStateChange((evt) => {
+      if (evt === 'SIGNED_OUT') { window.location.href = '/login'; }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
   const [username, setUsername] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -47,10 +54,11 @@ export function HubProvider({ children }: { children: ReactNode }) {
 
   const load = async () => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
-    // Il token in cache (PWA) puo' puntare a un utente cancellato: senza profilo reale
-    // e' una sessione fantasma. La si scarica e si torna al login, niente 'Ciao senza nome'.
+    // getUser() interroga il server (non la cache): se la sessione e' stata invalidata
+    // lato Supabase, error e' valorizzato e l'utente va cacciato, PWA vecchia inclusa.
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) { await supabase.auth.signOut(); window.location.href = '/login'; return; }
+    // Doppia guardia: senza un profilo reale e' comunque un fantasma.
     const { data: prof } = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle();
     if (!prof) { await supabase.auth.signOut(); window.location.href = '/login'; return; }
     setUserId(user.id);
