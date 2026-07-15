@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 :root {
   --background: #ffffff;
@@ -166,3 +166,15 @@ body::after {
 /* Impaginazione calendario: la card non resta mai tagliata a meta'. */
 .snap-y > * { scroll-snap-align: start; }
 .snap-y::-webkit-scrollbar { display: none; }
+
+/* Scrollbar nascoste in tutta l'app: lo scroll resta, la barra sparisce.
+   Su mobile non serve, e a schermo sporca l'interfaccia davanti a un investitore. */
+* {
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE/Edge legacy */
+}
+*::-webkit-scrollbar {          /* Chrome/Safari */
+  display: none;
+  width: 0;
+  height: 0;
+}
