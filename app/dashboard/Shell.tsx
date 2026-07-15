@@ -77,7 +77,7 @@ export default function Shell() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 pb-28">
+    <main className="min-h-screen bg-slate-950 text-slate-100 pb-28" style={{ overscrollBehavior: 'none' }}>
       {/* Glow ambientale: la categoria colora l'atmosfera dell'intera pagina */}
       <div aria-hidden className={'pointer-events-none fixed inset-x-0 top-0 h-96 bg-gradient-to-b ' + t.gradient + ' opacity-[0.08] blur-3xl'} />
 
