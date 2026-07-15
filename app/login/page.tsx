@@ -36,7 +36,15 @@ export default function LoginPage() {
     // Confirm-email ON: nessuna sessione al signup. L'username attende il primo signin post-conferma.
     localStorage.setItem('eg_pending_username', username.trim());
     if (!data.session) { setErr('Le abbiamo inviato una mail. Confermi il link, poi rientri con email e PIN.'); setBusy(false); return; }
-    await supabase.from('profiles').update({ username: username.trim() }).eq('id', data.user.id);
+    // Il profilo lo crea un trigger asincrono: l'update puo' arrivare prima della riga e perdersi.
+    // Riprovo con upsert finche' l'username scelto e' davvero salvato (max 5 tentativi ravvicinati).
+    const uid = data.user.id, nome = username.trim();
+    for (let tentativo = 0; tentativo < 5; tentativo++) {
+      await supabase.from('profiles').upsert({ id: uid, username: nome }, { onConflict: 'id' });
+      const { data: check } = await supabase.from('profiles').select('username').eq('id', uid).single();
+      if (check?.username === nome) break;
+      await new Promise((r) => setTimeout(r, 400));
+    }
     localStorage.removeItem('eg_pending_username');
     logEvent('signup');
     router.push('/dashboard');
