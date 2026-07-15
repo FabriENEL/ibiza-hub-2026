@@ -491,7 +491,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                 </div>
 
                 <button onClick={() => gira(ev.id)} aria-label="Torna alla copertina" title="Torna alla copertina"
-                  className="absolute bottom-0 right-0 w-11 h-11 active:opacity-60 transition-opacity">
+                  className="absolute bottom-0 right-0 w-11 h-11 z-30 active:opacity-60 transition-opacity">
                   <span aria-hidden className="absolute bottom-0 right-0"
                     style={{ width: 0, height: 0, borderStyle: 'solid', borderWidth: '0 0 22px 22px', borderColor: 'transparent transparent rgba(163,181,133,0.55) transparent' }} />
                 </button>
