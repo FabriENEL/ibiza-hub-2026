@@ -69,7 +69,9 @@ function Lobby() {
   const quando = (iso: string | null, fine: string | null) => {
     if (!iso) return null;
     const t = new Date(iso).getTime(); const now = Date.now();
-    const tf = fine ? new Date(fine).getTime() : t;
+    // end_date e' una data senza ora: 'fine' e' la MEZZANOTTE di quel giorno, non la sua sera.
+    // Aggiungo 24h cosi' l'Hub resta vivo per tutto il suo ultimo giorno, non 'Ricordo' dall'alba.
+    const tf = fine ? new Date(fine).getTime() + 86400000 : t + 86400000;
     if (now > tf) return { testo: 'Ricordo', vivo: false };
     if (now >= t) return { testo: 'In corso', vivo: true };
     const ms = t - now, gg = Math.floor(ms / 86400000);
