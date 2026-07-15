@@ -71,7 +71,7 @@ export default function Shell() {
     calendar: <Calendar hubId={active.hub_id} theme={t} isOwner={isOwner} archived={archived} words={w} rounded={p.vibe.rounded} />,
     cassa:    <Cassa hubId={active.hub_id} theme={t} archived={archived} />,
     votes:    <Votes hubId={active.hub_id} theme={t} archived={archived} isOwner={isOwner} voteLabel={voteLabel} />,
-    gallery:  <Gallery hubId={active.hub_id} theme={t} archived={archived} />,
+    gallery:  <Gallery hubId={active.hub_id} theme={t} archived={archived} isOwner={isOwner} />,
     consigli: <Consigli hubId={active.hub_id} theme={t} category={active.hub.category} rounded={p.vibe.rounded} />,
     group:    <Group hubId={active.hub_id} theme={t} isOwner={isOwner} archived={archived} votesEnabled={votesEnabled} words={w} rounded={p.vibe.rounded} />,
   };

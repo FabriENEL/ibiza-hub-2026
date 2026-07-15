@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { logEvent } from '../lib/logEvent';
@@ -7,7 +7,7 @@ import { useHub } from '../lib/HubContext';
 type Theme = { text: string; gradient: string; border: string };
 type Media = { id: string; url: string; type: string | null; user_id: string | null };
 
-export default function Gallery({ hubId, theme, archived }: { hubId: string; theme: Theme; archived: boolean }) {
+export default function Gallery({ hubId, theme, archived, isOwner }: { hubId: string; theme: Theme; archived: boolean; isOwner: boolean }) {
   const { userId } = useHub();
   const [items, setItems] = useState<Media[]>([]);
   const [filter, setFilter] = useState<'all' | 'mine'>('all');
@@ -54,6 +54,24 @@ export default function Gallery({ hubId, theme, archived }: { hubId: string; the
     setDownloading(false);
   };
 
+  const [deleting, setDeleting] = useState(false);
+  const handleDelete = async (m: Media) => {
+    // Solo chi l'ha caricata (o l'organizzatore) puo' cancellare. Doppia difesa: qui e nelle RLS.
+    if (m.user_id !== userId && !isOwner) { alert('Puo eliminare solo le foto che ha caricato Lei.'); return; }
+    if (!confirm('Eliminare questo ricordo? L azione non si annulla.')) return;
+    setDeleting(true);
+    // Dall'URL pubblico ricavo il percorso dentro il bucket 'gallery' per cancellare anche il file.
+    try {
+      const marker = '/gallery/';
+      const i = m.url.indexOf(marker);
+      if (i !== -1) { const path = m.url.slice(i + marker.length); await supabase.storage.from('gallery').remove([path]); }
+    } catch { /* se il file non c'e' piu', si prosegue: conta togliere la riga */ }
+    const { error } = await supabase.from('media').delete().eq('id', m.id);
+    setDeleting(false);
+    if (error) { alert('Non sono riuscito a eliminarla: ' + error.message); return; }
+    setItems((prev) => prev.filter((x) => x.id !== m.id));
+    setViewer(null);
+  };
   const shown = items.filter((m) => filter === 'mine' ? m.user_id === userId : true);
   if (loading) return (
     <div className="grid grid-cols-2 gap-3">
@@ -107,6 +125,9 @@ export default function Gallery({ hubId, theme, archived }: { hubId: string; the
           </div>
           <div className="flex gap-3 mt-6" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => handleDownload(viewer)} disabled={downloading} className={'bg-gradient-to-r ' + theme.gradient + ' text-slate-950 px-6 py-3 rounded-2xl font-black text-xs uppercase disabled:opacity-40'}>{downloading ? 'Scarico...' : 'Scarica'}</button>
+            {(viewer.user_id === userId || isOwner) && (
+              <button onClick={() => handleDelete(viewer)} disabled={deleting} className="px-6 py-3 rounded-2xl font-black text-xs uppercase disabled:opacity-40" style={{ background: '#c05656', color: '#fff' }}>{deleting ? 'Elimino...' : 'Elimina'}</button>
+            )}
             <button onClick={() => setViewer(null)} className="bg-slate-800 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase">Chiudi</button>
           </div>
         </div>
