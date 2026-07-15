@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 
@@ -49,6 +49,10 @@ export function HubProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
+    // Il token in cache (PWA) puo' puntare a un utente cancellato: senza profilo reale
+    // e' una sessione fantasma. La si scarica e si torna al login, niente 'Ciao senza nome'.
+    const { data: prof } = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle();
+    if (!prof) { await supabase.auth.signOut(); window.location.href = '/login'; return; }
     setUserId(user.id);
     setEmail(user.email ?? null);
 
