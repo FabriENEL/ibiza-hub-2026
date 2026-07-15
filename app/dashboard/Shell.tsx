@@ -143,7 +143,7 @@ export default function Shell() {
 
       <nav className={'fixed bottom-0 left-0 right-0 bg-slate-950/70 backdrop-blur-xl border-t border-white/10 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] flex justify-around z-50' + (immersive ? ' hidden' : '')}>
         {mods.map((id) => (
-          <button key={id} onClick={() => { navigator.vibrate?.(8); setTab(id); }} className={'flex flex-col items-center gap-1 shrink-0 px-3 py-1.5 rounded-xl transition-all duration-150 active:scale-95 ' + (currentTab === id ? t.text + ' bg-white/5' : 'text-slate-500')}>
+          <button key={id} onClick={() => { navigator.vibrate?.(8); setTab(id); }} className={'flex-1 min-w-0 flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all duration-150 active:scale-95 ' + (currentTab === id ? t.text + ' bg-white/5' : 'text-slate-500')}>
             <span className="text-xl">{ICONS[id]}</span>
             <span className="text-[9px] font-black uppercase">{w.tabs[id]}</span>
           </button>
