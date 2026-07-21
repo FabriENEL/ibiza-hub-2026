@@ -156,7 +156,8 @@ export default function JulieDock() {
         <div role="status"
           className={'fixed bottom-6 left-1/2 -translate-x-1/2 max-w-[86vw] px-3.5 py-2 rounded-xl text-[12px] leading-snug text-center transition-opacity duration-[900ms] ease-out ' + (showHint ? 'animate-[eg-fade-in_.25s_ease] opacity-90' : 'opacity-0')}
           style={{ zIndex: 91, background: '#262b2e', color: '#e9e7e1', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 6px 20px -8px rgba(0,0,0,0.6)' }}>
-          Trascina la J per spostarla &middot; buttala fuori per nascondere &middot; la richiami da <b>{groupLabel}</b>
+          <p>Tocchi la J e mi parli: penso io a programmi, spese e consigli.</p>
+          <p className="opacity-70 text-[11px]">Per spostarmi mi trascini pure.</p>
         </div>
       )}
 
