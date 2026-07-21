@@ -110,7 +110,10 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
       if (said) { setInput(said); setTimeout(() => sendVoiceRef.current(said), 100); }
     };
     rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
+    rec.onerror = () => {
+      setListening(false);
+      setMessages((m) => [...m, { role: 'assistant', content: 'Non sono riuscita a sentirLa. Mi scriva pure: La leggo volentieri.' }]);
+    };
     recRef.current = rec;
   }, []);
 
@@ -159,7 +162,13 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     if (!recRef.current || busy) return;
     if (!listening) { setSpeakOn(true); unlockTTS(); }
     if (listening) { recRef.current.stop(); setListening(false); }
-    else { try { setInput(''); recRef.current.start(); setListening(true); } catch {} }
+    else {
+      try { setInput(''); recRef.current.start(); setListening(true); }
+      catch {
+        setListening(false);
+        setMessages((m) => [...m, { role: 'assistant', content: 'Il microfono non e\u2019 disponibile su questo dispositivo. Mi scriva pure: La leggo volentieri.' }]);
+      }
+    }
   };
 
   const sendVoice = (text: string) => { const t = text.trim(); if (t && !busy) send(t); };
