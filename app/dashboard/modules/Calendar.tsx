@@ -388,7 +388,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
       {canCreate && !archived && adding && (
         <div className={'eg-card-n p-4 space-y-3 ' + r}>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titolo evento" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white outline-none" />
-          <DateTimePicker value={when} onChange={setWhen} />
+          <DateTimePicker value={when} onChange={setWhen} min={hubRow?.start_date ?? undefined} max={hubRow?.end_date ?? undefined} />
           {when && fuoriDate(when) && (
             <p className="text-[11px] font-bold px-1 -mt-1" style={{ color: '#e0866f' }}>{fuoriDate(when)}</p>
           )}
@@ -507,7 +507,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                 {editId === ev.id ? (
                   <div className="space-y-2 p-4">
                     <input value={eTitle} onChange={(e) => setETitle(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white outline-none" />
-                    <DateTimePicker value={eWhen} onChange={setEWhen} />
+                    <DateTimePicker value={eWhen} onChange={setEWhen} min={hubRow?.start_date ?? undefined} max={hubRow?.end_date ?? undefined} />
                     <input value={eWhere} onChange={(e) => setEWhere(e.target.value)} placeholder="Luogo" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white outline-none" />
                     <label className="flex items-center gap-2 text-xs text-white cursor-pointer">
                       <input type="checkbox" checked={eSurprise} onChange={(e) => setESurprise(e.target.checked)} />

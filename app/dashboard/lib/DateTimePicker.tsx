@@ -3,7 +3,7 @@
 // Data e ora tenute SEPARATE nel valore ISO, ma ognuna scrive il proprio segmento
 // senza azzerare l'altro. Nessun reset intermedio: il campo incompleto resta tale
 // finche' l'utente non termina, invece di essere riscritto a ogni battitura.
-export default function DateTimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+export default function DateTimePicker({ value, onChange, min, max }: { value: string; onChange: (v: string) => void; min?: string; max?: string }) {
   const { date, hh, mm } = splitDateTime(value);
   const time = hh !== '' && mm !== '' ? hh + ':' + mm : '';
   const fld = 'bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white outline-none';
@@ -13,7 +13,7 @@ export default function DateTimePicker({ value, onChange }: { value: string; onC
 
   return (
     <div className="flex gap-2">
-      <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={fld + ' flex-1 min-w-0'} />
+      <input type="date" value={date} min={min} max={max} onChange={(e) => setDate(e.target.value)} className={fld + ' flex-1 min-w-0'} />
       <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={fld + ' w-28 shrink-0'} />
     </div>
   );
