@@ -51,10 +51,26 @@ export default function JulieDock() {
 
   // Scopribilita': l'avviso appare alla PRIMA comparsa della J nella sessione, non al primo drag,
   // cosi' l'utente sa subito che la puo' spostare e buttare fuori. Una sola volta per sessione.
+  // Decide se mostrare: una volta per sessione.
   useEffect(() => {
     if (!activeHubId || !julieOn) return;
-    try { if (!sessionStorage.getItem(HINT_KEY)) { sessionStorage.setItem(HINT_KEY, '1'); setShowHint(true); const t = setTimeout(() => setShowHint(false), 4600); return () => clearTimeout(t); } } catch {}
+    try {
+      if (!sessionStorage.getItem(HINT_KEY)) {
+        sessionStorage.setItem(HINT_KEY, '1');
+        setShowHint(true);
+      }
+    } catch {}
   }, [activeHubId, julieOn]);
+
+  // Spegne dopo 4,6s. Effetto separato: riparte ogni volta che showHint
+  // diventa vero, da qualunque via. Prima il timer viveva dentro la guardia
+  // "una volta per sessione": al re-mount la guardia era gia' scritta,
+  // il blocco veniva saltato e il timer non ripartiva mai.
+  useEffect(() => {
+    if (!showHint) return;
+    const t = setTimeout(() => setShowHint(false), 4600);
+    return () => clearTimeout(t);
+  }, [showHint]);
 
   // Aprire Julie (anche dal tasto in Gruppo) la fa sempre riapparire: e' il richiamo, senza toccare altri file.
   useEffect(() => { if (julieOpen) setHidden(false); }, [julieOpen]);
