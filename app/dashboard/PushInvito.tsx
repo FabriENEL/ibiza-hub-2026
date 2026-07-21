@@ -77,7 +77,7 @@ export default function PushInvito() {
             className="flex-1 py-2.5 rounded-xl text-[12px] font-black text-slate-300 border border-white/15">Non ora</button>
           <button onClick={attiva} disabled={busy}
             className="flex-1 py-2.5 rounded-xl text-[12px] font-black text-slate-950 disabled:opacity-50"
-            style={{ background: '#A3B585' }}>{busy ? '...' : 'SÃ¬, avvisami'}</button>
+            style={{ background: '#A3B585' }}>{busy ? '...' : 'S\u00EC, avvisami'}</button>
         </div>
       </div>
     </div>

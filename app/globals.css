@@ -58,7 +58,7 @@ body::after {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* ===== EventGarden Ã¢â‚¬â€ Brand Tokens ===== */
+/* ===== EventGarden - Brand Tokens ===== */
 :root {
   --eg-sage: #A3B585;
   --eg-sage-soft: #C4D2AC;
@@ -67,7 +67,7 @@ body::after {
   --eg-anthracite-2: #22262A;
   --eg-payoff: #8A9A72;
 
-  /* accenti categoria Ã¢â‚¬â€ fioritura (desaturati: sono la voce "opaca" del brand) */
+  /* accenti categoria - fioritura (desaturati: sono la voce "opaca" del brand) */
   --eg-cat-viaggio:      #7FA8B0;
   --eg-cat-corporate:    #8892B0;
   --eg-cat-festa:        #D9A441;
@@ -91,7 +91,7 @@ body::after {
   .eg-splash, .eg-splash--exit { animation-duration: .01ms; }
 }
 
-/* ===== EventGarden Splash Ã¢â‚¬â€ scena + moto ===== */
+/* ===== EventGarden Splash - scena + moto ===== */
 .eg-splash-stage {
   position: relative;
   display: grid;
@@ -150,7 +150,7 @@ body::after {
 }
 
 
-/* ===== Elevazione Ã¢â‚¬â€ pelle ramoscello: antracite piatta, un solo token, niente gradiente blu =====
+/* ===== Elevazione - pelle ramoscello: antracite piatta, un solo token, niente gradiente blu =====
    Consolidata: prima eg-card era dichiarata due volte (+ eg-card-n). Ora una sorgente unica.
    Il bordo di default e' un filo bianco tenue; i moduli che passano theme.border lo sovrascrivono. */
 .eg-card,
