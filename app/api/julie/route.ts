@@ -271,7 +271,17 @@ export async function POST(req: NextRequest) {
     const { messages, hubId, cats, ritmo } = await req.json();
     const oggi = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Rome' }).replace(' ', 'T');
     const dh = await dateHub(hubId);
-    const ctxHub = dh ? '\n\nDATE DELL HUB: dal ' + dh.inizio + ' al ' + dh.fine + '. Usi queste date per il programma, se l utente non ne indica altre.' : '';
+    const ctxHub = dh
+      ? (dh.inizio === dh.fine
+          ? '\n\nDATE DELL HUB: l Hub dura un solo giorno, il ' + dh.inizio
+            + '. Per un evento singolo usi SEMPRE questa data senza chiederla:'
+            + ' non ci sono alternative. Chieda al massimo l ora, se manca.'
+            + ' Usi questa data anche per il programma.'
+          : '\n\nDATE DELL HUB: dal ' + dh.inizio + ' al ' + dh.fine
+            + '. Usi queste date per il programma, se l utente non ne indica altre.'
+            + ' Per un evento singolo, se l utente non indica il giorno, glielo chieda'
+            + ' proponendo le date dell Hub.')
+      : '';
     const ctxEventi = await eventiHub(hubId);
     // Le categorie scelte dall'utente sono un VINCOLO: Julie compone solo su quelle.
     // Il ritmo decide QUANDO, le categorie decidono COSA. Due assi indipendenti.
