@@ -164,9 +164,15 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     if (listening) { recRef.current.stop(); setListening(false); }
     else {
       try { setInput(''); recRef.current.start(); setListening(true); }
-      catch {
+      catch (err: any) {
         setListening(false);
-        setMessages((m) => [...m, { role: 'assistant', content: 'Il microfono non e\u2019 disponibile su questo dispositivo. Mi scriva pure: La leggo volentieri.' }]);
+        // start() lancia anche quando il riconoscimento e' gia' attivo: e' un
+        // inciampo momentaneo, non un'assenza. Si tenta di fermarlo e si tace.
+        if (err?.name === 'InvalidStateError') {
+          try { recRef.current.stop(); } catch {}
+          return;
+        }
+        setMessages((m) => [...m, { role: 'assistant', content: 'Non riesco ad accedere al microfono. Mi scriva pure: La leggo volentieri.' }]);
       }
     }
   };

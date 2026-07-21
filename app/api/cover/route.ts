@@ -1,7 +1,12 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { segna } from '../../lib/usage';
 
 const UNSPLASH_URL = 'https://api.unsplash.com/search/photos';
+const GP_URL = 'https://places.googleapis.com/v1/places:searchText';
+// Stessa field mask di /api/consigli: esclude i campi a pagamento (rating, price).
+const GP_FIELDS = 'places.displayName,places.formattedAddress,places.location,places.primaryTypeDisplayName,places.photos';
+const CACHE_GIORNI = 30;
 
 const RATE_MAX = 20;
 const RATE_WINDOW_MS = 60_000;
@@ -40,16 +45,70 @@ return kw && kw.length > 2 ? kw.slice(0, 80) : title;
   } catch { return title; }
 }
 
-export async function POST(req: NextRequest) {
-  const key = process.env.UNSPLASH_ACCESS_KEY;
-  if (!key) return NextResponse.json({ url: null });
+// Client con chiave di servizio per la cache: stessa infrastruttura di /api/consigli.
+function sbAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  try { return createClient(url, key); } catch { return null; }
+}
 
+// Google Places (New) - Text Search: cerca il luogo e ne prende la prima foto.
+async function placePhoto(location: string): Promise<string | null> {
+  const gpKey = process.env.GOOGLE_PLACES_KEY;
+  if (!gpKey) return null;
+  try {
+    const res = await fetch(GP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': gpKey, 'X-Goog-FieldMask': GP_FIELDS },
+      body: JSON.stringify({ textQuery: location, languageCode: 'it', maxResultCount: 1 }),
+    });
+    segna('google_places', 'cover', { meta: { location } });
+    if (!res.ok) return null;
+    const d = await res.json();
+    return d?.places?.[0]?.photos?.[0]?.name ?? null;
+  } catch { return null; }
+}
+
+// Cache PRIMA di ogni chiamata a Google (TTL 30 giorni); scrittura DOPO, solo su
+// risultato buono: una risposta vuota non merita 30 giorni di vita (come /api/consigli).
+async function luogoPhotoConCache(location: string): Promise<string | null> {
+  const sb = sbAdmin();
+  const city = location.toLowerCase();
+  const CAT = 'cover'; // namespace dedicato dentro places_cache, non collide con le categorie Consigli
+  if (sb) {
+    const { data } = await sb.from('places_cache').select('payload, fetched_at').eq('city', city).eq('categoria', CAT).maybeSingle();
+    if (data) {
+      const eta = (Date.now() - new Date((data as any).fetched_at).getTime()) / 86400000;
+      if (eta < CACHE_GIORNI) return (data as any).payload?.photo ?? null;
+    }
+  }
+  const photo = await placePhoto(location);
+  if (sb && photo) {
+    await sb.from('places_cache').upsert({ city, categoria: CAT, payload: { photo }, fetched_at: new Date().toISOString() }, { onConflict: 'city,categoria' });
+  }
+  return photo;
+}
+
+export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local';
   if (rateLimited(ip)) return NextResponse.json({ url: null });
 
   try {
-    const { query } = await req.json();
-    const raw = String(query ?? '').trim().slice(0, 120);
+    const body = await req.json();
+    const raw = String(body?.query ?? '').trim().slice(0, 120);
+    const loc = String(body?.location ?? '').trim().slice(0, 120);
+
+    // LIVELLO 1: foto reale del luogo via Google Places (cache-first). Un luogo vero
+    // merita la sua foto, non un'immagine generica da parole chiave.
+    if (loc) {
+      const photo = await luogoPhotoConCache(loc);
+      if (photo) return NextResponse.json({ url: '/api/foto?n=' + encodeURIComponent(photo), credit: null, creditUrl: null });
+    }
+
+    // LIVELLO 2: Unsplash dalle parole chiave del titolo (comportamento invariato).
+    const key = process.env.UNSPLASH_ACCESS_KEY;
+    if (!key) return NextResponse.json({ url: null });
     if (!raw) return NextResponse.json({ url: null });
     const q = await toEnglishQuery(raw);
 

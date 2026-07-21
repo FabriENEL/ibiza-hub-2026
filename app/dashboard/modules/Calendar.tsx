@@ -199,7 +199,8 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
     let cover_url: string | null = null;
     if (ruleSignature(title.trim()) === '__none__') {
       try {
-        const cr = await fetch('/api/cover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: title.trim() }) });
+        const loc = where.trim();
+        const cr = await fetch('/api/cover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(loc ? { query: title.trim(), location: loc } : { query: title.trim() }) });
         const cd = await cr.json(); cover_url = cd.url ?? null;
       } catch { cover_url = null; }
     }
