@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     // Chi ha generato l'azione: non va notificato a se stesso.
     const autore: string | null = record.created_by ?? record.payer_id ?? null;
 
-    const title = 'J.U.L.I.E.';
+    const title = 'EventGarden';
     let body = '';
 
     if (table === 'expenses') {

@@ -48,7 +48,7 @@ export async function GET() {
       'Manca un\u2019ora a "' + ev.title + '"' + dove + '. Tutto pronto.',
     ]);
 
-    const payload = JSON.stringify({ title: 'J.U.L.I.E.', body: corpo, tag: 'promemoria-' + ev.id });
+    const payload = JSON.stringify({ title: 'EventGarden', body: corpo, tag: 'promemoria-' + ev.id });
 
     for (const s of subs) {
       try {
