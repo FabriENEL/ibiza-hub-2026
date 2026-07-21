@@ -27,6 +27,14 @@ export default function JulieDock() {
   const [hidden, setHidden] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [hintMontato, setHintMontato] = useState(false);
+  // Tiene il nodo in vita per la durata della dissolvenza in uscita:
+  // senza questo, showHint=false lo rimuove all'istante e l'uscita non si vede.
+  useEffect(() => {
+    if (showHint) { setHintMontato(true); return; }
+    const t = setTimeout(() => setHintMontato(false), 900);
+    return () => clearTimeout(t);
+  }, [showHint]);
 
   // Sessione di drag: puntatore iniziale + origine della J + se ha superato la soglia di tap.
   const drag = useRef<{ px: number; py: number; ox: number; oy: number; moved: boolean } | null>(null);
@@ -144,9 +152,9 @@ export default function JulieDock() {
         </button>
       )}
 
-      {showHint && !julieOpen && !hidden && (
+      {hintMontato && !julieOpen && !hidden && (
         <div role="status"
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 max-w-[86vw] px-3.5 py-2 rounded-xl text-[12px] leading-snug text-center animate-[eg-fade-in_.25s_ease]"
+          className={'fixed bottom-6 left-1/2 -translate-x-1/2 max-w-[86vw] px-3.5 py-2 rounded-xl text-[12px] leading-snug text-center transition-opacity duration-[900ms] ease-out ' + (showHint ? 'animate-[eg-fade-in_.25s_ease] opacity-90' : 'opacity-0')}
           style={{ zIndex: 91, background: '#262b2e', color: '#e9e7e1', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 6px 20px -8px rgba(0,0,0,0.6)' }}>
           Trascina la J per spostarla &middot; buttala fuori per nascondere &middot; la richiami da <b>{groupLabel}</b>
         </div>
