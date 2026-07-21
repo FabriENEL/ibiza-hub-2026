@@ -24,7 +24,7 @@ export default function LoginPage() {
     // Accesso su invito durante il test: serve il codice fornito dall'organizzatore.
     // Fisso nel codice: nessun pannello da gestire, si detta a voce. Da rendere dinamico dopo il test.
     if (invito.trim().toUpperCase() !== '18-S74RK') {
-      setErr('Codice invito non valido. Lo chieda all organizzatore.');
+      setErr('Codice invito non valido. Lo chieda all\u2019organizzatore.');
       return;
     }
     setBusy(true); setErr('');
@@ -100,7 +100,7 @@ export default function LoginPage() {
 
         <button onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setErr(''); }}
           className="text-slate-400 text-xs text-center">
-          {mode === 'signup' ? 'Ho gia un account - Accedi' : 'Nuovo? Crea un account'}
+          {mode === 'signup' ? 'Ho gi\u00E0 un account - Accedi' : 'Nuovo? Crea un account'}
         </button>
 
         {err && <p className="text-red-400 text-sm text-center">{err}</p>}

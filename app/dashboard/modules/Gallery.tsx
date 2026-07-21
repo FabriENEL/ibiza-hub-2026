@@ -47,7 +47,7 @@ export default function Gallery({ hubId, theme, archived, isOwner }: { hubId: st
       const blob = await res.blob();
       const objUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = objUrl; a.download = 'junction-' + m.id + (m.type === 'video' ? '.mp4' : '.jpg');
+      a.href = objUrl; a.download = 'eventgarden-' + m.id + (m.type === 'video' ? '.mp4' : '.jpg');
       document.body.appendChild(a); a.click(); a.remove();
       window.URL.revokeObjectURL(objUrl);
     } catch { alert('Download non riuscito.'); }
@@ -57,8 +57,8 @@ export default function Gallery({ hubId, theme, archived, isOwner }: { hubId: st
   const [deleting, setDeleting] = useState(false);
   const handleDelete = async (m: Media) => {
     // Solo chi l'ha caricata (o l'organizzatore) puo' cancellare. Doppia difesa: qui e nelle RLS.
-    if (m.user_id !== userId && !isOwner) { alert('Puo eliminare solo le foto che ha caricato Lei.'); return; }
-    if (!confirm('Eliminare questo ricordo? L azione non si annulla.')) return;
+    if (m.user_id !== userId && !isOwner) { alert('Pu\u00F2 eliminare solo le foto che ha caricato Lei.'); return; }
+    if (!confirm('Eliminare questo ricordo? L\u2019azione non si annulla.')) return;
     setDeleting(true);
     // Dall'URL pubblico ricavo il percorso dentro il bucket 'gallery' per cancellare anche il file.
     try {

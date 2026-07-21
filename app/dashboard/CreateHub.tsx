@@ -37,7 +37,7 @@ export default function CreateHub({ onClose }: { onClose: () => void }) {
   const [err, setErr] = useState('');
   const handleCreate = async () => {
     if (!name.trim() || !location.trim() || busy) return;
-    if (endDate < startDate) { setErr('La data di fine non puo precedere quella di inizio.'); return; }
+    if (endDate < startDate) { setErr('La data di fine non pu\u00F2 precedere quella di inizio.'); return; }
     setBusy(true); setErr('');
     // Verifica che il luogo sia riconoscibile (geocoding gratuito, nessuna chiave).
     let geoOk = false;
@@ -46,7 +46,7 @@ export default function CreateHub({ onClose }: { onClose: () => void }) {
       const gd = await g.json();
       geoOk = !!gd?.results?.[0];
     } catch { geoOk = false; }
-    if (!geoOk) { setErr('Non ho trovato questo luogo. Provi col nome della citta (es. Rimini).'); setBusy(false); return; }
+    if (!geoOk) { setErr('Non ho trovato questo luogo. Provi col nome della citt\u00E0 (es. Rimini).'); setBusy(false); return; }
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { setErr('Sessione scaduta. Rientra.'); setBusy(false); return; }
     const res = await fetch('/api/hubs', {
@@ -64,7 +64,7 @@ export default function CreateHub({ onClose }: { onClose: () => void }) {
     logEvent('hub_created', { category }, out.hub_id);
     setActiveHubId(out.hub_id);
   };
-  const cats = [['travel','Viaggi'],['party','Feste'],['social','Social'],['corporate','Corporate']];
+  const cats = [['travel','Viaggio'],['party','Festa'],['social','Ritrovo'],['corporate','Lavoro']];
   const fld = 'w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white outline-none';
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center p-6 pt-12">
@@ -72,7 +72,7 @@ export default function CreateHub({ onClose }: { onClose: () => void }) {
         <button onClick={onClose} className="text-slate-400 hover:text-white text-sm">Torna</button>
         <h1 className="text-2xl font-black text-white uppercase tracking-widest [font-family:var(--font-display)]">Nuovo Hub</h1>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome evento" className={fld} />
-        <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Luogo (citta, es. Rimini)" className={fld} />
+        <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder={'Citt\u00E0'} className={fld} />
         <div className="grid gap-2">
           {cats.map(([id, label]) => (
             <button key={id} onClick={() => { setCategory(id); setConsigliCats(new Set(PER_TIPO[id] ?? [])); }}

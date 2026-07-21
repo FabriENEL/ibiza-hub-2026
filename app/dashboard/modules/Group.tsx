@@ -25,6 +25,11 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [stats, setStats] = useState({ comments: 0, votesGiven: 0, votesReceived: 0 });
   const [locBusy, setLocBusy] = useState(false);
+  const [copiato, setCopiato] = useState(false);
+  const copiaCodice = () => {
+    if (!passcode || !navigator.clipboard?.writeText) return;
+    navigator.clipboard.writeText(passcode).then(() => { setCopiato(true); setTimeout(() => setCopiato(false), 2000); }).catch(() => {});
+  };
 
   const load = async () => {
     const { data: mem } = await supabase.from('hub_members').select('user_id, role, profiles ( username, avatar_url )').eq('hub_id', hubId);
@@ -182,7 +187,8 @@ export default function Group({ hubId, theme, isOwner, archived, votesEnabled, w
       {isOwner && passcode && !archived && (
         <div className={'eg-card border ' + theme.border + ' p-4 ' + r}>
           <p className="text-[10px] uppercase text-slate-400 font-black mb-2">Codice invito</p>
-          <div className="bg-slate-950 rounded-xl p-4 text-center border border-dashed border-white/15"><span className={'text-2xl font-black tracking-[0.3em] ' + theme.text}>{passcode}</span></div>
+          <div onClick={copiaCodice} className="bg-slate-950 rounded-xl p-4 text-center border border-dashed border-white/15 cursor-pointer select-none active:scale-[0.99] transition-transform"><span className={'text-2xl font-black tracking-[0.3em] ' + theme.text}>{passcode}</span></div>
+          {copiato && <p className="text-center text-[10px] mt-2 font-black uppercase tracking-wider" style={{ color: '#A3B585' }}>Copiato</p>}
         </div>
       )}
 

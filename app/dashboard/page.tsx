@@ -24,6 +24,7 @@ const VISUAL: Record<string, { image: string; icon: string }> = {
   corporate: { image: '/events/groupdinner.webp', icon: '\u{1F4BC}' },
 };
 
+const CAT_LABEL: Record<string, string> = { travel: 'Viaggio', party: 'Festa', social: 'Ritrovo', corporate: 'Lavoro' };
 const IconDots = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" className="w-[16px] h-[16px]">
     <circle cx="12" cy="5" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="12" cy="19" r="1.7" />
@@ -98,7 +99,7 @@ function Lobby() {
           <div aria-hidden className={'absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ' + th.gradient} />
           <div className="relative h-full flex flex-col justify-center pl-6 pr-14">
             <span className={'font-black text-white drop-shadow [font-family:var(--font-display)] ' + (spenta ? 'text-base' : 'text-xl')}>{hub.name}</span>
-            <span className={'text-[10px] uppercase font-black tracking-widest ' + th.text}>{hub.category}{archived ? ' \u00B7 Ricordo' : ''}</span>
+            <span className={'text-[10px] uppercase font-black tracking-widest ' + th.text}>{CAT_LABEL[hub.category] ?? hub.category}{archived ? ' \u00B7 Ricordo' : ''}</span>
             {!spenta && (() => { const q = quando(hub.start_date, hub.end_date); return q ? (
               <span className={'mt-1 text-[10px] font-bold tracking-wide ' + (q.vivo ? 'text-[#A3B585]' : 'text-white/45')}>{q.testo}</span>
             ) : null; })()}
@@ -138,7 +139,7 @@ function Lobby() {
               <span className="text-lg">{String.fromCodePoint(0x1F331)}</span><span>Il mio giardino</span>
             </button>
           </div>
-          <p className="text-slate-400 text-sm mt-2">Ciao {username ?? ''}. Scegli un evento o entrane in uno.</p>
+          <p className="text-slate-400 text-sm mt-2">Salve {username ?? ''}. Scelga un Hub, o ne crei uno nuovo.</p>
         </div>
 
         {memberships.length === 0 ? (

@@ -345,7 +345,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
 
   const AudiencePicker = ({ selected, onToggle }: { selected: Set<string>; onToggle: (uid: string) => void }) => (
     <div className="bg-slate-950 border border-slate-700 rounded-lg p-2 space-y-1 max-h-40 overflow-y-auto">
-      <p className="text-[9px] uppercase text-slate-500 font-black">Chi puo' vedere in anticipo (oltre a te)</p>
+      <p className="text-[9px] uppercase text-slate-500 font-black">{'Chi pu\u00F2 vedere in anticipo (oltre a te)'}</p>
       {members.filter((m) => m.user_id !== userId).map((m) => (
         <label key={m.user_id} className="flex items-center gap-2 text-xs text-white cursor-pointer">
           <input type="checkbox" checked={selected.has(m.user_id)} onChange={() => onToggle(m.user_id)} />
@@ -392,7 +392,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
           {when && fuoriDate(when) && (
             <p className="text-[11px] font-bold px-1 -mt-1" style={{ color: '#e0866f' }}>{fuoriDate(when)}</p>
           )}
-          <input value={where} onChange={(e) => setWhere(e.target.value)} placeholder="Citta, via, civico, nome del posto" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white outline-none" />
+          <input value={where} onChange={(e) => setWhere(e.target.value)} placeholder="Dove?" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-white outline-none" />
           <label className="flex items-center gap-2 text-xs text-white cursor-pointer">
             <input type="checkbox" checked={surprise} onChange={(e) => setSurprise(e.target.checked)} />
             <span className="font-black uppercase tracking-wide">Sorpresa</span>
@@ -415,7 +415,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
         <div className="flex flex-col items-center text-center px-8 py-16 gap-4">
           <img src="/julie-avatar.png" alt="" className="w-20 h-20 rounded-full object-cover" style={{ border: '2px solid #22C55E' }} />
           <p className="text-slate-300 text-sm leading-snug max-w-[15rem]">
-            {canCreate ? 'Questa giornata e ancora bianca. Vuole che la organizzi io?' : 'Nessun evento in questa giornata.'}
+            {canCreate ? 'Questa giornata \u00E8 tutta da scrivere. Vuole che le proponga qualcosa?' : 'Nessun evento in questa giornata.'}
           </p>
           {canCreate && (
             <button onClick={openJulie}

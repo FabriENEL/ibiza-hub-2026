@@ -185,7 +185,7 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
       </div>
 
       {selected && (() => {
-        const CAT: Record<string, string> = { travel: 'Viaggio', party: 'Festa', social: 'Sociale', corporate: 'Corporate' };
+        const CAT: Record<string, string> = { travel: 'Viaggio', party: 'Festa', social: 'Ritrovo', corporate: 'Lavoro' };
         const col = FLOWER[selected.category] ?? '#f59e0b';
         return (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-6" onClick={() => setSelected(null)}>
