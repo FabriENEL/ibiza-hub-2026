@@ -8,7 +8,7 @@ import DateTimePicker from '../lib/DateTimePicker';
 import type { Words } from '../lib/blueprints';
 
 type Theme = { text: string; gradient: string; border: string };
-type EventRow = { id: string; title: string | null; scheduled_at: string; location: string | null; created_by: string | null; reveal_at: string | null; revealed_override: boolean | null; revealed: boolean; cover_url: string | null };
+type EventRow = { id: string; title: string | null; scheduled_at: string; location: string | null; created_by: string | null; reveal_at: string | null; revealed_override: boolean | null; revealed: boolean; cover_url: string | null; categoria: string | null };
 type Comment = { id: string; event_id: string; user_id: string; content: string; author: string };
 type Member = { user_id: string; username: string };
 
@@ -36,6 +36,31 @@ const IconInfo = () => (
     <path d="M12 11v5M12 7.6v.6" />
   </svg>
 );
+
+// Tipo dedotto dal titolo per gli eventi manuali; per quelli di Julie arriva gia' salvato.
+const CAT_DA_TITOLO: [RegExp, string][] = [
+  [/colazione|brunch|caffe/i, 'colazione'],
+  [/aperitivo|drink|cocktail|bar\b/i, 'aperitivo'],
+  [/cena|pranzo|ristorante|osteria|trattoria|pizzeria/i, 'food'],
+  [/spiaggia|mare|lido|bagno/i, 'beach'],
+  [/museo|mostra|chiesa|duomo|castello|teatro/i, 'cultura'],
+  [/parco|passeggiata|sentiero|escursione|giardino/i, 'natura'],
+  [/discoteca|serata|club|dj|ballare/i, 'night'],
+];
+const catDaTitolo = (t: string): string | null => {
+  for (const [re, c] of CAT_DA_TITOLO) if (re.test(t)) return c;
+  return null;
+};
+// Emoji e nome breve per ognuna delle sette categorie: una fonte sola per la scheda.
+const CAT_INFO: Record<string, { emoji: string; nome: string }> = {
+  colazione: { emoji: '🥐', nome: 'Colazione' },
+  cultura:   { emoji: '🎭', nome: 'Cultura' },
+  natura:    { emoji: '🌳', nome: 'Natura' },
+  beach:     { emoji: '🌊', nome: 'Mare' },
+  food:      { emoji: '🍝', nome: 'Tavola' },
+  aperitivo: { emoji: '🍸', nome: 'Aperitivo' },
+  night:     { emoji: '🌙', nome: 'Serata' },
+};
 
 export default function Calendar({ hubId, theme, isOwner, archived, words, rounded }: { hubId: string; theme: Theme; isOwner: boolean; archived: boolean; words: Words; rounded: string }) {
   // NB: non si tocca il contesto da qui. Aggiornarlo rimonta la Shell, Calendar rinasce e perde lo stato del flip.
@@ -119,7 +144,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
   const load = async (cercaNuovo = false) => {
     setLoading(true);
     const noti = new Set(idsRef.current);
-    const { data: ev } = await supabase.from('events_view').select('id, title, scheduled_at, location, created_by, reveal_at, revealed_override, revealed, cover_url').eq('hub_id', hubId).order('scheduled_at', { ascending: true });
+    const { data: ev } = await supabase.from('events_view').select('id, title, scheduled_at, location, created_by, reveal_at, revealed_override, revealed, cover_url, categoria').eq('hub_id', hubId).order('scheduled_at', { ascending: true });
     const { data: cm } = await supabase.from('event_comments').select('id, event_id, user_id, content, profiles ( username )').eq('hub_id', hubId).order('created_at', { ascending: true });
     const { data: mem } = await supabase.from('hub_members').select('user_id, role, profiles ( username )').eq('hub_id', hubId);
     const evs = ev ?? [];
@@ -206,7 +231,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
       } catch { cover_url = null; }
     }
     const { error } = await supabase.from('events').insert({
-      hub_id: hubId, title: title.trim(), scheduled_at: when, location: where.trim() || null, created_by: userId, cover_url,
+      hub_id: hubId, title: title.trim(), scheduled_at: when, location: where.trim() || null, created_by: userId, cover_url, categoria: catDaTitolo(title.trim()),
       reveal_at: surprise ? (revealAt || null) : null,
       reveal_visible_to: surprise ? Array.from(audience) : [],
       revealed_override: null,
@@ -453,6 +478,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                     <div className="flex items-baseline gap-2">
                       <span className="text-[10px] uppercase tracking-widest text-slate-500 font-black">Inizia tra</span>
                       <span className="text-xl font-black" style={{ color: '#A3B585' }}>{evCd}</span>
+                      {ev.categoria && CAT_INFO[ev.categoria] && <span className="text-[11px] text-slate-500 font-bold ml-auto">{CAT_INFO[ev.categoria].emoji + ' ' + CAT_INFO[ev.categoria].nome}</span>}
                     </div>
                   )}
                   {ev.revealed && !evCd && <p className="text-[10px] uppercase tracking-widest text-slate-500 font-black">Evento iniziato</p>}
@@ -586,6 +612,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
                                 </button>
                               )}
                             </span>
+                            {ev.categoria && CAT_INFO[ev.categoria] && <span className="ml-auto text-sm" aria-label={CAT_INFO[ev.categoria].nome} title={CAT_INFO[ev.categoria].nome}>{CAT_INFO[ev.categoria].emoji}</span>}
                           </div>
                         </div>
                       </div>

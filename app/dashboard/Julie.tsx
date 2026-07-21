@@ -267,6 +267,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
         location: v.luogo ? (v.luogo.address || v.luogo.name) : null,
         description: v.luogo ? (v.titolo + (v.luogo.address ? ' \u00B7 ' + v.luogo.address : '')) : null,
         created_by: userId,
+        categoria: v.categoria ?? null,
         reveal_visible_to: [],
         revealed_override: null,
       };
