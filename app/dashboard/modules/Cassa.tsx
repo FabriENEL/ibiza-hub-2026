@@ -189,7 +189,7 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
       {/* IL VERDETTO. L'unica domanda con cui si apre la Cassa: sono in pari? */}
       <div className="p-6 rounded-2xl text-center" style={card}>
         <p className="text-[10px] uppercase tracking-[0.18em] mb-2" style={{ color: P.lo }}>Il tuo saldo</p>
-        <p className="text-[42px] leading-none font-medium" style={{ color: inCredit ? P.sage : inDebt ? P.clay : P.hi }}>
+        <p className="text-[42px] leading-[1.15] font-medium" style={{ color: inCredit ? P.sage : inDebt ? P.clay : P.hi }}>
           {inCredit ? '+' : ''}{eur(myBalance)} &euro;
         </p>
         <p className="text-[12px] mt-2.5" style={{ color: P.lo }}>
