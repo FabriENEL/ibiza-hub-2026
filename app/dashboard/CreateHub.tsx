@@ -3,10 +3,32 @@ import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { logEvent } from './lib/logEvent';
 import { useHub } from './lib/HubContext';
+
+// Categorie Consigli offerte alla creazione: stesse id del motore /api/consigli.
+const CONSIGLI_OPZIONI: [string, string][] = [
+  ['colazione', 'Colazione'],
+  ['cultura', 'Arte e cultura'],
+  ['natura', 'Natura'],
+  ['beach', 'Mare e relax'],
+  ['food', 'Buona tavola'],
+  ['aperitivo', 'Aperitivo'],
+  ['night', 'Nightlife'],
+];
+// Preselezione per tipo di evento: rispecchia PER_TIPO di Consigli.tsx.
+const PER_TIPO: Record<string, string[]> = {
+  travel:    ['colazione', 'food', 'aperitivo', 'night', 'beach', 'cultura'],
+  party:     ['aperitivo', 'night', 'food'],
+  social:    ['food', 'aperitivo', 'colazione'],
+  corporate: ['food', 'cultura'],
+};
+const RITMI: [string, string][] = [['mattiniera', 'Mattiniera'], ['equilibrata', 'Equilibrata'], ['notturna', 'Notturna']];
+
 export default function CreateHub({ onClose }: { onClose: () => void }) {
   const { refresh, setActiveHubId } = useHub();
   const [name, setName] = useState('');
   const [category, setCategory] = useState('travel');
+  const [consigliCats, setConsigliCats] = useState<Set<string>>(new Set(PER_TIPO['travel']));
+  const [ritmo, setRitmo] = useState('equilibrata');
   const [location, setLocation] = useState('');
   const today = new Date().toISOString().split('T')[0];
   const [startDate, setStartDate] = useState(today);
@@ -33,6 +55,7 @@ export default function CreateHub({ onClose }: { onClose: () => void }) {
       body: JSON.stringify({
         name: name.trim(), category, location: location.trim(), start_date: startDate, end_date: endDate,
         max_participants: 5, passcode: Math.random().toString(36).slice(2, 8), creator_name: name.trim(),
+        consigli_cats: Array.from(consigliCats), ritmo,
       }),
     });
     const out = await res.json();
@@ -52,11 +75,45 @@ export default function CreateHub({ onClose }: { onClose: () => void }) {
         <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Luogo (citta, es. Rimini)" className={fld} />
         <div className="grid gap-2">
           {cats.map(([id, label]) => (
-            <button key={id} onClick={() => setCategory(id)}
+            <button key={id} onClick={() => { setCategory(id); setConsigliCats(new Set(PER_TIPO[id] ?? [])); }}
               className={'text-left px-4 py-3 rounded-xl border transition-colors ' + (category === id ? 'bg-white/10 border-white text-white' : 'bg-slate-900 border-white/5 text-slate-300')}>
               {label}
             </button>
           ))}
+        </div>
+        <div className="space-y-2">
+          <label className="text-[10px] uppercase text-slate-400 font-black block">Cosa Le suggerisco</label>
+          <div className="grid grid-cols-2 gap-2">
+            {CONSIGLI_OPZIONI.map(([id, label]) => {
+              const on = consigliCats.has(id);
+              return (
+                <button key={id} type="button"
+                  onClick={() => setConsigliCats((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; })}
+                  className={'flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-colors ' + (on ? 'bg-white/10 border-white text-white' : 'bg-slate-900 border-white/5 text-slate-400')}>
+                  <span className={'w-[18px] h-[18px] rounded-md border flex items-center justify-center shrink-0 ' + (on ? 'border-transparent' : 'border-white/25')}
+                    style={on ? { background: '#A3B585' } : undefined}>
+                    {on && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1C1F22" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m5 12 5 5L20 7" />
+                      </svg>
+                    )}
+                  </span>
+                  <span className="text-[12px] font-bold">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label className="text-[10px] uppercase text-slate-400 font-black block">Il ritmo delle giornate</label>
+          <div className="grid grid-cols-3 gap-2">
+            {RITMI.map(([id, label]) => (
+              <button key={id} type="button" onClick={() => setRitmo(id)}
+                className={'text-[12px] font-bold py-2 rounded-xl border transition-colors ' + (ritmo === id ? 'bg-white/10 border-white text-white' : 'bg-slate-900 border-white/5 text-slate-400')}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>

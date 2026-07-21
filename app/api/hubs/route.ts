@@ -56,5 +56,16 @@ export async function POST(req: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // 5) Preferenze Consigli: si scrivono DOPO la nascita atomica (la RPC non le riceve).
+  //    Se l'update fallisce, l'Hub resta valido e Consigli ripiega sui default:
+  //    la creazione non deve fallire per una preferenza mancante.
+  const consigli_cats = Array.isArray(b.consigli_cats) ? b.consigli_cats : null;
+  const ritmo = typeof b.ritmo === 'string' ? b.ritmo : null;
+  if (consigli_cats || ritmo) {
+    const { error: prefErr } = await admin.from('hubs').update({ consigli_cats, ritmo }).eq('id', data);
+    if (prefErr) console.error('Preferenze Hub non salvate:', prefErr.message);
+  }
+
   return NextResponse.json({ hub_id: data }, { status: 201 });
 }
