@@ -306,7 +306,7 @@ export async function POST(req: NextRequest) {
         model: MODEL,
         messages: [{ role: 'system', content: componendo ? (SYSTEM + programmaPrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi) : (SYSTEM + azionePrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi) }, ...(messages ?? [])],
         temperature: 0.6,
-        max_tokens: 1200,
+        max_tokens: 2500,
         reasoning_effort: 'low',
       }),
     });
@@ -322,6 +322,9 @@ export async function POST(req: NextRequest) {
     const data = await res.json();
     segna('groq', 'chat', { token: data?.usage?.total_tokens ?? 0, meta: { in: data?.usage?.prompt_tokens, out: data?.usage?.completion_tokens } });
     const reply = data.choices?.[0]?.message?.content ?? 'Mi scusi, non ho compreso.';
+    if (data.choices?.[0]?.finish_reason === 'length') {
+      console.error('julie: risposta troncata', { out: data.usage?.completion_tokens, coda: reply.slice(-80) });
+    }
 
     // cerca_luoghi: la ricerca la fa il server, in un solo giro. Il client riceve testo + luoghi pronti.
     const az = jsonDi(reply);
