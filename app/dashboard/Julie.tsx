@@ -41,6 +41,11 @@ function Scrive({ testo, onBocca, onFine }: { testo: string; onBocca: (b: boolea
   return <>{parole.slice(0, n).join('')}</>;
 }
 
+// Il modello a volte formatta in markdown: gli asterischi non vanno mai
+// mostrati. Si tolgono qui, alla resa, cosi' vale per ogni risposta.
+const pulisci = (t: string): string =>
+  t.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').replace(/`/g, '');
+
 export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: string }) {
   const { userId, signalPostAction, julieSeed, clearJulieSeed } = useHub();
   const [messages, setMessages] = useState<Msg[]>([
@@ -142,7 +147,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     if (!ttsOk || !text) return;
     try {
       // Il marchio resta puntato a schermo; alla voce diciamo il nome come parola.
-      const spoken = text.replace(/J\.U\.L\.I\.E\.?/gi, 'Julie');
+      const spoken = pulisci(text).replace(/J\.U\.L\.I\.E\.?/gi, 'Julie');
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(spoken);
       u.lang = 'it-IT';
@@ -376,8 +381,8 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
                 (m.role === 'user' ? 'bg-white text-slate-950 rounded-br-sm' : 'text-emerald-50 rounded-bl-sm animate-[eg-fade-in_0.22s_ease-out]')}
                 style={m.role === 'assistant' ? { background: 'rgba(163,181,133,0.12)', border: '1px solid rgba(163,181,133,0.2)' } : {}}>
                 {(m.role === 'assistant' && i === messages.length - 1 && !m.luoghi && !m.programma && !m.chiediCat && typeof m.content === 'string')
-                  ? <Scrive testo={m.content} onBocca={setParla} onFine={() => setParla(false)} />
-                  : m.content}
+                  ? <Scrive testo={pulisci(m.content)} onBocca={setParla} onFine={() => setParla(false)} />
+                  : pulisci(m.content)}
               </div>
             </div>
           ))}
