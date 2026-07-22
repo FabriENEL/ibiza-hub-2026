@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { logEvent } from '@/app/dashboard/lib/logEvent';
+import { AppIconMark } from '@/components/brand/AppIconMark';
 
 // PIN 4 cifre -> password Supabase (>=6 char): suffisso fisso non segreto, solo per soglia lunghezza.
 const pinToPassword = (pin: string) => pin + '#Jq';
@@ -78,6 +79,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
       <div className="w-full max-w-sm flex flex-col gap-4">
+        <AppIconMark withBackground={false} className="w-[88px] mx-auto" />
         <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500 text-center">EventGarden</p>
         <p className="text-slate-500 text-xs text-center -mt-2">La concierge che organizza i vostri eventi di gruppo</p>
         <h1 className="text-white text-2xl font-black text-center [font-family:var(--font-display)]">{mode === 'signup' ? 'Crea il suo accesso' : 'Bentornato'}</h1>
