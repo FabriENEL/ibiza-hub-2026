@@ -9,6 +9,7 @@ import JulieDock from './JulieDock';
 import PushInvito from './PushInvito';
 import Garden from './Garden';
 import { logEvent } from './lib/logEvent';
+import { AppIconMark } from '@/components/brand/AppIconMark';
 
 const THEME: Record<string, { text: string; gradient: string; border: string }> = {
   travel:    { text: 'text-[#7FA8B0]', gradient: 'from-[#7FA8B0] to-[#5F8189]', border: 'border-[#7FA8B04D]' },
@@ -131,6 +132,7 @@ function Lobby() {
     <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center p-6 pt-14" onClick={() => setMenuFor(null)}>
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
+          <AppIconMark withBackground={false} withRing={false} className="w-[88px] mx-auto" />
           <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500 mb-2">EventGarden</p>
           <div className="flex items-center justify-center gap-3">
             <h1 className="text-3xl font-black text-white">I tuoi Hub</h1>
