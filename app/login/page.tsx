@@ -79,7 +79,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
       <div className="w-full max-w-sm flex flex-col gap-4">
-        <AppIconMark withBackground={false} className="w-[88px] mx-auto" />
+        <AppIconMark withBackground={false} withRing={false} className="w-[88px] mx-auto" />
         <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500 text-center">EventGarden</p>
         <p className="text-slate-500 text-xs text-center -mt-2">La concierge che organizza i vostri eventi di gruppo</p>
         <h1 className="text-white text-2xl font-black text-center [font-family:var(--font-display)]">{mode === 'signup' ? 'Crea il suo accesso' : 'Bentornato'}</h1>
