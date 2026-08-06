@@ -47,32 +47,68 @@ export async function POST(request: Request) {
     const payload = await request.json();
     const { table, record, type } = payload;
 
-    if (type !== 'INSERT' || !record?.hub_id) {
+    // Dal corpo ci si fida SOLO di questi: il tipo, la tabella, e l'id della riga.
+    // Tutto il resto (destinatari, autore, testo) viene riletto dal database qui sotto:
+    // un POST costruito a mano non puo' piu' dettare a chi arriva la notifica ne' cosa dice.
+    const id: string | null = record?.id ?? null;
+    if (type !== 'INSERT' || !id) {
       return NextResponse.json({ success: false, message: 'Evento non gestito.' });
     }
 
+    // Rilettura autorevole della riga, col client di servizio. Solo le colonne che servono.
+    let riga: any = null;
+    if (table === 'expenses') {
+      const { data } = await supabase
+        .from('expenses')
+        .select('id, hub_id, payer_id, amount, description, created_at')
+        .eq('id', id)
+        .single();
+      riga = data;
+    } else if (table === 'events') {
+      const { data } = await supabase
+        .from('events')
+        .select('id, hub_id, created_by, title, created_at')
+        .eq('id', id)
+        .single();
+      riga = data;
+    } else {
+      return NextResponse.json({ success: false, message: 'Tabella non gestita.' });
+    }
+
+    // La riga non esiste (id inventato, o gia' cancellata): non si invia nulla.
+    if (!riga?.hub_id) {
+      return NextResponse.json({ success: false, message: 'Riga non trovata.' });
+    }
+
+    // Solo inserimenti freschi: un webhook vero arriva subito. Oltre i 5 minuti si esce,
+    // cosi' non si possono rigiocare righe vecchie a ripetizione. created_at e' un istante
+    // assoluto reale (non un orario da parete): il confronto con adesso e' corretto.
+    const eta = Date.now() - new Date(riga.created_at).getTime();
+    if (eta > 5 * 60 * 1000) {
+      return NextResponse.json({ success: false, message: 'Riga non recente.' });
+    }
+
+    // Da qui in poi TUTTO viene da `riga`, mai da `record`.
     // Chi ha generato l'azione: non va notificato a se stesso.
-    const autore: string | null = record.created_by ?? record.payer_id ?? null;
+    const autore: string | null = riga.created_by ?? riga.payer_id ?? null;
 
     const title = 'EventGarden';
     let body = '';
 
     if (table === 'expenses') {
-      const chi = await nomeDi(record.payer_id);
-      const importo = Number(record.amount ?? 0).toFixed(2).replace('.', ',');
-      body = voceSpesa(chi, importo, record.description ?? '');
-    } else if (table === 'events') {
-      const chi = await nomeDi(record.created_by);
-      body = voceEvento(chi, record.title ?? 'un nuovo appuntamento');
+      const chi = await nomeDi(riga.payer_id);
+      const importo = Number(riga.amount ?? 0).toFixed(2).replace('.', ',');
+      body = voceSpesa(chi, importo, riga.description ?? '');
     } else {
-      return NextResponse.json({ success: false, message: 'Tabella non gestita.' });
+      const chi = await nomeDi(riga.created_by);
+      body = voceEvento(chi, riga.title ?? 'un nuovo appuntamento');
     }
 
     // Destinatari: SOLO i membri di quell'Hub, escluso l'autore. Evita fughe tra Hub diversi.
     const { data: membri } = await supabase
       .from('hub_members')
       .select('user_id')
-      .eq('hub_id', record.hub_id);
+      .eq('hub_id', riga.hub_id);
 
     const destinatari = (membri ?? [])
       .map((m: any) => m.user_id)
