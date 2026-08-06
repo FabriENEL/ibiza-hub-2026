@@ -308,7 +308,7 @@ export async function POST(req: NextRequest) {
       headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
-        messages: [{ role: 'system', content: componendo ? (SYSTEM + programmaPrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi) : (SYSTEM + azionePrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi) }, ...(messages ?? [])],
+        messages: [{ role: 'system', content: componendo ? (SYSTEM + programmaPrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi) : (SYSTEM + azionePrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi) }, ...(messages ?? []).slice(-12)],
         temperature: 0.6,
         max_tokens: componendo ? 2500 : 800,
         reasoning_effort: 'low',
