@@ -51,7 +51,7 @@ function Lobby() {
 
   if (view === 'create') return <CreateHub onClose={() => setView('list')} />;
   if (view === 'join')   return <JoinHub onClose={() => setView('list')} />;
-  if (view === 'garden') return <Garden onClose={() => setView('list')} onOpenHub={(id: string) => setActiveHubId(id)} />;
+  if (view === 'garden') return <Garden onClose={() => setView('list')} onOpenHub={(id: string) => setActiveHubId(id)} onCreateHub={() => setView('create')} />;
 
   if (loading) {
     return (

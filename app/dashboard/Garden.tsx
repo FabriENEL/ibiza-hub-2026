@@ -102,15 +102,18 @@ const FlowerShape = ({ x, y, color, r, seed }: any) => (
   </g>
 );
 // Gemma chiusa: un fuso appuntito, verde salvia, che si gonfia (size) all'avvicinarsi della data.
-const BudShape = ({ x, y, ang, size, gid, op }: any) => {
+// dormant: gemma DORMIENTE (potenziale, non ricordo) -> verde-salvia smorto verso la
+// corteccia, per non confondersi con la gemma vera (verde pieno, opaca, che cresce).
+const BudShape = ({ x, y, ang, size, gid, op, dormant }: any) => {
   const w = size * 0.58;
+  const c0 = dormant ? '#8f9c86' : '#a7c4a0', c1 = dormant ? '#71806a' : '#7ba374', c2 = dormant ? '#535f4d' : '#4f7a4c';
   return (
     <g transform={'translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ') rotate(' + (ang * 180 / Math.PI).toFixed(1) + ')'} opacity={op}>
       <defs><linearGradient id={gid} x1="0.15" y1="0" x2="0.85" y2="1">
-        <stop offset="0%" stopColor="#a7c4a0" /><stop offset="60%" stopColor="#7ba374" /><stop offset="100%" stopColor="#4f7a4c" />
+        <stop offset="0%" stopColor={c0} /><stop offset="60%" stopColor={c1} /><stop offset="100%" stopColor={c2} />
       </linearGradient></defs>
       <path d={'M0 0 Q ' + (size*0.55).toFixed(1) + ' ' + (-w).toFixed(1) + ' ' + size.toFixed(1) + ' 0 Q ' + (size*0.55).toFixed(1) + ' ' + w.toFixed(1) + ' 0 0 Z'} fill={'url(#' + gid + ')'} />
-      <path d={'M ' + (size*0.12).toFixed(1) + ' 0 L ' + (size*0.86).toFixed(1) + ' 0'} stroke="#3f6b40" strokeWidth="0.6" opacity="0.5" />
+      <path d={'M ' + (size*0.12).toFixed(1) + ' 0 L ' + (size*0.86).toFixed(1) + ' 0'} stroke={dormant ? '#4c5647' : '#3f6b40'} strokeWidth="0.6" opacity="0.5" />
     </g>
   );
 };
@@ -356,6 +359,30 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                     fg.sort((a, b) => a.plane - b.plane);   // piani posteriori disegnati per primi
                     return <>{bg}{fg.map((f) => f.el)}</>;
                   })()}
+                  {/* Gemme dormienti: potenziale puro sul tratto terminale. Numero COSTANTE dal seme
+                      dell'identita' (mai dal tempo o dal comportamento: il vuoto non si conta). Toccabili
+                      solo se la creazione e' collegata; altrimenti inerti, senza segno di esserlo. */}
+                  {(() => {
+                    if (!model.clusters.length) return null;
+                    const lastS = model.clusters[model.clusters.length - 1].s;
+                    const nDorm = 2 + (seedOf(userId ?? 'seme') % 2);   // 2 o 3, sempre
+                    const lo = lastS + 26, hi = model.sTot - 6;
+                    const out: any[] = [];
+                    for (let i = 0; i < nDorm; i++) {
+                      const s = nDorm > 1 ? lerp(lo, hi, i / (nDorm - 1)) : (lo + hi) / 2;
+                      if (s <= winLo || s >= winHi) continue;
+                      const P = axisPoint(s, model.baseY), a = axisTangent(s), sd = seedOf((userId ?? '') + 'dorm' + i), side = i % 2 ? 1 : -1;
+                      const ang = a + side * (0.5 + jit(sd, 1) * 0.4), size = 5 + jit(sd, 2) * 1.5;
+                      const bdur = 5.5 + jit(sd, 3) * 2.5, bph = jit(sd, 4) * 4, clickable = !!onCreateHub;
+                      out.push(
+                        <g key={'dorm' + i} onClick={clickable ? onCreateHub : undefined} className={clickable ? 'cursor-pointer' : undefined}
+                           style={{ opacity: 0, animation: 'pop .5s ease-out ' + (1.5 + i * 0.15).toFixed(2) + 's forwards, breathe ' + bdur.toFixed(2) + 's ease-in-out ' + bph.toFixed(2) + 's infinite', transformOrigin: P.x.toFixed(1) + 'px ' + P.y.toFixed(1) + 'px' }}>
+                          <BudShape x={P.x} y={P.y} ang={ang} size={size} gid={'dbud' + i} op={0.5} dormant />
+                        </g>
+                      );
+                    }
+                    return out;
+                  })()}
                 </svg>
               </div>
             </div>
@@ -405,7 +432,7 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
           </div>
         );
       })()}
-      <style>{'@keyframes pop { from { opacity:0; transform: scale(0) } to { opacity:1; transform: scale(1) } } @keyframes float { 0%,100% { transform: translateY(0); opacity: 0.3 } 50% { transform: translateY(-12px); opacity: 0.7 } } @keyframes sway { 0%,100% { transform: rotate(-1.8deg) } 50% { transform: rotate(1.8deg) } } @media (prefers-reduced-motion: reduce) { g, circle, path { animation-iteration-count: 1 !important } }'}</style>
+      <style>{'@keyframes pop { from { opacity:0; transform: scale(0) } to { opacity:1; transform: scale(1) } } @keyframes float { 0%,100% { transform: translateY(0); opacity: 0.3 } 50% { transform: translateY(-12px); opacity: 0.7 } } @keyframes sway { 0%,100% { transform: rotate(-1.8deg) } 50% { transform: rotate(1.8deg) } } @keyframes breathe { 0%,100% { transform: scale(0.94) } 50% { transform: scale(1.05) } } @media (prefers-reduced-motion: reduce) { g, circle, path { animation-iteration-count: 1 !important } }'}</style>
     </div>
   );
 }
