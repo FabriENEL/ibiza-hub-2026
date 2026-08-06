@@ -315,11 +315,21 @@ export async function POST(req: NextRequest) {
       }),
     });
     if (!res.ok) {
-      console.error('Groq error', res.status, await res.text());
+      // Il corpo di una risposta si legge UNA volta sola: lo catturo qui e lo riuso
+      // sia per il log sia per ricavare l'attesa. Leggerlo due volte torna vuoto.
+      const corpo = await res.text();
+      console.error('Groq error', res.status, corpo);
       // 429 = il gruppo mi sta tenendo occupata tutti insieme. Non e' un guasto: e' traffico.
       // Lo dico all'utente in chiaro, cosi' aspetta invece di pensare che io sia rotta.
       if (res.status === 429) {
-        return NextResponse.json({ reply: 'In questo momento sto seguendo diversi membri del gruppo insieme. Mi conceda una quindicina di secondi e torni pure a chiedermelo.' });
+        // Groq dichiara quanto attendere: prima l'intestazione retry-after, poi il testo
+        // dell'errore ("try again in 9.98s"), altrimenti dieci secondi. In ogni caso fra 1 e 20:
+        // un valore assurdo che arrivasse dall'esterno non deve poter congelare l'interfaccia.
+        const hdr = parseFloat(res.headers.get('retry-after') ?? '');
+        const txt = parseFloat((corpo.match(/try again in ([\d.]+)s/i)?.[1]) ?? '');
+        const grezzo = Number.isFinite(hdr) ? hdr : Number.isFinite(txt) ? txt : 10;
+        const riprovaTra = Math.min(20, Math.max(1, Math.ceil(grezzo)));
+        return NextResponse.json({ reply: 'In questo momento sto seguendo diversi membri del gruppo insieme. Mi conceda una quindicina di secondi e torni pure a chiedermelo.', sovraccarico: true, riprovaTra });
       }
       return NextResponse.json({ reply: 'Mi perdoni, sono momentaneamente non disponibile. Riprovi tra qualche istante.' });
     }
