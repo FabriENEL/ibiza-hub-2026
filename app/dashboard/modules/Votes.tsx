@@ -15,7 +15,7 @@ export default function Votes({ hubId, theme, archived, isOwner, voteLabel }: { 
   const [loading, setLoading] = useState(true);
   const [editingLabel, setEditingLabel] = useState(false);
   const [labelDraft, setLabelDraft] = useState(voteLabel);
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('sv-SE');
 
   const load = async () => {
     setLoading(true);
