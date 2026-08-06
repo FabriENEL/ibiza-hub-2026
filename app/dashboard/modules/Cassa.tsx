@@ -113,7 +113,7 @@ export default function Cassa({ hubId, theme, archived }: { hubId: string; theme
     if (highlightId && highlightRef.current) highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [highlightId]);
 
-  const fmtDate = (iso: string) => { const d = new Date(iso); const p = (n: number) => String(n).padStart(2, '0'); const mesi = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic']; return p(d.getUTCDate()) + ' ' + mesi[d.getUTCMonth()]; };
+  const fmtDate = (iso: string) => { const d = new Date(iso); const p = (n: number) => String(n).padStart(2, '0'); const mesi = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic']; return p(d.getDate()) + ' ' + mesi[d.getMonth()]; };
   const eur = (n: number) => n.toFixed(2).replace('.', ',');
 
   const handleAdd = async () => {
