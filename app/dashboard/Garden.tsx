@@ -5,8 +5,10 @@ import { useHub } from './lib/HubContext';
 
 type LeafData = { key: string; hubId: string | null; name: string; category: string; count: number; duration: number; isOwner: boolean; mature: boolean };
 
+// Palette dentro il marchio (antracite, salvia, oro): quattro tinte terrose ben
+// distinguibili, senza il neon di prima. L'oro e' la firma: 14 Hub su 17 sono travel.
 const FLOWER: Record<string, string> = {
-  travel: '#f59e0b', party: '#a855f7', social: '#ec4899', corporate: '#3b82f6',
+  travel: '#e6b34e', party: '#d98a5c', social: '#c98aa0', corporate: '#8aa6b4',
 };
 const STEM = '#5a4a3a', STEM_DK = '#3a3028';
 
@@ -34,7 +36,12 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
       const live = await Promise.all(active.map(async (m) => {
         const { count } = await supabase.from('hub_members').select('*', { count: 'exact', head: true }).eq('hub_id', m.hub_id);
         const { data: h } = await supabase.from('hubs').select('start_date, end_date').eq('id', m.hub_id).single();
-        const dur = h ? Math.max(1, Math.round((+new Date(h.end_date) - +new Date(h.start_date)) / 86400000) + 1) : 1;
+        // Difesa NaN: HubContext tipizza le date nullable. Se una manca o e' invalida,
+        // la durata sarebbe NaN, si propagherebbe a twigLen e alle coordinate, e la
+        // foglia sparirebbe dal path SVG. In quel caso, un giorno.
+        const ini = h?.start_date ? +new Date(h.start_date) : NaN;
+        const fin = h?.end_date ? +new Date(h.end_date) : NaN;
+        const dur = Number.isFinite(ini) && Number.isFinite(fin) ? Math.max(1, Math.round((fin - ini) / 86400000) + 1) : 1;
         return { key: 'live-' + m.hub_id, hubId: m.hub_id, name: m.hub.name, category: m.hub.category, count: count ?? 1, duration: dur, isOwner: m.role === 'OWNER', mature: false };
       }));
       const { data: mat } = await supabase.from('garden_leaves').select('hub_id, hub_name, category, participant_count, duration_days').eq('owner_id', userId);
@@ -45,61 +52,111 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
     build();
   }, [userId, memberships]);
 
-  const A = { x: 60, y: 720 }, B = { x: 150, y: 380 }, C = { x: 310, y: 430 }, D = { x: 380, y: 90 };
-  const bez = (t: number) => {
-    const u = 1 - t;
-    return {
-      x: u*u*u*A.x + 3*u*u*t*B.x + 3*u*t*t*C.x + t*t*t*D.x,
-      y: u*u*u*A.y + 3*u*u*t*B.y + 3*u*t*t*C.y + t*t*t*D.y,
-    };
-  };
-  const tan = (t: number) => {
-    const u = 1 - t;
-    const dx = 3*u*u*(B.x-A.x) + 6*u*t*(C.x-B.x) + 3*t*t*(D.x-C.x);
-    const dy = 3*u*u*(B.y-A.y) + 6*u*t*(C.y-B.y) + 3*t*t*(D.y-C.y);
-    return Math.atan2(dy, dx);
-  };
+  // Rumore deterministico [0,1). jit resta per le particelle-atmosfera; per le
+  // foglie si semina dalla chiave (seedOf), cosi' il caso di una foglia e' stabile
+  // e non si rimescola quando se ne nasconde un'altra e gli indici scorrono.
   const jit = (i: number, k: number) => {
     const v = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
     return v - Math.floor(v);
   };
+  const seedOf = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h % 100000); };
 
-  // Foglia sempre viva: owner verde brillante saturo, non-owner verde medio (NON scuro-secco). Luminosita distingue, saturazione resta alta.
-  const leafColor = (isOwner: boolean) => isOwner
-    ? { base: '#4ade80', edge: '#22c55e' }
-    : { base: '#5b9d6b', edge: '#3f7a52' };
-  const leafLen = (c: number) => 20 + Math.sqrt(c) * 6.5;
-  const twigLen = (days: number, leaf: number) => Math.max(34, Math.min(80, 26 + days * 5)) + leaf * 0.35;
+  // === I TRE SEGNALI: deterministici, puliti, nessun caso, nessuna contaminazione ===
+  // Foglia grande secondo i partecipanti; escursione 1->3p del 33% (la radice comprimeva).
+  const leafLen = (persone: number) => 16 + 22 * (1 - Math.exp(-persone / 3.5));
+  // Ramoscello lungo secondo la durata; UN solo argomento (via il + leaf che incrociava
+  // gli assi), monotona e mai satura: 16 giorni piu' lungo di 11, non appiattito.
+  const twigLen = (giorni: number) => 30 + 46 * (1 - Math.exp(-giorni / 7));
 
-  const visible = leaves.filter((l) => !hidden.has(l.key));
-  const clustered = visible.length > 14;
-  const shown = clustered ? visible.slice(0, 14) : visible;
-  const stemPath = 'M' + A.x + ' ' + A.y + ' C' + B.x + ' ' + B.y + ' ' + C.x + ' ' + C.y + ' ' + D.x + ' ' + D.y;
+  // === LA STRUTTURA: ramo che si biforca, con nastri di spessore che degrada ===
+  type Pt = { x: number; y: number };
+  type Br = { p0: Pt; p1: Pt; p2: Pt; p3: Pt; wBase: number; wTip: number };
+  const UP = -Math.PI / 2;
+  const cubic = (b: Br, t: number): Pt => { const u = 1 - t; return {
+    x: u*u*u*b.p0.x + 3*u*u*t*b.p1.x + 3*u*t*t*b.p2.x + t*t*t*b.p3.x,
+    y: u*u*u*b.p0.y + 3*u*u*t*b.p1.y + 3*u*t*t*b.p2.y + t*t*t*b.p3.y }; };
+  const cubicTan = (b: Br, t: number): number => { const u = 1 - t;
+    const dx = 3*u*u*(b.p1.x-b.p0.x) + 6*u*t*(b.p2.x-b.p1.x) + 3*t*t*(b.p3.x-b.p2.x);
+    const dy = 3*u*u*(b.p1.y-b.p0.y) + 6*u*t*(b.p2.y-b.p1.y) + 3*t*t*(b.p3.y-b.p2.y);
+    return Math.atan2(dy, dx); };
+  // Ramo da (sx,sy): parte all'angolo ang0, arriva a ang1, lungo len, spessore wBase->wTip.
+  const branchFrom = (sx: number, sy: number, ang0: number, len: number, ang1: number, wBase: number, wTip: number): Br => {
+    const mid = (ang0 + ang1) / 2;
+    const p3 = { x: sx + Math.cos(mid) * len, y: sy + Math.sin(mid) * len };
+    return { p0: { x: sx, y: sy },
+      p1: { x: sx + Math.cos(ang0) * len / 3, y: sy + Math.sin(ang0) * len / 3 },
+      p2: { x: p3.x - Math.cos(ang1) * len / 3, y: p3.y - Math.sin(ang1) * len / 3 }, p3, wBase, wTip }; };
+  // Nastro rastremato: la linea media offset di meta-spessore, che degrada base->punta.
+  const ribbon = (b: Br, grow = 0, steps = 18): string => {
+    const lft: Pt[] = [], rgt: Pt[] = [];
+    for (let i = 0; i <= steps; i++) { const t = i / steps, p = cubic(b, t), a = cubicTan(b, t);
+      const w = (b.wBase + (b.wTip - b.wBase) * t) / 2 + grow;
+      const nx = Math.cos(a + Math.PI/2), ny = Math.sin(a + Math.PI/2);
+      lft.push({ x: p.x + nx*w, y: p.y + ny*w }); rgt.push({ x: p.x - nx*w, y: p.y - ny*w }); }
+    return 'M' + [...lft, ...rgt.reverse()].map((p) => p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' L') + ' Z'; };
 
-  // Foglia realistica: path con base stretta, pancia larga, punta affusolata + nervatura centrale curva. Gradiente base->edge per volume.
-  const LeafShape = ({ x, y, ang, len, colors, op, gid }: any) => {
-    const w = len * 0.42;
+  // Biforcazione deterministica sul numero di foglie: germoglio semplice se poche,
+  // due o tre rami primari se molte. Un giardino giovane non deve sembrare un albero mancato.
+  const buildTree = (n: number) => {
+    const base = { x: 205, y: 740 };
+    const jr = (k: number, a: number, c: number) => a + (c - a) * jit(n + 7, k); // variazione stabile per taglia
+    const nB = n <= 3 ? 1 : n <= 7 ? 2 : 3;
+    if (nB === 1) {
+      const stalk = branchFrom(base.x, base.y, UP + jr(1,-0.06,0.06), 300, UP + jr(2,-0.18,0.06), 10, 3);
+      return { branches: [stalk], leaf: [stalk], range: [[0.32, 0.97]] as [number,number][] };
+    }
+    const trunk = branchFrom(base.x, base.y, UP + jr(1,-0.05,0.05), nB === 2 ? 175 : 155, UP + jr(2,-0.1,0.06), 11, 6);
+    const F = cubic(trunk, 1), fa = cubicTan(trunk, 1), sp = 0.5;
+    const left = branchFrom(F.x, F.y, fa + sp, 175, fa + sp*1.5, 6, 2.6);
+    const right = branchFrom(F.x, F.y, fa - sp*0.9, 190, fa - sp*1.3, 6, 2.6);
+    if (nB === 2) return { branches: [trunk, left, right], leaf: [left, right], range: [[0.28,0.98],[0.28,0.98]] as [number,number][] };
+    const G = cubic(right, 0.4), ga = cubicTan(right, 0.4);
+    const third = branchFrom(G.x, G.y, ga - sp*1.2, 140, ga - sp*1.6, 3.2, 2);
+    return { branches: [trunk, left, right, third], leaf: [left, right, third], range: [[0.3,0.98],[0.45,0.98],[0.3,0.97]] as [number,number][] };
+  };
+  // Foglie a grappoli, non a passo costante: gaps al quadrato -> tratti fitti e tratti spogli.
+  const clusterPos = (m: number, seed: number, lo: number, hi: number): number[] => {
+    if (m <= 0) return [];
+    if (m === 1) return [lo + (hi - lo) * 0.62];
+    const gaps: number[] = []; for (let j = 0; j < m; j++) gaps.push(0.12 + Math.pow(jit(seed, j + 3), 2) * 1.7);
+    let s = 0; const cum: number[] = []; for (const g of gaps) { s += g; cum.push(s - g/2); }
+    return cum.map((c) => lo + (hi - lo) * (c / s));
+  };
+  // Verde di famiglia, ma mai due foglie identiche: tono e luminosita' variano per seme.
+  const leafHSL = (mature: boolean, isOwner: boolean) =>
+    mature ? { h: 44, s: 42, l: 56 } : isOwner ? { h: 138, s: 58, l: 54 } : { h: 134, s: 34, l: 46 };
+
+  // Foglia: base stretta, pancia, punta (arricciata da curl); scorcio via scale(sx) sull'asse
+  // lungo; nervatura curva. Gradiente orientato dalla luce (coordinate passate da fuori).
+  const LeafShape = ({ x, y, ang, sx, len, curl, grad, hi, mid, edge, gid, op }: any) => {
+    const w = len * 0.44, tip = curl * w * 0.5;
     return (
-      <g transform={'translate(' + x + ' ' + y + ') rotate(' + (ang * 180 / Math.PI) + ')'} opacity={op}>
+      <g transform={'translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ') rotate(' + (ang * 180 / Math.PI).toFixed(1) + ') scale(' + sx.toFixed(2) + ' 1)'} opacity={op}>
         <defs>
-          <linearGradient id={gid} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor={colors.edge} />
-            <stop offset="55%" stopColor={colors.base} />
-            <stop offset="100%" stopColor={colors.edge} />
+          <linearGradient id={gid} x1={grad.x1.toFixed(3)} y1={grad.y1.toFixed(3)} x2={grad.x2.toFixed(3)} y2={grad.y2.toFixed(3)}>
+            <stop offset="0%" stopColor={hi} />
+            <stop offset="52%" stopColor={mid} />
+            <stop offset="100%" stopColor={edge} />
           </linearGradient>
         </defs>
-        <path d={'M0 0 C' + (len*0.25) + ' ' + (-w) + ' ' + (len*0.7) + ' ' + (-w*0.7) + ' ' + len + ' 0 C' + (len*0.7) + ' ' + (w*0.7) + ' ' + (len*0.25) + ' ' + w + ' 0 0 Z'} fill={'url(#' + gid + ')'} />
-        <path d={'M' + (len*0.08) + ' 0 Q' + (len*0.5) + ' ' + (w*0.15) + ' ' + (len*0.92) + ' 0'} stroke={colors.edge} strokeWidth="0.8" fill="none" opacity="0.6" />
+        <path d={'M0 0 C ' + (len*0.22).toFixed(1) + ' ' + (-w).toFixed(1) + ' ' + (len*0.72).toFixed(1) + ' ' + (-w*0.65).toFixed(1) + ' ' + len.toFixed(1) + ' ' + tip.toFixed(1) + ' C ' + (len*0.72).toFixed(1) + ' ' + (w*0.65).toFixed(1) + ' ' + (len*0.22).toFixed(1) + ' ' + w.toFixed(1) + ' 0 0 Z'} fill={'url(#' + gid + ')'} />
+        <path d={'M ' + (len*0.08).toFixed(1) + ' 0 Q ' + (len*0.5).toFixed(1) + ' ' + (w*0.12).toFixed(1) + ' ' + (len*0.9).toFixed(1) + ' ' + (tip*0.8).toFixed(1)} stroke={edge} strokeWidth="0.7" fill="none" opacity="0.5" />
       </g>
     );
   };
-  // Fiore sul ramoscello (non sul ramo madre): posizione a meta twig, cluster di 5 petali ovali + centro.
-  const FlowerShape = ({ x, y, color, r }: any) => (
-    <g transform={'translate(' + x + ' ' + y + ')'}>
-      {[0,72,144,216,288].map((a) => { const rad = a*Math.PI/180; return <ellipse key={a} cx={Math.cos(rad)*r} cy={Math.sin(rad)*r} rx={r*0.85} ry={r*0.55} transform={'rotate(' + a + ' ' + Math.cos(rad)*r + ' ' + Math.sin(rad)*r + ')'} fill={color} opacity="0.95" />; })}
-      <circle r={r*0.5} fill="#fef3c7" />
+  // Fiore: cinque petali di dimensione e angolo leggermente diversi, bordi curvi, centro morbido.
+  const FlowerShape = ({ x, y, color, r, seed }: any) => (
+    <g transform={'translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ')'} opacity="0.9">
+      {[0,1,2,3,4].map((k) => {
+        const a = k*72 + (jit(seed, 20+k)-0.5)*26, rad = a*Math.PI/180;
+        const cx = Math.cos(rad)*r*0.6, cy = Math.sin(rad)*r*0.6, pr = r*(0.85 + jit(seed,30+k)*0.4);
+        return <ellipse key={k} cx={cx} cy={cy} rx={pr} ry={pr*0.52} transform={'rotate(' + a.toFixed(1) + ' ' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ')'} fill={color} />;
+      })}
+      <circle r={(r*0.42).toFixed(1)} fill="#f2e3b0" opacity="0.9" />
     </g>
   );
+
+  const visible = leaves.filter((l) => !hidden.has(l.key)); // niente cap: si mostra tutto
 
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col items-center p-6 pt-10"
@@ -132,37 +189,76 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
             <p className="text-emerald-200/50 text-xs mt-2 max-w-[220px] mx-auto">Ogni evento che vivrà farà sbocciare una foglia. Lo guardi crescere.</p>
           </div>
         ) : (
-          <svg viewBox="-50 -10 540 790" className="w-full flex-1" preserveAspectRatio="xMidYMid meet">
-            {shown.map((lf, i) => {
-              const t = 0.1 + (0.82 * i) / Math.max(1, shown.length - 1);
-              const b = bez(t);
-              const side = i % 2 === 0 ? -1 : 1;
-              // Angolo con forte jitter -> asimmetria: rametti non a coppie regolari.
-              const spread = (Math.PI / 3.2) + jit(i, 1) * 0.85;
-              const perp = tan(t) + side * spread;
-              const tw = twigLen(lf.duration, leafLen(lf.count)) * (0.8 + jit(i, 2) * 0.45);
-              const tx = b.x + Math.cos(perp) * tw, ty = b.y + Math.sin(perp) * tw;
-              const curl = jit(i, 3);
-              const ctrlX = b.x + Math.cos(perp) * tw * 0.5 - side * (6 + jit(i, 4) * 10);
-              const ctrlY = b.y + Math.sin(perp) * tw * 0.5;
-              // Fiore a meta ramoscello (sullo stelo dell'hub, non sul ramo madre).
-              const fx = b.x + Math.cos(perp) * tw * 0.55, fy = b.y + Math.sin(perp) * tw * 0.55;
-              const colors = lf.mature ? { base: '#c9b458', edge: '#a8935a' } : leafColor(lf.isOwner);
-              const delay = 1.3 + i * 0.13;
-              return (
-                <g key={lf.key} onClick={() => setSelected(lf)} className="cursor-pointer"
-                   style={{ opacity: 0, animation: 'pop .55s ease-out ' + delay + 's forwards, sway ' + (3.4 + jit(i, 6) * 2.2) + 's ease-in-out ' + (delay + 0.6) + 's infinite', transformOrigin: b.x + 'px ' + b.y + 'px' }}>
-                  <path d={'M' + b.x + ' ' + b.y + ' Q' + ctrlX + ' ' + ctrlY + ' ' + tx + ' ' + ty} stroke={STEM} strokeWidth="2.6" fill="none" strokeLinecap="round" />
-                  <FlowerShape x={fx} y={fy} color={FLOWER[lf.category] ?? '#f59e0b'} r={3 + Math.sqrt(lf.count) * 0.45} />
-                  <LeafShape x={tx} y={ty} ang={perp} len={leafLen(lf.count)} colors={colors} op={lf.mature ? 0.82 : 1} gid={'lg' + i} />
+          (() => {
+            const tree = buildTree(visible.length);
+            const nLB = tree.leaf.length;
+            // Foglie ai rami a rotazione, per tenerli bilanciati.
+            const perBranch: number[][] = Array.from({ length: nLB }, () => []);
+            visible.forEach((_, idx) => perBranch[idx % nLB].push(idx));
+            type Placed = { lf: LeafData; bi: number; t: number; plane: number; seed: number; order: number };
+            const placed: Placed[] = [];
+            perBranch.forEach((idxs, bi) => {
+              const ts = clusterPos(idxs.length, 100 + bi * 17, tree.range[bi][0], tree.range[bi][1]);
+              idxs.forEach((leafIdx, j) => {
+                const lf = visible[leafIdx], seed = seedOf(lf.key);
+                const r = jit(seed, 50), plane = r < 0.28 ? 0 : r < 0.72 ? 1 : 2;
+                placed.push({ lf, bi, t: ts[j], plane, seed, order: leafIdx });
+              });
+            });
+            // Profondita': i piani posteriori disegnati per primi.
+            placed.sort((a, b) => a.plane - b.plane || a.order - b.order);
+            return (
+              <svg viewBox="-60 -20 540 810" className="w-full flex-1" preserveAspectRatio="xMidYMid meet">
+                {/* Il ramo: nastri rastremati, cresce dalla base */}
+                <g style={{ transformOrigin: '205px 740px', animation: 'grow2 1.2s cubic-bezier(.2,.8,.2,1) forwards' }}>
+                  {tree.branches.map((b, i) => (
+                    <g key={'br' + i}>
+                      <path d={ribbon(b, 2)} fill={STEM_DK} opacity="0.45" />
+                      <path d={ribbon(b)} fill={STEM} />
+                    </g>
+                  ))}
+                  {tree.leaf.map((b, i) => { const p = cubic(b, 1); return <circle key={'tip' + i} cx={p.x.toFixed(1)} cy={p.y.toFixed(1)} r="2.6" fill="#6b8f5a" opacity="0.5" />; })}
                 </g>
-              );
-            })}
-            <path d={stemPath} fill="none" stroke={STEM_DK} strokeWidth="11" strokeLinecap="round" opacity="0.4" />
-            <path d={stemPath} fill="none" stroke={STEM} strokeWidth="8" strokeLinecap="round"
-              style={{ strokeDasharray: 780, strokeDashoffset: 780, animation: 'grow 1.6s ease-out forwards' }} />
-            {[0.3, 0.52, 0.72, 0.88].map((t, i) => { const b = bez(t); return <circle key={'bud'+i} cx={b.x} cy={b.y} r="3.5" fill="#6b8f5a" opacity="0.6" style={{ animation: 'pop .4s ease-out ' + (0.7 + i*0.14) + 's forwards' }} />; })}
-          </svg>
+                {placed.map(({ lf, bi, t, plane, seed, order }) => {
+                  const br = tree.leaf[bi], at = cubic(br, t), bAng = cubicTan(br, t);
+                  const side = jit(seed, 10) < 0.5 ? -1 : 1;
+                  const spread = 0.5 + jit(seed, 1) * 0.95;          // angolo d'attacco allargato + caso
+                  const twAng = bAng + side * spread;
+                  const twl = twigLen(lf.duration);                  // SEGNALE pulito
+                  const ex = at.x + Math.cos(twAng) * twl, ey = at.y + Math.sin(twAng) * twl;
+                  const bend = (jit(seed, 4) - 0.5) * twl * 0.7;     // curvatura: alcuni dritti, altri arcuati
+                  const mx = (at.x + ex) / 2 + Math.cos(twAng + Math.PI/2) * bend;
+                  const my = (at.y + ey) / 2 + Math.sin(twAng + Math.PI/2) * bend;
+                  const fx = 0.25*at.x + 0.5*mx + 0.25*ex, fy = 0.25*at.y + 0.5*my + 0.25*ey; // fiore a meta' (punto quadratica)
+                  const tilt = (jit(seed, 5) - 0.5) * 0.87;          // inclinazione lamina +-25 gradi
+                  const ang = twAng + tilt;
+                  const sx = 0.55 + jit(seed, 6) * 0.45;             // scorcio fuori piano 0.55..1.0
+                  const curl = (jit(seed, 8) - 0.5) * 1.4;           // arricciatura della punta
+                  const pScale = plane === 0 ? 0.8 : plane === 1 ? 0.92 : 1;
+                  const pOp = plane === 0 ? 0.62 : plane === 1 ? 0.85 : 1;
+                  const len = leafLen(lf.count) * pScale;            // SEGNALE pulito (solo la profondita' scala)
+                  const hs = leafHSL(lf.mature, lf.isOwner);
+                  const hue = hs.h + (jit(seed,11)-0.5)*18, sat = hs.s + (jit(seed,12)-0.5)*16, lum = hs.l + (jit(seed,13)-0.5)*16;
+                  const hi = 'hsl(' + hue.toFixed(0) + ' ' + Math.min(90, sat+8).toFixed(0) + '% ' + Math.min(88, lum+16).toFixed(0) + '%)';
+                  const mid = 'hsl(' + hue.toFixed(0) + ' ' + sat.toFixed(0) + '% ' + lum.toFixed(0) + '%)';
+                  const edge = 'hsl(' + hue.toFixed(0) + ' ' + sat.toFixed(0) + '% ' + Math.max(18, lum-16).toFixed(0) + '%)';
+                  // Luce da alto-sinistra: direzione del gradiente in locale = luceWorld - ang
+                  const gA = 0.9 - ang, gx = Math.cos(gA)*0.5, gy = Math.sin(gA)*0.5;
+                  const grad = { x1: 0.5-gx, y1: 0.5-gy, x2: 0.5+gx, y2: 0.5+gy };
+                  const swayDur = 3 + jit(seed, 20) * 3.2, phase = jit(seed, 21) * 4; // periodo e fase distinti
+                  const delay = 1.1 + order * 0.07;
+                  return (
+                    <g key={lf.key} onClick={() => setSelected(lf)} className="cursor-pointer"
+                       style={{ opacity: 0, animation: 'pop .5s ease-out ' + delay.toFixed(2) + 's forwards, sway ' + swayDur.toFixed(2) + 's ease-in-out ' + phase.toFixed(2) + 's infinite', transformOrigin: at.x.toFixed(1) + 'px ' + at.y.toFixed(1) + 'px' }}>
+                      <path d={'M' + at.x.toFixed(1) + ' ' + at.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1)} stroke={STEM} strokeWidth={(1.4 + pScale*1.2).toFixed(1)} fill="none" strokeLinecap="round" opacity={pOp} />
+                      <FlowerShape x={fx} y={fy} color={FLOWER[lf.category] ?? FLOWER.travel} r={2.6 + Math.sqrt(lf.count) * 0.5} seed={seed} />
+                      <LeafShape x={ex} y={ey} ang={ang} sx={sx} len={len} curl={curl} grad={grad} hi={hi} mid={mid} edge={edge} gid={'lg' + order} op={pOp} />
+                    </g>
+                  );
+                })}
+              </svg>
+            );
+          })()
         )}
 
         {leaves.length > 0 && (
@@ -206,7 +302,7 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
           </div>
         );
       })()}
-      <style>{'@keyframes grow { to { stroke-dashoffset: 0 } } @keyframes pop { from { opacity:0; transform: scale(0) } to { opacity:1; transform: scale(1) } } @keyframes float { 0%,100% { transform: translateY(0); opacity: 0.3 } 50% { transform: translateY(-12px); opacity: 0.7 } } @keyframes sway { 0%,100% { transform: scale(1) rotate(-1.6deg) } 50% { transform: scale(1) rotate(1.6deg) } } @media (prefers-reduced-motion: reduce) { g, circle { animation-iteration-count: 1 !important } }'}</style>
+      <style>{'@keyframes grow2 { from { opacity:0; transform: scale(0.6) } to { opacity:1; transform: scale(1) } } @keyframes pop { from { opacity:0; transform: scale(0) } to { opacity:1; transform: scale(1) } } @keyframes float { 0%,100% { transform: translateY(0); opacity: 0.3 } 50% { transform: translateY(-12px); opacity: 0.7 } } @keyframes sway { 0%,100% { transform: rotate(-1.8deg) } 50% { transform: rotate(1.8deg) } } @media (prefers-reduced-motion: reduce) { g, circle, path { animation-iteration-count: 1 !important } }'}</style>
     </div>
   );
 }
