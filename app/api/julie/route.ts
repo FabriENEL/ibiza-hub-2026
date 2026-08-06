@@ -310,7 +310,7 @@ export async function POST(req: NextRequest) {
         model: MODEL,
         messages: [{ role: 'system', content: componendo ? (SYSTEM + programmaPrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi) : (SYSTEM + azionePrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi) }, ...(messages ?? [])],
         temperature: 0.6,
-        max_tokens: 2500,
+        max_tokens: componendo ? 2500 : 800,
         reasoning_effort: 'low',
       }),
     });
