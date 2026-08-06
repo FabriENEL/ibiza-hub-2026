@@ -62,6 +62,13 @@ const CAT_INFO: Record<string, { emoji: string; nome: string }> = {
   night:     { emoji: '🌙', nome: 'Serata' },
 };
 
+// L'ora del dispositivo come orologio da parete: "2026-08-06T18:03:00"
+const adessoLocale = () => new Date().toLocaleString('sv-SE').replace(' ', 'T');
+
+// Legge un orario da parete come se fosse UTC. Applicata a entrambi i lati
+// di un confronto, l'offset si annulla e resta la differenza vera.
+const msParete = (s: string) => Date.parse(s.slice(0, 19) + 'Z');
+
 export default function Calendar({ hubId, theme, isOwner, archived, words, rounded }: { hubId: string; theme: Theme; isOwner: boolean; archived: boolean; words: Words; rounded: string }) {
   // NB: non si tocca il contesto da qui. Aggiornarlo rimonta la Shell, Calendar rinasce e perde lo stato del flip.
   const { userId, postAction, memberships, activeHubId, openJulie } = useHub();
@@ -167,7 +174,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
       if (days.length > 0) {
         setSelectedDay((cur) => {
           if (cur && days.includes(cur)) return cur;
-          const today = new Date().toISOString().split('T')[0];
+          const today = new Date().toLocaleDateString('sv-SE');
           return days.includes(today) ? today : days[0];
         });
       }
@@ -299,7 +306,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
   const dayLabel = (day: string) => { const d = new Date(day); const p = (n: number) => String(n).padStart(2, '0'); const mesi = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic']; return p(d.getUTCDate()) + ' ' + mesi[d.getUTCMonth()]; };
 
   const countdown = (iso: string) => {
-    const diff = new Date(iso).getTime() - now;
+    const diff = msParete(iso) - msParete(adessoLocale());
     if (diff <= 0) return 'in svelamento...';
     const m = Math.floor(diff / 60000);
     if (m < 60) return m + ' min';
@@ -310,7 +317,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
 
   // Countdown all'inizio evento (distinto da quello di svelamento).
   const eventCountdown = (iso: string) => {
-    const diff = new Date(iso).getTime() - now;
+    const diff = msParete(iso) - msParete(adessoLocale());
     if (diff <= 0) return null;
     const m = Math.floor(diff / 60000);
     if (m < 60) return m + ' min';
