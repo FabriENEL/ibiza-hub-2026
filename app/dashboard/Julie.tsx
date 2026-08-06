@@ -46,6 +46,33 @@ function Scrive({ testo, onBocca, onFine }: { testo: string; onBocca: (b: boolea
 const pulisci = (t: string): string =>
   t.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').replace(/`/g, '');
 
+// Se anche il secondo tentativo torna in sovraccarico. Non ripeto la stessa frase
+// del server: darebbe due volte di fila lo stesso testo. Questa congeda con garbo.
+const CHIUSURA_SOVRACCARICO = 'Il gruppo mi sta tenendo molto occupata. Mi riprovi fra un minuto e sarò tutta Sua.';
+
+// Il tetto di Groq (8.000 token al minuto, dell'intera organizzazione) si tocca
+// quando piu' membri scrivono insieme: il server risponde con sovraccarico e dichiara
+// fra quanti secondi riprovare. Un solo ritentativo trasforma il rifiuto in qualche
+// secondo d'attesa, invece di costringere l'utente a riscrivere. Mai un ciclo: si
+// riprova UNA volta sola e basta. Fuori dal componente per non rinascere a ogni render.
+async function chiediAJulie(corpo: any, annuncia: (avviso: string) => void): Promise<any> {
+  const chiama = async () => {
+    const res = await fetch('/api/julie', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo),
+    });
+    return res.json();
+  };
+  const prima = await chiama();
+  if (!prima?.sovraccarico) return prima;
+  // Sovraccarico: annuncio l'attesa all'utente, aspetto quanto detto, riprovo una volta.
+  annuncia(prima.reply);
+  await new Promise((r) => setTimeout(r, (prima.riprovaTra ?? 10) * 1000));
+  const seconda = await chiama();
+  return seconda?.sovraccarico ? { ...seconda, reply: CHIUSURA_SOVRACCARICO } : seconda;
+}
+
 export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: string }) {
   const { userId, signalPostAction, julieSeed, clearJulieSeed } = useHub();
   const [messages, setMessages] = useState<Msg[]>([
@@ -204,12 +231,10 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     setInput('');
     setBusy(true);
     try {
-      const res = await fetch('/api/julie', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: next.map((m: any) => ({ role: m.role, content: m.content })), hubId, cats, ritmo }),
-      });
-      const data = await res.json();
+      const data = await chiediAJulie(
+        { messages: next.map((m: any) => ({ role: m.role, content: m.content })), hubId, cats, ritmo },
+        (avviso) => { setMessages((m) => [...m, { role: 'assistant', content: avviso }]); if (speakOn) speak(avviso); },
+      );
       const reply = data.reply ?? 'Mi scusi, non ho compreso.';
       // Julie ha cercato: il testo viaggia con le schede dei luoghi veri.
       if (Array.isArray(data.luoghi) && data.luoghi.length > 0) {
