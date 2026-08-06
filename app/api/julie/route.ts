@@ -230,17 +230,21 @@ async function eventiHub(hubId: string): Promise<string> {
   if (!url || !key || !hubId) return '';
   try {
     const sb = createClient(url, key);
+    // Solo gli eventi ancora da vivere, i piu' imminenti: sono quelli che vincolano la giornata.
+    // Titoli e orari bastano (ancore arrivo/partenza + fasce occupate); i luoghi sono peso inutile.
+    const oggiData = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Rome' });
     const { data } = await sb.from('events')
-      .select('title, scheduled_at, location')
+      .select('title, scheduled_at')
       .eq('hub_id', hubId)
+      .gte('scheduled_at', oggiData)
       .order('scheduled_at', { ascending: true })
-      .limit(40);
+      .limit(25);
     const righe = (data as any[]) ?? [];
     if (righe.length === 0) return '';
     const elenco = righe.map((e) => {
       const q = String(e.scheduled_at ?? '');
       const giorno = q.slice(0, 10), ora = q.slice(11, 16);
-      return '- ' + giorno + ' ' + ora + ' : ' + (e.title ?? 'evento') + (e.location ? ' (' + e.location + ')' : '');
+      return '- ' + giorno + ' ' + ora + ' : ' + (e.title ?? 'evento');
     }).join('\\n');
     return '\\n\\nIMPEGNI GIA FISSATI DALL UTENTE (vincoli INVALICABILI):\\n' + elenco
       + '\\n\\nREGOLE SUI VINCOLI: 1) NON sovrapponga mai una voce a questi impegni. 2) Ne rispetti la LOGICA: nulla nella citta di destinazione PRIMA dell arrivo, nulla DOPO la partenza. 3) Lasci respiro: almeno 60 minuti tra un impegno fissato e una Sua proposta. 4) Se un impegno occupa gia una fascia (es. il pranzo), non ne proponga un altro dello stesso tipo. 5) Se dopo questi vincoli un giorno non ha spazio, lo lasci vuoto anziche forzare.';
