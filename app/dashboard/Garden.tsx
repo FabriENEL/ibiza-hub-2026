@@ -114,8 +114,21 @@ const BudShape = ({ x, y, ang, size, gid, op }: any) => {
     </g>
   );
 };
+// Stipole: due foglioline alla base del picciolo, angolate all'indietro. Decorazione,
+// non ricordo: piccole (un quinto della foglia), stessa famiglia di verde ma piu' scure,
+// MAI toccabili (vivono nello strato di fondo, senza gestore). Si tocca solo cio' che e' un ricordo.
+const Stipole = ({ x, y, ang, len, color }: any) => {
+  const w = len * 0.5;
+  const blade = 'M0 0 Q ' + (len*0.5).toFixed(1) + ' ' + (-w).toFixed(1) + ' ' + len.toFixed(1) + ' 0 Q ' + (len*0.5).toFixed(1) + ' ' + w.toFixed(1) + ' 0 0 Z';
+  return (
+    <g transform={'translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ')'} opacity="0.85">
+      <path d={blade} transform={'rotate(' + ((ang + Math.PI + 0.5) * 180 / Math.PI).toFixed(1) + ')'} fill={color} />
+      <path d={blade} transform={'rotate(' + ((ang + Math.PI - 0.5) * 180 / Math.PI).toFixed(1) + ')'} fill={color} />
+    </g>
+  );
+};
 
-export default function Garden({ onClose, onOpenHub }: { onClose: () => void; onOpenHub: (id: string) => void }) {
+export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: () => void; onOpenHub: (id: string) => void; onCreateHub?: () => void }) {
   const { userId, memberships } = useHub();
   const [leaves, setLeaves] = useState<LeafData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -201,9 +214,20 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
   };
 
   const sv = sView < 0 ? model.sTot : sView;
-  const cam = axisPoint(sv, model.baseY);
-  const vb = (cam.x - VW / 2).toFixed(1) + ' ' + (cam.y - VH / 2).toFixed(1) + ' ' + VW + ' ' + VH;
-  const winLo = sv - VH * 1.6, winHi = sv + VH * 1.6;
+  // La cornice si adatta al ramo: se il tracciato e' piu' corto della vista, si stringe
+  // l'inquadratura (tetto 2.8) finche' lo riempie. Nessuna formula cambia: cambia solo
+  // quanto vicino si guarda. Oltre la soglia lo zoom torna a 1 e lo scorrimento entra.
+  const zoom = Math.min(2.8, Math.max(1, (VH * 0.92) / Math.max(model.sTot, 1)));
+  // Margine di sicurezza solo a inquadratura stretta: il fogliame non tocca mai il bordo.
+  // A giardino cresciuto (zoom 1) la vista resta quella di prima.
+  const fit = zoom > 1 ? 1.06 : 1;
+  const eVW = (VW / zoom) * fit, eVH = (VH / zoom) * fit;
+  // Se ci sta tutto, la camera inquadra il mezzo del ramo (base e punta insieme);
+  // altrimenti segue lo scorrimento, aperta sulla punta.
+  const camS = zoom > 1 ? model.sTot / 2 : sv;
+  const cam = axisPoint(camS, model.baseY);
+  const vb = (cam.x - eVW / 2).toFixed(1) + ' ' + (cam.y - eVH / 2).toFixed(1) + ' ' + eVW.toFixed(1) + ' ' + eVH.toFixed(1);
+  const winLo = camS - eVH * 1.6, winHi = camS + eVH * 1.6;
   // Etichetta del tempo: periodo del grappolo piu' vicino alla vista.
   const near = model.clusters.reduce<any>((best, c) => (!best || Math.abs(c.s - sv) < Math.abs(best.s - sv) ? c : best), null);
   const periodo = near && near.date ? MESI[Math.max(0, Math.min(11, parseInt(near.date.slice(5, 7)) - 1))] + ' ' + near.date.slice(0, 4) : '';
@@ -236,7 +260,12 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
           <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-200/60 font-black">Il tuo giardino</p>
         </div>
         <h2 className="text-center text-2xl font-black text-white [font-family:var(--font-display)] mt-3">Il tuo ramo</h2>
-        <p className="text-center text-emerald-200/50 text-xs mb-2">{leaves.length === 0 ? 'Ancora da coltivare' : leaves.length + (leaves.length === 1 ? ' momento fiorito' : ' momenti fioriti')}</p>
+        <p className="text-center text-emerald-200/50 text-xs">{leaves.length === 0 ? 'Ancora da coltivare' : leaves.length + (leaves.length === 1 ? ' momento fiorito' : ' momenti fioriti')}</p>
+        {/* La cornice che rende il conteggio un inizio, non un bilancio. Nessuna soglia da raggiungere. */}
+        {leaves.length >= 1 && leaves.length <= 5 && (
+          <p className="text-center text-emerald-200/40 text-[11px] mb-2">{leaves.length === 1 ? 'Il ramo è giovane. Ogni evento lo allunga.' : 'Il ramo sta prendendo forma.'}</p>
+        )}
+        {(leaves.length === 0 || leaves.length > 5) && <div className="mb-2" />}
 
         {loading ? <div className="flex-1 min-h-[62vh] rounded-3xl animate-pulse" style={{ background: 'rgba(255,255,255,0.03)' }} /> :
           leaves.length === 0 ? (
@@ -311,6 +340,7 @@ export default function Garden({ onClose, onOpenHub }: { onClose: () => void; on
                         const hi = 'hsl(' + hue.toFixed(0) + ' ' + Math.min(90, sat+8).toFixed(0) + '% ' + Math.min(90, lum+16).toFixed(0) + '%)';
                         const mid = 'hsl(' + hue.toFixed(0) + ' ' + sat.toFixed(0) + '% ' + lum.toFixed(0) + '%)';
                         const edge = 'hsl(' + hue.toFixed(0) + ' ' + sat.toFixed(0) + '% ' + Math.max(18, lum-16).toFixed(0) + '%)';
+                        bg.push(<Stipole key={'st' + ci + '-' + j} x={base.x} y={base.y} ang={leafAng} len={leafLen(lf.count) * 0.2} color={edge} />);
                         const gA = 0.9 - ang, gx = Math.cos(gA)*0.5, gy = Math.sin(gA)*0.5;    // luce da alto-sinistra
                         const grad = { x1: 0.5-gx, y1: 0.5-gy, x2: 0.5+gx, y2: 0.5+gy };
                         const fx = 0.25*base.x + 0.5*mx + 0.25*ex, fy = 0.25*base.y + 0.5*my + 0.25*ey;
