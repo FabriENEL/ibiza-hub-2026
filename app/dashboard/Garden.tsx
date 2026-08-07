@@ -39,8 +39,10 @@ const seedOf = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h 
 const leafLen = (persone: number) => 16 + 22 * (1 - Math.exp(-persone / 3.5));   // foglia sulle persone
 const twigLen = (giorni: number) => 30 + 46 * (1 - Math.exp(-giorni / 7));       // ramoscello sui giorni
 // Verde di famiglia, ma mai due foglie identiche: tono e luminosita' variano per seme.
+// Il ricordo e' un sempreverde, non una foglia d'autunno: verde profondo e stabile.
+// La distinzione dal presente la porta la SATURAZIONE (il presente e' piu' acceso), non la stagione.
 const leafHSL = (mature: boolean, isOwner: boolean) =>
-  mature ? { h: 44, s: 42, l: 56 } : isOwner ? { h: 138, s: 58, l: 54 } : { h: 134, s: 34, l: 46 };
+  mature ? { h: 150, s: 30, l: 40 } : isOwner ? { h: 138, s: 58, l: 54 } : { h: 134, s: 34, l: 46 };
 
 // Rametti (brachiblasti, stub d'anno): curve di Bezier con nastro rastremato.
 type Pt = { x: number; y: number };
@@ -102,18 +104,23 @@ const FlowerShape = ({ x, y, color, r, seed }: any) => (
   </g>
 );
 // Gemma chiusa: un fuso appuntito, verde salvia, che si gonfia (size) all'avvicinarsi della data.
-// dormant: gemma DORMIENTE (potenziale, non ricordo) -> verde-salvia smorto verso la
-// corteccia, per non confondersi con la gemma vera (verde pieno, opaca, che cresce).
-const BudShape = ({ x, y, ang, size, gid, op, dormant }: any) => {
+// outline: gemma DORMIENTE (potenziale, non ricordo) -> solo CONTORNO, corteccia
+// schiarita. Il pieno e' cio' che esiste; il contorno e' cio' che potrebbe esistere:
+// distinzione di natura, non di grado - regge a metà della gemma vera e a qualunque luce.
+const BudShape = ({ x, y, ang, size, gid, op, outline }: any) => {
   const w = size * 0.58;
-  const c0 = dormant ? '#8f9c86' : '#a7c4a0', c1 = dormant ? '#71806a' : '#7ba374', c2 = dormant ? '#535f4d' : '#4f7a4c';
+  const path = 'M0 0 Q ' + (size*0.55).toFixed(1) + ' ' + (-w).toFixed(1) + ' ' + size.toFixed(1) + ' 0 Q ' + (size*0.55).toFixed(1) + ' ' + w.toFixed(1) + ' 0 0 Z';
+  const tf = 'translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ') rotate(' + (ang * 180 / Math.PI).toFixed(1) + ')';
+  if (outline) {
+    return <g transform={tf} opacity={op}><path d={path} fill="none" stroke="#9a8f78" strokeWidth="0.8" /></g>;
+  }
   return (
-    <g transform={'translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ') rotate(' + (ang * 180 / Math.PI).toFixed(1) + ')'} opacity={op}>
+    <g transform={tf} opacity={op}>
       <defs><linearGradient id={gid} x1="0.15" y1="0" x2="0.85" y2="1">
-        <stop offset="0%" stopColor={c0} /><stop offset="60%" stopColor={c1} /><stop offset="100%" stopColor={c2} />
+        <stop offset="0%" stopColor="#a7c4a0" /><stop offset="60%" stopColor="#7ba374" /><stop offset="100%" stopColor="#4f7a4c" />
       </linearGradient></defs>
-      <path d={'M0 0 Q ' + (size*0.55).toFixed(1) + ' ' + (-w).toFixed(1) + ' ' + size.toFixed(1) + ' 0 Q ' + (size*0.55).toFixed(1) + ' ' + w.toFixed(1) + ' 0 0 Z'} fill={'url(#' + gid + ')'} />
-      <path d={'M ' + (size*0.12).toFixed(1) + ' 0 L ' + (size*0.86).toFixed(1) + ' 0'} stroke={dormant ? '#4c5647' : '#3f6b40'} strokeWidth="0.6" opacity="0.5" />
+      <path d={path} fill={'url(#' + gid + ')'} />
+      <path d={'M ' + (size*0.12).toFixed(1) + ' 0 L ' + (size*0.86).toFixed(1) + ' 0'} stroke="#3f6b40" strokeWidth="0.6" opacity="0.5" />
     </g>
   );
 };
@@ -366,11 +373,11 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                         bg.push(<Stipole key={'st' + ci + '-' + j} x={base.x} y={base.y} ang={leafAng} len={leafLen(lf.count) * 0.2} color={edge} />);
                         const gA = 0.9 - ang, gx = Math.cos(gA)*0.5, gy = Math.sin(gA)*0.5;    // luce da alto-sinistra
                         const grad = { x1: 0.5-gx, y1: 0.5-gy, x2: 0.5+gx, y2: 0.5+gy };
-                        const fx = 0.25*base.x + 0.5*mx + 0.25*ex, fy = 0.25*base.y + 0.5*my + 0.25*ey;
                         fg.push({ plane, el: (
                           <g key={key} onClick={onClick} className="cursor-pointer" style={{ opacity: 0, animation: 'pop .5s ease-out ' + delay.toFixed(2) + 's forwards, sway ' + swayDur.toFixed(2) + 's ease-in-out ' + phase.toFixed(2) + 's infinite', transformOrigin: base.x.toFixed(1) + 'px ' + base.y.toFixed(1) + 'px' }}>
                             <path d={'M' + base.x.toFixed(1) + ' ' + base.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1)} stroke={STEM} strokeWidth={(1.4 + pScale*1.2).toFixed(1)} fill="none" strokeLinecap="round" opacity={pOp} />
-                            <FlowerShape x={fx} y={fy} color={FLOWER[lf.category] ?? FLOWER.travel} r={2.6 + Math.sqrt(lf.count) * 0.5} seed={seed} />
+                            {/* Fiore all'attacco fra ramoscello e lamina (dove stanno davvero), raddoppiato: sotto le ~8 unita' i petali non si leggono. */}
+                            <FlowerShape x={ex} y={ey} color={FLOWER[lf.category] ?? FLOWER.travel} r={5 + Math.sqrt(lf.count) * 0.9} seed={seed} />
                             <LeafShape x={ex} y={ey} ang={ang} sx={sx} len={len} curl={curl} grad={grad} hi={hi} mid={mid} edge={edge} gid={'lg' + ci + '-' + j} op={pOp} />
                           </g>
                         ) });
@@ -392,12 +399,14 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                       const s = nDorm > 1 ? lerp(lo, hi, i / (nDorm - 1)) : (lo + hi) / 2;
                       if (s <= winLo || s >= winHi) continue;
                       const P = axisPoint(s, model.baseY), a = axisTangent(s), sd = seedOf((userId ?? '') + 'dorm' + i), side = i % 2 ? 1 : -1;
-                      const ang = a + side * (0.5 + jit(sd, 1) * 0.4), size = 5 + jit(sd, 2) * 1.5;
+                      // Taglia 8-10 = ~45-55% della gemma vera a gonfiore pieno (18), non della
+                      // sua minima. Opacita' 0.75, e solo contorno: cosi' esiste otticamente.
+                      const ang = a + side * (0.5 + jit(sd, 1) * 0.4), size = 8 + jit(sd, 2) * 2;
                       const bdur = 5.5 + jit(sd, 3) * 2.5, bph = jit(sd, 4) * 4, clickable = !!onCreateHub;
                       out.push(
                         <g key={'dorm' + i} onClick={clickable ? onCreateHub : undefined} className={clickable ? 'cursor-pointer' : undefined}
                            style={{ opacity: 0, animation: 'pop .5s ease-out ' + (1.5 + i * 0.15).toFixed(2) + 's forwards, breathe ' + bdur.toFixed(2) + 's ease-in-out ' + bph.toFixed(2) + 's infinite', transformOrigin: P.x.toFixed(1) + 'px ' + P.y.toFixed(1) + 'px' }}>
-                          <BudShape x={P.x} y={P.y} ang={ang} size={size} gid={'dbud' + i} op={0.5} dormant />
+                          <BudShape x={P.x} y={P.y} ang={ang} size={size} gid={'dbud' + i} op={0.75} outline />
                         </g>
                       );
                     }
