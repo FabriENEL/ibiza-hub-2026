@@ -44,6 +44,22 @@ const twigLen = (giorni: number) => 30 + 46 * (1 - Math.exp(-giorni / 7));      
 const leafHSL = (mature: boolean, isOwner: boolean) =>
   mature ? { h: 150, s: 30, l: 40 } : isOwner ? { h: 138, s: 58, l: 54 } : { h: 134, s: 34, l: 46 };
 
+// === LA LEGGE DELLO SPESSORE (Leonardo/da Vinci) ===
+// R_genitore^ALFA = somma(R_figlio^ALFA). Negli alberi DIPINTI che l'occhio accetta come
+// alberi, ALFA misurato: Klimt 1.7-1.9, Mondrian 2.8; nei veri 1.8-3.0. Uso 2.2. E' il
+// rapporto di spessore - piu' della ramificazione - che fa leggere un albero come tale.
+const ALFA = 2.2;
+const raggioGenitore = (figli: number[]) => figli.length ? Math.pow(figli.reduce((s, r) => s + Math.pow(r, ALFA), 0), 1 / ALFA) : 0;
+const R_TWIG = 0.8;                 // raggio-legge del ramoscello di una foglia
+const LAW_SCALE = 2.2;              // da raggio-legge a semilarghezza in unita' di disegno
+const raggioGrappolo = (k: number) => R_TWIG * Math.pow(Math.max(1, k), 1 / ALFA);  // = raggioGenitore([R_TWIG x k])
+
+// Innesto dell'utente sul tronco: deterministico e stabile. Angolo aureo 137.5 gradi: la
+// spaziatura che non ripete mai un allineamento (il sole dei girasoli). In vista Ramo il
+// ramo si guarda di taglio (si ignora l'angolo, si disegna nel piano); quota e angolo
+// restano calcolati, stabili, per il collaudo e per lo zoom-albero del cantiere successivo.
+const innestoDi = (id: string) => { const i = seedOf(id || 'eg'); return { idx: i, ang: (i * 137.5) % 360, quota: 0.35 + 0.5 * jit(i, 99) }; };
+
 // Rametti (brachiblasti, stub d'anno): curve di Bezier con nastro rastremato.
 type Pt = { x: number; y: number };
 type Br = { p0: Pt; p1: Pt; p2: Pt; p3: Pt; wBase: number; wTip: number };
@@ -68,10 +84,10 @@ const ribbon = (b: Br, grow = 0, steps = 14): string => {
   return 'M' + [...lft, ...rgt.reverse()].map((p) => p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' L') + ' Z'; };
 
 // L'asse principale: nastro rastremato lungo la serpentina, spesso alla base, sottile in punta.
-const axisRibbon = (sLo: number, sHi: number, baseY: number, sTot: number, steps = 44): string => {
+const axisRibbon = (sLo: number, sHi: number, baseY: number, widthAt: (s: number) => number, steps = 44): string => {
   const lft: Pt[] = [], rgt: Pt[] = [];
   for (let i = 0; i <= steps; i++) { const s = lerp(sLo, sHi, i / steps), p = axisPoint(s, baseY), a = axisTangent(s);
-    const w = lerp(11, 3.5, sTot ? s / sTot : 0) / 2;
+    const w = widthAt(s) / 2;
     const nx = Math.cos(a + Math.PI/2), ny = Math.sin(a + Math.PI/2);
     lft.push({ x: p.x + nx*w, y: p.y + ny*w }); rgt.push({ x: p.x - nx*w, y: p.y - ny*w }); }
   return 'M' + [...lft, ...rgt.reverse()].map((p) => p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' L') + ' Z'; };
@@ -145,17 +161,14 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
   const [selected, setSelected] = useState<LeafData | null>(null);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [showHidden, setShowHidden] = useState(false);
-  const [sView, setSView] = useState(-1);          // -1 = ancora alla punta (presente)
+  const [frac, setFrac] = useState(0);             // scorrimento 0..1 (0 = apertura sulla punta)
   const [active, setActive] = useState(false);     // scorrimento in corso -> etichetta del tempo piu' visibile
-  const [scrollPx, setScrollPx] = useState(0);     // per la parallasse dei piani di sfondo
-  const [reduced, setReduced] = useState(false);   // prefers-reduced-motion: niente parallasse
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef(0);
   const fadeRef = useRef<any>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    setReduced(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     try { setHidden(new Set(JSON.parse(localStorage.getItem('eg_hidden_leaves') ?? '[]'))); } catch {}
   }, []);
   const toggleHide = (key: string) => setHidden((prev) => {
@@ -191,13 +204,13 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
     const vis = leaves.filter((l) => !hidden.has(l.key));
     const ordered = [...vis].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)); // base=passato, punta=presente
     // Grappolo (brachiblasto): foglie consecutive a <=4 giorni, ma al massimo quattro per rametto.
-    type Cl = { date: string; year: string; leaves: LeafData[]; s: number; rel: number };
+    type Cl = { date: string; year: string; leaves: LeafData[]; s: number; rel: number; cRad: number };
     const clusters: Cl[] = [];
     let prev = '';
     for (const lf of ordered) {
       const last = clusters[clusters.length - 1];
       if (last && daysBetween(prev, lf.date) <= 4 && last.leaves.length < 4) last.leaves.push(lf);
-      else clusters.push({ date: lf.date, year: (lf.date || '').slice(0, 4), leaves: [lf], s: 0, rel: 0 });
+      else clusters.push({ date: lf.date, year: (lf.date || '').slice(0, 4), leaves: [lf], s: 0, rel: 0, cRad: 0 });
       prev = lf.date;
     }
     // Posizioni relative (primo grappolo a 0), poi i due tratti vuoti PROPORZIONATI al
@@ -224,11 +237,23 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
       c.leaves.forEach((lf) => { maxReach = Math.max(maxReach, Lb + twigLen(lf.duration) + leafLen(lf.count)); }); });
     const forks: number[] = [];
     for (let i = 1; i < clusters.length; i++) if (clusters[i].year !== clusters[i - 1].year) forks.push((clusters[i - 1].s + clusters[i].s) / 2);
-    return { clusters, sTot, baseY, forks, maxReach };
-  }, [leaves, hidden]);
+    // Legge dello spessore, dal basso in alto: raggio di ogni grappolo, poi del ramo alla base.
+    clusters.forEach((c) => { c.cRad = raggioGrappolo(c.leaves.length); });
+    const branchRad = raggioGenitore([R_TWIG, ...clusters.map((c) => c.cRad)]);
+    // Tronco = EventGarden. PROVVISORIO: finche' non ci sono i rami degli altri, chiamo la
+    // funzione VERA con un insieme provvisorio (il mio ramo + la cima + 4 rami di riferimento);
+    // nel cantiere successivo cambia SOLO questo argomento. Il tronco viene ~2.2x il ramo per
+    // LEGGE, e cresce come radice del numero di rami: mai per l'inattivita' del singolo.
+    const trunkRad = raggioGenitore([branchRad, branchRad * 0.6, branchRad, branchRad, branchRad, branchRad]);
+    // Innesto stabile dell'utente sul tronco (quota + angolo aureo). In vista Ramo il ramo si
+    // guarda di taglio, quindi l'angolo non ruota il disegno; quota e angolo restano calcolati,
+    // stabili, per lo zoom-albero del cantiere successivo.
+    const innesto = innestoDi(userId ?? '');
+    return { clusters, sTot, baseY, forks, maxReach, branchRad, trunkRad, innesto };
+  }, [leaves, hidden, userId]);
 
   // Apertura sulla punta a ogni cambio di modello.
-  useEffect(() => { setSView(-1); if (scrollRef.current) scrollRef.current.scrollTop = 0; }, [model.sTot]);
+  useEffect(() => { setFrac(0); if (scrollRef.current) scrollRef.current.scrollTop = 0; }, [model.sTot]);
 
   const onScroll = () => {
     if (rafRef.current) return;
@@ -236,29 +261,27 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
       rafRef.current = 0;
       const el = scrollRef.current; if (!el) return;
       const max = el.scrollHeight - el.clientHeight;
-      const frac = max > 0 ? el.scrollTop / max : 0;
-      setSView(model.sTot * (1 - frac)); // punta in cima, passato scorrendo giu'
-      setScrollPx(el.scrollTop);         // parallasse: i piani dietro si muovono a una frazione
+      setFrac(max > 0 ? el.scrollTop / max : 0); // 0 = apertura, 1 = giu' al tronco
     });
     setActive(true);
     if (fadeRef.current) clearTimeout(fadeRef.current);
     fadeRef.current = setTimeout(() => setActive(false), 900);
   };
 
-  const sv = sView < 0 ? model.sTot : sView;
-  // La cornice si adatta al ramo: se il tracciato e' piu' corto della vista, si stringe
-  // l'inquadratura (tetto 2.8) finche' lo riempie. Nessuna formula cambia: cambia solo
-  // quanto vicino si guarda. Oltre la soglia lo zoom torna a 1 e lo scorrimento entra.
-  const zoomFill = Math.max(1, (VH * 0.92) / Math.max(model.sTot, 1)); // riempi in altezza
-  const zoomFit = (VW * 0.5) / (model.maxReach + 10);                  // ma la foglia piu' larga deve starci
+  // La cornice adattiva vale per il FOGLIAME quando tutto sta in una schermata: si stringe
+  // (tetto 2.8) finche' lo riempie; la foglia piu' larga deve comunque starci (zoomFit).
+  const zoomFill = Math.max(1, (VH * 0.92) / Math.max(model.sTot, 1));
+  const zoomFit = (VW * 0.5) / (model.maxReach + 10);
   const zoom = Math.min(2.8, zoomFill, zoomFit);
-  // Margine di sicurezza solo a inquadratura stretta: il fogliame non tocca mai il bordo.
-  // A giardino cresciuto (zoom 1) la vista resta quella di prima.
   const fit = zoom > 1 ? 1.08 : 1;
   const eVW = (VW / zoom) * fit, eVH = (VH / zoom) * fit;
-  // Se ci sta tutto, la camera inquadra il mezzo del ramo (base e punta insieme);
-  // altrimenti segue lo scorrimento, aperta sulla punta.
-  const camS = zoom > 1 ? model.sTot / 2 : sv;
+  // Apertura: giovane -> fogliame centrato (la punta resta in alto); cresciuto -> punta. Ma lo
+  // scorrimento porta la camera GIU', sotto s=0, fino all'innesto e a un tratto di tronco: il
+  // tronco e' il capolinea (toccare terra), non una banda da incastrare nell'apertura.
+  const TRUNK_REVEAL = 95;
+  const openS = zoom > 1 ? model.sTot / 2 : model.sTot;
+  const camS = openS - frac * (openS + TRUNK_REVEAL);
+  const sv = camS;
   const cam = axisPoint(camS, model.baseY);
   const vb = (cam.x - eVW / 2).toFixed(1) + ' ' + (cam.y - eVH / 2).toFixed(1) + ' ' + eVW.toFixed(1) + ' ' + eVH.toFixed(1);
   const winLo = camS - eVH * 1.6, winHi = camS + eVH * 1.6;
@@ -276,22 +299,8 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col items-center p-6 pt-10"
       style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 30%, #1a2e1f 0%, #0f1a14 40%, #0a0f0c 100%)' }}>
-      {/* Sfondo (piani 1-3): il ramo parte da qualcosa. Scenografia, non dato - non conta, non
-          rappresenta nessuno, non e' toccabile. Proporzioni fisse, NESSUNA query: l'albero comune
-          arriva col prossimo cantiere. Fuori dall'SVG, dietro, con parallasse leggera. */}
-      <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
-        {/* piano 1 - chioma: massa scura in alto, sfocata dal solo gradiente (nessun filtro su telefono) */}
-        <div className="absolute inset-x-0 top-0 h-[45%]" style={{ background: 'radial-gradient(ellipse 75% 100% at 50% -15%, rgba(28,50,34,0.20), rgba(28,50,34,0) 72%)', transform: reduced ? undefined : 'translateY(' + (-scrollPx * 0.25).toFixed(0) + 'px)' }} />
-        {/* piano 2 - rami altrui: sagome a ventaglio dal fusto, nessuna foglia distinta */}
-        <svg viewBox="0 0 100 150" preserveAspectRatio="xMidYMax meet" className="absolute inset-0 w-full h-full" style={{ opacity: 0.16, transform: reduced ? undefined : 'translateY(' + (-scrollPx * 0.25).toFixed(0) + 'px)' }}>
-          {[-40, -24, -11, 12, 27, 41].map((dx, i) => (
-            <path key={i} d={'M50 150 Q ' + (50 + dx * 0.35) + ' 96 ' + (50 + dx) + ' ' + (46 - (i % 3) * 9)} stroke="#37543c" strokeWidth={(2.6 - i * 0.18).toFixed(2)} fill="none" strokeLinecap="round" />
-          ))}
-        </svg>
-        {/* piano 3 - suolo: fascia di terreno in basso, orizzonte appena percepibile */}
-        <div className="absolute inset-x-0 bottom-0 h-[26%]" style={{ background: 'linear-gradient(to top, rgba(18,26,18,0.25), rgba(18,26,18,0.10) 45%, rgba(18,26,18,0) 85%)', transform: reduced ? undefined : 'translateY(' + (-scrollPx * 0.15).toFixed(0) + 'px)' }} />
-      </div>
-
+      {/* NIENTE piu' strati di sfondo: c'e' UN albero, guardato da vicino. Tronco, innesto,
+          ramo, foglie vivono in un solo spazio (l'SVG sotto). La camera e' l'unica cosa che si muove. */}
       {/* Atmosfera: particelle-luce sospese. */}
       <div aria-hidden className="absolute inset-0 pointer-events-none">
         {[...Array(9)].map((_, i) => (
@@ -328,19 +337,20 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
           <div className="relative">
             {/* Contenitore scorrevole: lo scroll e' un'ascissa sul tracciato; l'SVG appiccicato segue la curva. */}
             <div ref={scrollRef} onScroll={onScroll} className="rounded-3xl" style={{ height: '62vh', overflowY: 'auto', overflowX: 'hidden' }}>
-              <div style={{ height: Math.max(model.sTot, 340) + 160 + 'px', position: 'relative' }}>
+              <div style={{ height: Math.max(openS + TRUNK_REVEAL, 340) + 200 + 'px', position: 'relative' }}>
                 <svg viewBox={vb} preserveAspectRatio="xMidYMid slice" style={{ position: 'sticky', top: 0, width: '100%', height: '62vh', display: 'block', touchAction: 'manipulation' }}>
-                  {/* piano 4 - IL FUSTO: da cui parte il ramo. Dentro l'SVG, in coordinate del
-                      viewBox, PRIMO dipinto: solo cosi' il ramo si attacca davvero, perche' la base
-                      dell'asse e' axisPoint(0) = (CX, baseY) e il fusto ci passa esatto. Largo 2-3x
-                      lo spessore massimo del ramo alla base: "il mio ramo e' uno dei tanti". */}
+                  {/* IL TRONCO (EventGarden): dentro l'SVG, PRIMO dipinto, in coordinate del viewBox.
+                      Il ramo si attacca DAVVERO - la base dell'asse e' axisPoint(0) = (CX, baseY) e il
+                      tronco ci passa esatto. Semilarghezza = LAW_SCALE * trunkRad, DERIVATA dalla legge
+                      (~2.2x il ramo), non scelta. Esce da entrambi i bordi: un innesto, non un moncone. */}
                   {(() => {
-                    const yTop = model.baseY, yBot = model.baseY + 220; const wTop = 6, wBot = 17;
-                    const cono = (w: number) => 'M ' + (CX - wTop * w) + ' ' + yTop + ' L ' + (CX - wBot * w) + ' ' + yBot + ' L ' + (CX + wBot * w) + ' ' + yBot + ' L ' + (CX + wTop * w) + ' ' + yTop + ' Z';
-                    return <><path d={cono(1)} fill={STEM_DK} opacity="0.26" /><path d={cono(0.5)} fill={STEM} opacity="0.12" /></>;
+                    const tw = LAW_SCALE * model.trunkRad;
+                    const yTop = (model.baseY - (model.sTot + 260)).toFixed(0), yBot = (model.baseY + 420).toFixed(0);
+                    const cono = (k: number) => 'M ' + (CX - tw*0.72*k).toFixed(1) + ' ' + yTop + ' L ' + (CX - tw*1.18*k).toFixed(1) + ' ' + yBot + ' L ' + (CX + tw*1.18*k).toFixed(1) + ' ' + yBot + ' L ' + (CX + tw*0.72*k).toFixed(1) + ' ' + yTop + ' Z';
+                    return <><path d={cono(1)} fill={STEM_DK} opacity="0.5" /><path d={cono(0.55)} fill={STEM} opacity="0.22" /></>;
                   })()}
-                  {/* Asse: solo il tratto entro la finestra della vista. */}
-                  <path d={axisRibbon(Math.max(0, winLo), Math.min(model.sTot, winHi), model.baseY, model.sTot)} fill={STEM} />
+                  {/* Asse (il ramo): larghezza dalla LEGGE - a ogni grappolo lasciato dietro, il raggio residuo scende. */}
+                  <path d={axisRibbon(Math.max(0, winLo), Math.min(model.sTot, winHi), model.baseY, (s) => LAW_SCALE * raggioGenitore([R_TWIG, ...model.clusters.filter((c) => c.s >= s).map((c) => c.cRad)]))} fill={STEM} />
                   {/* Forcelle d'anno: stub laterale che si assottiglia (non scatta finche' e' tutto un anno). */}
                   {model.forks.filter((s) => s > winLo && s < winHi).map((s, i) => {
                     const P = axisPoint(s, model.baseY), a = axisTangent(s), side = i % 2 ? 1 : -1;
