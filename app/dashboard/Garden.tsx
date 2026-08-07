@@ -309,7 +309,7 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
             {/* Contenitore scorrevole: lo scroll e' un'ascissa sul tracciato; l'SVG appiccicato segue la curva. */}
             <div ref={scrollRef} onScroll={onScroll} className="rounded-3xl" style={{ height: '62vh', overflowY: 'auto', overflowX: 'hidden' }}>
               <div style={{ height: Math.max(model.sTot, 340) + 160 + 'px', position: 'relative' }}>
-                <svg viewBox={vb} preserveAspectRatio="xMidYMid slice" style={{ position: 'sticky', top: 0, width: '100%', height: '62vh', display: 'block' }}>
+                <svg viewBox={vb} preserveAspectRatio="xMidYMid slice" style={{ position: 'sticky', top: 0, width: '100%', height: '62vh', display: 'block', touchAction: 'manipulation' }}>
                   {/* Asse: solo il tratto entro la finestra della vista. */}
                   <path d={axisRibbon(Math.max(0, winLo), Math.min(model.sTot, winHi), model.baseY, model.sTot)} fill={STEM} />
                   {/* Forcelle d'anno: stub laterale che si assottiglia (non scatta finche' e' tutto un anno). */}
@@ -353,6 +353,7 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                           const size = 7 + swell * 11;
                           fg.push({ plane: 3, el: (
                             <g key={key} onClick={onClick} className="cursor-pointer" style={{ opacity: 0, animation: 'pop .5s ease-out ' + delay.toFixed(2) + 's forwards, sway ' + swayDur.toFixed(2) + 's ease-in-out ' + phase.toFixed(2) + 's infinite', transformOrigin: base.x.toFixed(1) + 'px ' + base.y.toFixed(1) + 'px' }}>
+                              <path d={'M' + base.x.toFixed(1) + ' ' + base.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1)} stroke="transparent" strokeWidth={(44 / zoom).toFixed(1)} strokeLinecap="round" fill="none" />
                               <path d={'M' + base.x.toFixed(1) + ' ' + base.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1)} stroke={STEM} strokeWidth="1.6" fill="none" strokeLinecap="round" />
                               <BudShape x={ex} y={ey} ang={leafAng} size={size} gid={'bd' + ci + '-' + j} op={1} />
                             </g>
@@ -375,6 +376,9 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                         const grad = { x1: 0.5-gx, y1: 0.5-gy, x2: 0.5+gx, y2: 0.5+gy };
                         fg.push({ plane, el: (
                           <g key={key} onClick={onClick} className="cursor-pointer" style={{ opacity: 0, animation: 'pop .5s ease-out ' + delay.toFixed(2) + 's forwards, sway ' + swayDur.toFixed(2) + 's ease-in-out ' + phase.toFixed(2) + 's infinite', transformOrigin: base.x.toFixed(1) + 'px ' + base.y.toFixed(1) + 'px' }}>
+                            {/* Capsula invisibile del tocco: 44px reali (36 sul piano posteriore), dall'innesto
+                                alla punta della lamina. transparent (non none) riceve gli eventi; /zoom la tiene a 44px reali. */}
+                            <path d={'M' + base.x.toFixed(1) + ' ' + base.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1) + ' L ' + (ex + Math.cos(ang) * len).toFixed(1) + ' ' + (ey + Math.sin(ang) * len).toFixed(1)} stroke="transparent" strokeWidth={(44 / zoom).toFixed(1)} strokeLinecap="round" fill="none" />
                             <path d={'M' + base.x.toFixed(1) + ' ' + base.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1)} stroke={STEM} strokeWidth={(1.4 + pScale*1.2).toFixed(1)} fill="none" strokeLinecap="round" opacity={pOp} />
                             {/* Fiore all'attacco fra ramoscello e lamina (dove stanno davvero), raddoppiato: sotto le ~8 unita' i petali non si leggono. */}
                             <FlowerShape x={ex} y={ey} color={FLOWER[lf.category] ?? FLOWER.travel} r={5 + Math.sqrt(lf.count) * 0.9} seed={seed} />
@@ -406,6 +410,7 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                       out.push(
                         <g key={'dorm' + i} onClick={clickable ? onCreateHub : undefined} className={clickable ? 'cursor-pointer' : undefined}
                            style={{ opacity: 0, animation: 'pop .5s ease-out ' + (1.5 + i * 0.15).toFixed(2) + 's forwards, breathe ' + bdur.toFixed(2) + 's ease-in-out ' + bph.toFixed(2) + 's infinite', transformOrigin: P.x.toFixed(1) + 'px ' + P.y.toFixed(1) + 'px' }}>
+                          <circle cx={P.x.toFixed(1)} cy={P.y.toFixed(1)} r={(22 / zoom).toFixed(1)} fill="transparent" />
                           <BudShape x={P.x} y={P.y} ang={ang} size={size} gid={'dbud' + i} op={0.75} outline />
                         </g>
                       );
@@ -453,8 +458,14 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                   <div><span className="text-2xl font-black text-white">{selected.count}</span><p className="text-[9px] uppercase text-emerald-200/50 font-bold">{selected.count === 1 ? 'persona' : 'persone'}</p></div>
                   <div><span className="text-2xl font-black text-white">{selected.duration}</span><p className="text-[9px] uppercase text-emerald-200/50 font-bold">{selected.duration === 1 ? 'giorno' : 'giorni'}</p></div>
                 </div>
-                <button onClick={() => { if (selected.hubId) onOpenHub(selected.hubId); setSelected(null); }}
-                  className="w-full mt-5 bg-emerald-400 text-slate-950 py-3 rounded-2xl font-black text-xs uppercase tracking-wider active:scale-[0.98] transition-transform">Vai all'Hub</button>
+                {/* L'Hub esiste ancora (anche archiviato) -> il tasto porta. Non esiste piu' -> una
+                    riga onesta al suo posto: un tasto che non risponde e' peggio di un tasto assente. */}
+                {selected.hubId ? (
+                  <button onClick={() => { onOpenHub(selected.hubId!); setSelected(null); }}
+                    className="w-full mt-5 bg-emerald-400 text-slate-950 py-3 rounded-2xl font-black text-xs uppercase tracking-wider active:scale-[0.98] transition-transform">Vai all'Hub</button>
+                ) : (
+                  <p className="w-full mt-5 text-center text-emerald-200/45 text-xs italic py-3">Di questo resta il ricordo.</p>
+                )}
                 <button onClick={() => setSelected(null)} className="w-full mt-2 text-emerald-200/40 text-xs py-2">Chiudi</button>
               </div>
             </div>
