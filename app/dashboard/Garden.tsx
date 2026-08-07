@@ -7,10 +7,11 @@ import { useHub } from './lib/HubContext';
 // start/end: date dell'Hub vivo, per lo stato della gemma; null per le mature.
 type LeafData = { key: string; hubId: string | null; name: string; category: string; count: number; duration: number; isOwner: boolean; mature: boolean; date: string; start: string | null; end: string | null };
 
-// Palette dentro il marchio (antracite, salvia, oro): quattro tinte terrose ben
-// distinguibili, senza il neon di prima. L'oro e' la firma: 14 Hub su 17 sono travel.
+// Palette dentro il marchio: quattro tinte per categoria (l'oro e' la firma), ma con
+// SATURAZIONE sotto quella della lamina - il fiore e' un accento, non un soggetto: non deve
+// essere piu' acceso della foglia. La categoria resta il segnale, nella tinta.
 const FLOWER: Record<string, string> = {
-  travel: '#e6b34e', party: '#d98a5c', social: '#c98aa0', corporate: '#8aa6b4',
+  travel: 'hsl(43 46% 57%)', party: 'hsl(20 44% 58%)', social: 'hsl(338 36% 60%)', corporate: 'hsl(205 34% 60%)',
 };
 const STEM = '#5a4a3a', STEM_DK = '#3a3028';
 const DAY = 86400000;
@@ -128,7 +129,10 @@ const BudShape = ({ x, y, ang, size, gid, op, outline }: any) => {
   const path = 'M0 0 Q ' + (size*0.55).toFixed(1) + ' ' + (-w).toFixed(1) + ' ' + size.toFixed(1) + ' 0 Q ' + (size*0.55).toFixed(1) + ' ' + w.toFixed(1) + ' 0 0 Z';
   const tf = 'translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ') rotate(' + (ang * 180 / Math.PI).toFixed(1) + ')';
   if (outline) {
-    return <g transform={tf} opacity={op}><path d={path} fill="none" stroke="#9a8f78" strokeWidth="0.8" /></g>;
+    // Solo contorno, tondo e chiuso (mandorla): niente nervatura interna e niente punta acuta,
+    // che a schermo la facevano sembrare un uncino. Una gemma in attesa, non un gancio.
+    const o = 'M0 0 C ' + (size*0.3).toFixed(1) + ' ' + (-w).toFixed(1) + ' ' + (size*0.7).toFixed(1) + ' ' + (-w).toFixed(1) + ' ' + size.toFixed(1) + ' 0 C ' + (size*0.7).toFixed(1) + ' ' + w.toFixed(1) + ' ' + (size*0.3).toFixed(1) + ' ' + w.toFixed(1) + ' 0 0 Z';
+    return <g transform={tf} opacity={op}><path d={o} fill="none" stroke="#9a8f78" strokeWidth="0.9" strokeLinejoin="round" /></g>;
   }
   return (
     <g transform={tf} opacity={op}>
@@ -349,6 +353,21 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                     const cono = (k: number) => 'M ' + (CX - tw*0.72*k).toFixed(1) + ' ' + yTop + ' L ' + (CX - tw*1.18*k).toFixed(1) + ' ' + yBot + ' L ' + (CX + tw*1.18*k).toFixed(1) + ' ' + yBot + ' L ' + (CX + tw*0.72*k).toFixed(1) + ' ' + yTop + ' Z';
                     return <><path d={cono(1)} fill={STEM_DK} opacity="0.5" /><path d={cono(0.55)} fill={STEM} opacity="0.22" /></>;
                   })()}
+                  {/* IL SUOLO: fascia di terreno con un orizzonte appena percepibile, sotto l'innesto.
+                      Disegnato DOPO il tronco cosi' che il tronco vi entri: poggia su qualcosa. Il
+                      contrasto si verifica sul BORDO (orizzonte) contro il fondo, non contro la foglia. */}
+                  {(() => {
+                    const yH = (model.baseY + 175).toFixed(0);
+                    return (
+                      <g>
+                        <defs><linearGradient id="suolo" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="rgba(20,26,18,0)" /><stop offset="40%" stopColor="rgba(20,26,18,0.30)" /><stop offset="100%" stopColor="rgba(13,17,11,0.46)" />
+                        </linearGradient></defs>
+                        <rect x={CX - 700} y={yH} width="1400" height="760" fill="url(#suolo)" />
+                        <rect x={CX - 700} y={yH} width="1400" height="1.4" fill="rgba(150,170,140,0.14)" />
+                      </g>
+                    );
+                  })()}
                   {/* Asse (il ramo): larghezza dalla LEGGE - a ogni grappolo lasciato dietro, il raggio residuo scende. */}
                   <path d={axisRibbon(Math.max(0, winLo), Math.min(model.sTot, winHi), model.baseY, (s) => LAW_SCALE * raggioGenitore([R_TWIG, ...model.clusters.filter((c) => c.s >= s).map((c) => c.cRad)]))} fill={STEM} />
                   {/* Forcelle d'anno: stub laterale che si assottiglia (non scatta finche' e' tutto un anno). */}
@@ -419,8 +438,9 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                                 alla punta della lamina. transparent (non none) riceve gli eventi; /zoom la tiene a 44px reali. */}
                             <path d={'M' + base.x.toFixed(1) + ' ' + base.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1) + ' L ' + (ex + Math.cos(ang) * len).toFixed(1) + ' ' + (ey + Math.sin(ang) * len).toFixed(1)} stroke="transparent" strokeWidth={(44 / zoom).toFixed(1)} strokeLinecap="round" fill="none" />
                             <path d={'M' + base.x.toFixed(1) + ' ' + base.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1)} stroke={STEM} strokeWidth={(1.4 + pScale*1.2).toFixed(1)} fill="none" strokeLinecap="round" opacity={pOp} />
-                            {/* Fiore all'attacco fra ramoscello e lamina (dove stanno davvero), raddoppiato: sotto le ~8 unita' i petali non si leggono. */}
-                            <FlowerShape x={ex} y={ey} color={FLOWER[lf.category] ?? FLOWER.travel} r={5 + Math.sqrt(lf.count) * 0.9} seed={seed} />
+                            {/* Fiore all'attacco fra ramoscello e lamina. Diametro complessivo ~60% della
+                                lunghezza foglia (l'inviluppo e' ~3.4x il raggio nominale): un accento, non un soggetto. */}
+                            <FlowerShape x={ex} y={ey} color={FLOWER[lf.category] ?? FLOWER.travel} r={leafLen(lf.count) * 0.17} seed={seed} />
                             <LeafShape x={ex} y={ey} ang={ang} sx={sx} len={len} curl={curl} grad={grad} hi={hi} mid={mid} edge={edge} gid={'lg' + ci + '-' + j} op={pOp} />
                           </g>
                         ) });
