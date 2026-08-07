@@ -147,12 +147,15 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
   const [showHidden, setShowHidden] = useState(false);
   const [sView, setSView] = useState(-1);          // -1 = ancora alla punta (presente)
   const [active, setActive] = useState(false);     // scorrimento in corso -> etichetta del tempo piu' visibile
+  const [scrollPx, setScrollPx] = useState(0);     // per la parallasse dei piani di sfondo
+  const [reduced, setReduced] = useState(false);   // prefers-reduced-motion: niente parallasse
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef(0);
   const fadeRef = useRef<any>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    setReduced(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     try { setHidden(new Set(JSON.parse(localStorage.getItem('eg_hidden_leaves') ?? '[]'))); } catch {}
   }, []);
   const toggleHide = (key: string) => setHidden((prev) => {
@@ -235,6 +238,7 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
       const max = el.scrollHeight - el.clientHeight;
       const frac = max > 0 ? el.scrollTop / max : 0;
       setSView(model.sTot * (1 - frac)); // punta in cima, passato scorrendo giu'
+      setScrollPx(el.scrollTop);         // parallasse: i piani dietro si muovono a una frazione
     });
     setActive(true);
     if (fadeRef.current) clearTimeout(fadeRef.current);
@@ -272,6 +276,22 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col items-center p-6 pt-10"
       style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 30%, #1a2e1f 0%, #0f1a14 40%, #0a0f0c 100%)' }}>
+      {/* Sfondo (piani 1-3): il ramo parte da qualcosa. Scenografia, non dato - non conta, non
+          rappresenta nessuno, non e' toccabile. Proporzioni fisse, NESSUNA query: l'albero comune
+          arriva col prossimo cantiere. Fuori dall'SVG, dietro, con parallasse leggera. */}
+      <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* piano 1 - chioma: massa scura in alto, sfocata dal solo gradiente (nessun filtro su telefono) */}
+        <div className="absolute inset-x-0 top-0 h-[45%]" style={{ background: 'radial-gradient(ellipse 75% 100% at 50% -15%, rgba(28,50,34,0.20), rgba(28,50,34,0) 72%)', transform: reduced ? undefined : 'translateY(' + (-scrollPx * 0.25).toFixed(0) + 'px)' }} />
+        {/* piano 2 - rami altrui: sagome a ventaglio dal fusto, nessuna foglia distinta */}
+        <svg viewBox="0 0 100 150" preserveAspectRatio="xMidYMax meet" className="absolute inset-0 w-full h-full" style={{ opacity: 0.16, transform: reduced ? undefined : 'translateY(' + (-scrollPx * 0.25).toFixed(0) + 'px)' }}>
+          {[-40, -24, -11, 12, 27, 41].map((dx, i) => (
+            <path key={i} d={'M50 150 Q ' + (50 + dx * 0.35) + ' 96 ' + (50 + dx) + ' ' + (46 - (i % 3) * 9)} stroke="#37543c" strokeWidth={(2.6 - i * 0.18).toFixed(2)} fill="none" strokeLinecap="round" />
+          ))}
+        </svg>
+        {/* piano 3 - suolo: fascia di terreno in basso, orizzonte appena percepibile */}
+        <div className="absolute inset-x-0 bottom-0 h-[26%]" style={{ background: 'linear-gradient(to top, rgba(18,26,18,0.25), rgba(18,26,18,0.10) 45%, rgba(18,26,18,0) 85%)', transform: reduced ? undefined : 'translateY(' + (-scrollPx * 0.15).toFixed(0) + 'px)' }} />
+      </div>
+
       {/* Atmosfera: particelle-luce sospese. */}
       <div aria-hidden className="absolute inset-0 pointer-events-none">
         {[...Array(9)].map((_, i) => (
@@ -310,6 +330,15 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
             <div ref={scrollRef} onScroll={onScroll} className="rounded-3xl" style={{ height: '62vh', overflowY: 'auto', overflowX: 'hidden' }}>
               <div style={{ height: Math.max(model.sTot, 340) + 160 + 'px', position: 'relative' }}>
                 <svg viewBox={vb} preserveAspectRatio="xMidYMid slice" style={{ position: 'sticky', top: 0, width: '100%', height: '62vh', display: 'block', touchAction: 'manipulation' }}>
+                  {/* piano 4 - IL FUSTO: da cui parte il ramo. Dentro l'SVG, in coordinate del
+                      viewBox, PRIMO dipinto: solo cosi' il ramo si attacca davvero, perche' la base
+                      dell'asse e' axisPoint(0) = (CX, baseY) e il fusto ci passa esatto. Largo 2-3x
+                      lo spessore massimo del ramo alla base: "il mio ramo e' uno dei tanti". */}
+                  {(() => {
+                    const yTop = model.baseY, yBot = model.baseY + 220; const wTop = 6, wBot = 17;
+                    const cono = (w: number) => 'M ' + (CX - wTop * w) + ' ' + yTop + ' L ' + (CX - wBot * w) + ' ' + yBot + ' L ' + (CX + wBot * w) + ' ' + yBot + ' L ' + (CX + wTop * w) + ' ' + yTop + ' Z';
+                    return <><path d={cono(1)} fill={STEM_DK} opacity="0.26" /><path d={cono(0.5)} fill={STEM} opacity="0.12" /></>;
+                  })()}
                   {/* Asse: solo il tratto entro la finestra della vista. */}
                   <path d={axisRibbon(Math.max(0, winLo), Math.min(model.sTot, winHi), model.baseY, model.sTot)} fill={STEM} />
                   {/* Forcelle d'anno: stub laterale che si assottiglia (non scatta finche' e' tutto un anno). */}
