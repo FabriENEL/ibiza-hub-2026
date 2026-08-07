@@ -397,8 +397,25 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                       </g>
                     );
                   })()}
-                  {/* Asse (il ramo): larghezza dalla LEGGE - a ogni grappolo lasciato dietro, il raggio residuo scende. */}
-                  <path d={axisRibbon(Math.max(0, winLo), Math.min(model.sTot, winHi), model.baseY, (s) => LAW_SCALE * raggioGenitore([R_TWIG, ...model.clusters.filter((c) => c.s >= s).map((c) => c.cRad)]))} fill={STEM} />
+                  {/* Il ramo si STACCA dal tronco a 40 gradi e poi curva su - una Y, non una H. Un collare
+                      all'innesto (piu' raggio agli ultimi punti) dice "e' cresciuto da li'", non "appoggiato".
+                      Il tronco passa dietro, la base vi si fonde. Sotto il primo grappolo (nessuna foglia) c'e'
+                      il connettore; l'asse serpeggiante - LARGHEZZA dalla legge - riprende dal primo grappolo. */}
+                  {(() => {
+                    const branchW = (s: number) => LAW_SCALE * raggioGenitore([R_TWIG, ...model.clusters.filter((c) => c.s >= s).map((c) => c.cRad)]);
+                    const s0 = model.clusters.length ? model.clusters[0].s : 0;
+                    const p0 = { x: CX, y: model.baseY }, p3 = axisPoint(s0, model.baseY);
+                    const angLeave = -Math.PI / 2 + 0.70;                 // 40 gradi dalla verticale (angolo d'attacco)
+                    const angMeet = axisTangent(s0), len = Math.hypot(p3.x - p0.x, p3.y - p0.y) || 1;
+                    const p1 = { x: p0.x + Math.cos(angLeave) * len * 0.5, y: p0.y + Math.sin(angLeave) * len * 0.5 };
+                    const p2 = { x: p3.x - Math.cos(angMeet) * len * 0.4, y: p3.y - Math.sin(angMeet) * len * 0.4 };
+                    const wTip = branchW(s0);
+                    const conn = ribbon({ p0, p1, p2, p3, wBase: wTip * 1.5, wTip }, 0, 20); // collare (wBase piu' largo)
+                    return (<>
+                      <path d={conn} fill={STEM} />
+                      <path d={axisRibbon(Math.max(s0, winLo), Math.min(model.sTot, winHi), model.baseY, branchW)} fill={STEM} />
+                    </>);
+                  })()}
                   {/* Forcelle d'anno: stub laterale che si assottiglia (non scatta finche' e' tutto un anno). */}
                   {model.forks.filter((s) => s > winLo && s < winHi).map((s, i) => {
                     const P = axisPoint(s, model.baseY), a = axisTangent(s), side = i % 2 ? 1 : -1;
