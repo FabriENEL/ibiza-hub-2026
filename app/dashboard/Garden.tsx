@@ -17,12 +17,22 @@ const STEM = '#5a4a3a', STEM_DK = '#3a3028';
 const DAY = 86400000;
 const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
 
-// L'asse del ramo serpeggia mentre sale. La posizione lungo il tempo e' l'ascissa
-// curvilinea s: la vista si centra su axisPoint(s). Base = passato (s piccolo, in basso),
-// punta = presente (s grande, in alto).
-const CX = 180, AMP = 70, WL = 200, VW = 360, VH = 500;
-const axisPoint = (s: number, baseY: number) => ({ x: CX + AMP * Math.sin(s / WL), y: baseY - s });
-const axisTangent = (s: number) => Math.atan2(-1, (AMP / WL) * Math.cos(s / WL));
+// Il ramo di pino e' un ARCO: esce quasi orizzontale (PHI0 sopra l'orizzontale) e curva fino
+// alla verticale in punta (PHI1). L'ascissa curvilinea s e' identica; cambia la CURVA. Base =
+// passato (in basso, esterno), punta = presente (in alto, verso il cielo). La tangente ruota
+// monotona dalla base alla punta; una leggera sinuosita' si sovrappone senza invertirla.
+const CX = 180, VW = 360, VH = 500;
+const PHI0 = 38 * Math.PI / 180, PHI1 = 89 * Math.PI / 180;
+const arcPhi = (s: number, sTot: number) => PHI0 + (PHI1 - PHI0) * Math.min(1, Math.max(0, s / Math.max(1, sTot)));
+const axisPoint = (s: number, baseY: number, sTot: number) => {
+  const k = (PHI1 - PHI0) / Math.max(1, sTot), sc = Math.min(sTot, Math.max(0, s));
+  let x = CX + (Math.sin(PHI0 + k * sc) - Math.sin(PHI0)) / k;
+  let y = baseY + (Math.cos(PHI0 + k * sc) - Math.cos(PHI0)) / k;      // clothoide: integrale di (cos, -sin)
+  if (s !== sc) { const pe = arcPhi(sc, sTot), ds = s - sc; x += Math.cos(pe) * ds; y -= Math.sin(pe) * ds; } // oltre l'arco: dritto
+  const perp = arcPhi(sc, sTot) + Math.PI / 2, w = 5 * Math.sin(sc / 55); // leggera sinuosita' perpendicolare
+  return { x: x + Math.cos(perp) * w, y: y - Math.sin(perp) * w };
+};
+const axisTangent = (s: number, sTot: number) => -arcPhi(Math.min(sTot, Math.max(0, s)), sTot); // angolo dell'arco (monotono)
 
 // Spaziatura: il ritmo, compresso. Nessun caso qui — e' una grandezza che porta significato.
 const distanza = (giorni: number) => 40 + 55 * Math.log(1 + Math.max(0, giorni) / 14);
@@ -59,7 +69,10 @@ const raggioGrappolo = (k: number) => R_TWIG * Math.pow(Math.max(1, k), 1 / ALFA
 // spaziatura che non ripete mai un allineamento (il sole dei girasoli). In vista Ramo il
 // ramo si guarda di taglio (si ignora l'angolo, si disegna nel piano); quota e angolo
 // restano calcolati, stabili, per il collaudo e per lo zoom-albero del cantiere successivo.
-const innestoDi = (id: string) => { const i = seedOf(id || 'eg'); return { idx: i, ang: (i * 137.5) % 360, quota: 0.35 + 0.5 * jit(i, 99) }; };
+// Tutti i rami si innestano NELLA CHIOMA - l'ultimo 12-15% del fusto - non sparsi sul fusto:
+// li' convergono sulla sommita', ed e' esattamente R_fusto^2.2 = somma R_rami^2.2. Piccole
+// differenze di quota bastano a non farli toccare; l'angolo attorno al fusto resta l'aureo.
+const innestoDi = (id: string) => { const i = seedOf(id || 'eg'); return { idx: i, ang: (i * 137.5) % 360, quota: 0.85 + 0.13 * jit(i, 99) }; };
 
 // Rametti (brachiblasti, stub d'anno): curve di Bezier con nastro rastremato.
 type Pt = { x: number; y: number };
@@ -84,10 +97,10 @@ const ribbon = (b: Br, grow = 0, steps = 14): string => {
     lft.push({ x: p.x + nx*w, y: p.y + ny*w }); rgt.push({ x: p.x - nx*w, y: p.y - ny*w }); }
   return 'M' + [...lft, ...rgt.reverse()].map((p) => p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' L') + ' Z'; };
 
-// L'asse principale: nastro rastremato lungo la serpentina, spesso alla base, sottile in punta.
-const axisRibbon = (sLo: number, sHi: number, baseY: number, widthAt: (s: number) => number, steps = 44): string => {
+// L'asse principale: nastro rastremato lungo l'ARCO, spesso alla base, sottile in punta.
+const axisRibbon = (sLo: number, sHi: number, baseY: number, sTot: number, widthAt: (s: number) => number, steps = 44): string => {
   const lft: Pt[] = [], rgt: Pt[] = [];
-  for (let i = 0; i <= steps; i++) { const s = lerp(sLo, sHi, i / steps), p = axisPoint(s, baseY), a = axisTangent(s);
+  for (let i = 0; i <= steps; i++) { const s = lerp(sLo, sHi, i / steps), p = axisPoint(s, baseY, sTot), a = axisTangent(s, sTot);
     const w = widthAt(s) / 2;
     const nx = Math.cos(a + Math.PI/2), ny = Math.sin(a + Math.PI/2);
     lft.push({ x: p.x + nx*w, y: p.y + ny*w }); rgt.push({ x: p.x - nx*w, y: p.y - ny*w }); }
@@ -272,23 +285,27 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
     fadeRef.current = setTimeout(() => setActive(false), 900);
   };
 
-  // La cornice adattiva vale per il FOGLIAME quando tutto sta in una schermata: si stringe
-  // (tetto 2.8) finche' lo riempie; la foglia piu' larga deve comunque starci (zoomFit).
-  const zoomFill = Math.max(1, (VH * 0.92) / Math.max(model.sTot, 1));
-  const zoomFit = (VW * 0.5) / (model.maxReach + 10);
-  const zoom = Math.min(2.8, zoomFill, zoomFit);
-  const fit = zoom > 1 ? 1.08 : 1;
-  const eVW = (VW / zoom) * fit, eVH = (VH / zoom) * fit;
-  // Apertura: giovane -> fogliame centrato (la punta resta in alto); cresciuto -> punta. Ma lo
-  // scorrimento porta la camera GIU', sotto s=0, fino all'innesto e a un tratto di tronco: il
-  // tronco e' il capolinea (toccare terra), non una banda da incastrare nell'apertura.
+  // Il ramo e' un ARCO largo: si inquadra il suo BOUNDING BOX (piu' il fogliame), non l'altezza
+  // dell'asse - cosi' NULLA viene tagliato. Conseguenza dichiarata: le foglie risultano un po'
+  // piu' piccole che con la serpentina verticale, perche' l'arco e' largo e la vista e' verticale.
+  const kk = (PHI1 - PHI0) / Math.max(1, model.sTot);
+  const dX = (Math.sin(PHI1) - Math.sin(PHI0)) / kk;   // larghezza dell'arco
+  const dY = (Math.cos(PHI0) - Math.cos(PHI1)) / kk;   // altezza dell'arco
+  const mr = model.maxReach;
+  const zoom = Math.min(2.8, (VW * 0.90) / (dX + 2 * mr + 50), (VH * 0.90) / (dY + 2 * mr + 50)); // +50 = margine per la panoramica verso il tronco
+  const eVW = VW / zoom, eVH = VH / zoom;
   const TRUNK_REVEAL = 95;
-  const openS = zoom > 1 ? model.sTot / 2 : model.sTot;
-  const camS = openS - frac * (openS + TRUNK_REVEAL);
-  const sv = camS;
-  const cam = axisPoint(camS, model.baseY);
+  // Apertura: l'arco per intero (centro del bounding box). Lo scorrimento porta la camera GIU' e
+  // verso CX, fino all'innesto e a un tratto di fusto: il capolinea, toccare terra.
+  const bcx = CX + dX / 2, bcyOpen = model.baseY - dY / 2;
+  const camX = lerp(bcx, CX, frac), camY = lerp(bcyOpen, model.baseY + TRUNK_REVEAL, frac);
+  const cam = { x: camX, y: camY };
+  const trunkYTop = model.baseY - dY / 2 - eVH / 2 - 45, trunkYBot = model.baseY + TRUNK_REVEAL + eVH / 2 + 45;
+  // Finestratura: la fascia di s il cui punto d'arco cade nella vista (approssimata sull'altezza).
+  const sMid = model.sTot * Math.max(0, Math.min(1, (model.baseY - camY) / Math.max(1, dY)));
+  const winLo = sMid - eVH * 1.2, winHi = sMid + eVH * 1.2;
+  const sv = sMid;
   const vb = (cam.x - eVW / 2).toFixed(1) + ' ' + (cam.y - eVH / 2).toFixed(1) + ' ' + eVW.toFixed(1) + ' ' + eVH.toFixed(1);
-  const winLo = camS - eVH * 1.6, winHi = camS + eVH * 1.6;
   // Etichetta del tempo: periodo del grappolo piu' vicino alla vista.
   const near = model.clusters.reduce<any>((best, c) => (!best || Math.abs(c.s - sv) < Math.abs(best.s - sv) ? c : best), null);
   const periodo = near && near.date ? MESI[Math.max(0, Math.min(11, parseInt(near.date.slice(5, 7)) - 1))] + ' ' + near.date.slice(0, 4) : '';
@@ -341,7 +358,7 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
           <div className="relative">
             {/* Contenitore scorrevole: lo scroll e' un'ascissa sul tracciato; l'SVG appiccicato segue la curva. */}
             <div ref={scrollRef} onScroll={onScroll} className="rounded-3xl" style={{ height: '62vh', overflowY: 'auto', overflowX: 'hidden' }}>
-              <div style={{ height: Math.max(openS + TRUNK_REVEAL, 340) + 200 + 'px', position: 'relative' }}>
+              <div style={{ height: Math.max(dY + TRUNK_REVEAL + eVH, 340) + 200 + 'px', position: 'relative' }}>
                 <svg viewBox={vb} preserveAspectRatio="xMidYMid slice" style={{ position: 'sticky', top: 0, width: '100%', height: '62vh', display: 'block', touchAction: 'manipulation' }}>
                   {/* IL TRONCO (EventGarden): dentro l'SVG, PRIMO dipinto, in coordinate del viewBox.
                       Il ramo si attacca DAVVERO - la base dell'asse e' axisPoint(0) = (CX, baseY) e il
@@ -354,7 +371,7 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                     const yH = model.baseY + 175;                          // orizzonte del suolo
                     // Estremita' calcolate DALLA VISTA (non da una costante): entrambe fuori campo con
                     // margine 45, a qualunque zoom e a qualunque posizione di scorrimento.
-                    const yTop = model.baseY - openS - eVH / 2 - 45, yBot = model.baseY + TRUNK_REVEAL + eVH / 2 + 45;
+                    const yTop = trunkYTop, yBot = trunkYBot;
                     const FLARE_H = 45;
                     const radiusAt = (y: number) => {
                       let r = R_full;
@@ -404,21 +421,21 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                   {(() => {
                     const branchW = (s: number) => LAW_SCALE * raggioGenitore([R_TWIG, ...model.clusters.filter((c) => c.s >= s).map((c) => c.cRad)]);
                     const s0 = model.clusters.length ? model.clusters[0].s : 0;
-                    const p0 = { x: CX, y: model.baseY }, p3 = axisPoint(s0, model.baseY);
-                    const angLeave = -Math.PI / 2 + 0.70;                 // 40 gradi dalla verticale (angolo d'attacco)
-                    const angMeet = axisTangent(s0), len = Math.hypot(p3.x - p0.x, p3.y - p0.y) || 1;
+                    const p0 = { x: CX, y: model.baseY }, p3 = axisPoint(s0, model.baseY, model.sTot);
+                    const angLeave = axisTangent(0, model.sTot);          // il ramo lascia il tronco nella direzione dell'arco (~38 sopra l'orizzontale)
+                    const angMeet = axisTangent(s0, model.sTot), len = Math.hypot(p3.x - p0.x, p3.y - p0.y) || 1;
                     const p1 = { x: p0.x + Math.cos(angLeave) * len * 0.5, y: p0.y + Math.sin(angLeave) * len * 0.5 };
                     const p2 = { x: p3.x - Math.cos(angMeet) * len * 0.4, y: p3.y - Math.sin(angMeet) * len * 0.4 };
                     const wTip = branchW(s0);
                     const conn = ribbon({ p0, p1, p2, p3, wBase: wTip * 1.5, wTip }, 0, 20); // collare (wBase piu' largo)
                     return (<>
                       <path d={conn} fill={STEM} />
-                      <path d={axisRibbon(Math.max(s0, winLo), Math.min(model.sTot, winHi), model.baseY, branchW)} fill={STEM} />
+                      <path d={axisRibbon(Math.max(s0, winLo), Math.min(model.sTot, winHi), model.baseY, model.sTot, branchW)} fill={STEM} />
                     </>);
                   })()}
                   {/* Forcelle d'anno: stub laterale che si assottiglia (non scatta finche' e' tutto un anno). */}
                   {model.forks.filter((s) => s > winLo && s < winHi).map((s, i) => {
-                    const P = axisPoint(s, model.baseY), a = axisTangent(s), side = i % 2 ? 1 : -1;
+                    const P = axisPoint(s, model.baseY, model.sTot), a = axisTangent(s, model.sTot), side = i % 2 ? 1 : -1;
                     const br = branchFrom(P.x, P.y, a + side * 1.5, 120, a + side * 1.9, 6, 1);
                     return <g key={'fork' + i}><path d={ribbon(br, 1.5)} fill={STEM_DK} opacity="0.5" /><path d={ribbon(br)} fill={STEM} /></g>;
                   })}
@@ -427,8 +444,13 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                     const bg: any[] = [], fg: any[] = [];
                     model.clusters.forEach((c, ci) => {
                       if (c.s <= winLo || c.s >= winHi) return;
-                      const P = axisPoint(c.s, model.baseY), T = axisTangent(c.s), m = c.leaves.length, side = ci % 2 ? 1 : -1;
-                      const bAng = T + side * 1.05;                       // il brachiblasto si stacca dall'asse
+                      const P = axisPoint(c.s, model.baseY, model.sTot), T = axisTangent(c.s, model.sTot), m = c.leaves.length, side = ci % 2 ? 1 : -1;
+                      // Foglie orientate sulla TANGENTE locale (che ora ruota molto). Dove la tangente e'
+                      // quasi orizzontale (base dell'arco) si tira il ventaglio verso l'alto, cosi' nessuna
+                      // foglia punta in basso. In alto (tangente verticale) resta come prima.
+                      const UP = -Math.PI / 2, lean = Math.min(1, Math.abs(T - UP) / (Math.PI / 2) * 1.6);
+                      const spr = 1.05 * (1 - 0.55 * lean);              // ventaglio piu' stretto dove la tangente e' orizzontale
+                      const bAng = T + (UP - T) * lean + side * spr;     // il brachiblasto si stacca dall'asse, verso l'alto
                       const Lb = m > 1 ? 10 + m * 4 : 0;
                       const Q = { x: P.x + Math.cos(bAng) * Lb, y: P.y + Math.sin(bAng) * Lb };
                       if (Lb > 0) bg.push(<path key={'bb' + ci} d={ribbon(branchFrom(P.x, P.y, bAng, Lb, bAng, 3, 1.4))} fill={STEM} />);
@@ -436,7 +458,8 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                         const seed = seedOf(lf.key);
                         const base = m > 1 ? { x: lerp(P.x, Q.x, (j + 0.7) / m), y: lerp(P.y, Q.y, (j + 0.7) / m) } : P;
                         const fan = m > 1 ? (j - (m - 1) / 2) * (1.3 / m) : 0;
-                        const leafAng = bAng + fan + (jit(seed, 1) - 0.5) * 0.5;   // fan attorno al rametto + caso
+                        let leafAng = bAng + fan + (jit(seed, 1) - 0.5) * 0.5;     // fan attorno al rametto + caso
+                        if (Math.sin(leafAng) > 0.06) leafAng = -leafAng;         // il ramoscello non punta mai in basso
                         const st = stateOf(lf);
                         const plane = jit(seed, 50) < 0.28 ? 0 : jit(seed, 50) < 0.72 ? 1 : 2;
                         const pScale = plane === 0 ? 0.8 : plane === 1 ? 0.92 : 1;
@@ -465,7 +488,8 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                           return;
                         }
                         const tilt = (jit(seed, 5) - 0.5) * 0.87;
-                        const ang = leafAng + tilt;
+                        let ang = leafAng + tilt;
+                        if (Math.sin(ang) > 0.06) ang = leafAng;                  // se il tilt la butta giu', la lamina resta sulla tangente (su)
                         const sx = 0.55 + jit(seed, 6) * 0.45;
                         const curl = (jit(seed, 8) - 0.5) * 1.4;
                         const len = leafLen(lf.count) * pScale;                   // SEGNALE pulito (solo profondita' scala)
@@ -507,7 +531,7 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                     for (let i = 0; i < nDorm; i++) {
                       const s = nDorm > 1 ? lerp(lo, hi, i / (nDorm - 1)) : (lo + hi) / 2;
                       if (s <= winLo || s >= winHi) continue;
-                      const P = axisPoint(s, model.baseY), a = axisTangent(s), sd = seedOf((userId ?? '') + 'dorm' + i), side = i % 2 ? 1 : -1;
+                      const P = axisPoint(s, model.baseY, model.sTot), a = axisTangent(s, model.sTot), sd = seedOf((userId ?? '') + 'dorm' + i), side = i % 2 ? 1 : -1;
                       // Taglia 8-10 = ~45-55% della gemma vera a gonfiore pieno (18), non della
                       // sua minima. Opacita' 0.75, e solo contorno: cosi' esiste otticamente.
                       const ang = a + side * (0.5 + jit(sd, 1) * 0.4), size = 8 + jit(sd, 2) * 2;
