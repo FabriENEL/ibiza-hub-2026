@@ -285,26 +285,27 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
     fadeRef.current = setTimeout(() => setActive(false), 900);
   };
 
-  // Il ramo e' un ARCO largo: si inquadra il suo BOUNDING BOX (piu' il fogliame), non l'altezza
-  // dell'asse - cosi' NULLA viene tagliato. Conseguenza dichiarata: le foglie risultano un po'
-  // piu' piccole che con la serpentina verticale, perche' l'arco e' largo e la vista e' verticale.
-  const kk = (PHI1 - PHI0) / Math.max(1, model.sTot);
-  const dX = (Math.sin(PHI1) - Math.sin(PHI0)) / kk;   // larghezza dell'arco
-  const dY = (Math.cos(PHI0) - Math.cos(PHI1)) / kk;   // altezza dell'arco
-  const mr = model.maxReach;
-  const zoom = Math.min(2.8, (VW * 0.90) / (dX + 2 * mr + 50), (VH * 0.90) / (dY + 2 * mr + 50)); // +50 = margine per la panoramica verso il tronco
-  const eVW = VW / zoom, eVH = VH / zoom;
+  // La TELECAMERA SEGUE L'ASSE, non contiene l'arco: nulla si perde, si raggiunge scorrendo (come
+  // il fusto, come la linea del tempo). L'arco esce dai bordi a monte e a valle, e va bene. Lo zoom
+  // e' governato dal fogliame LOCALE - il tetto sulla larghezza da maxReach calcolato solo sulle
+  // foglie DENTRO la finestra corrente, non su tutte - col pavimento e il tetto 2.8.
   const TRUNK_REVEAL = 95;
-  // Apertura: l'arco per intero (centro del bounding box). Lo scorrimento porta la camera GIU' e
-  // verso CX, fino all'innesto e a un tratto di fusto: il capolinea, toccare terra.
-  const bcx = CX + dX / 2, bcyOpen = model.baseY - dY / 2;
-  const camX = lerp(bcx, CX, frac), camY = lerp(bcyOpen, model.baseY + TRUNK_REVEAL, frac);
-  const cam = { x: camX, y: camY };
+  const zoomFill = Math.max(1, (VH * 0.92) / Math.max(model.sTot, 1)); // pavimento: mai sotto 1
+  // Prima passata (maxReach globale) per sapere DOVE guardiamo, poi il reach locale governa lo zoom.
+  const zoom0 = Math.min(2.8, zoomFill, (VW * 0.5) / (model.maxReach + 10));
+  const openS = zoom0 > 1 ? model.sTot / 2 : model.sTot;  // giovane -> fogliame centrato; cresciuto -> punta
+  const camS = openS - frac * (openS + TRUNK_REVEAL);      // si scorre verso l'alto = verso il passato, poi il fusto
+  const win0 = (VH / zoom0) * 1.4;
+  let localReach = 40;
+  model.clusters.forEach((c) => { if (Math.abs(c.s - camS) <= win0) { const Lb = c.leaves.length > 1 ? 10 + c.leaves.length * 4 : 0; c.leaves.forEach((lf) => { localReach = Math.max(localReach, Lb + twigLen(lf.duration) + leafLen(lf.count)); }); } });
+  const zoom = Math.min(2.8, zoomFill, (VW * 0.5) / (localReach + 10));
+  const fit = zoom > 1 ? 1.08 : 1;
+  const eVW = (VW / zoom) * fit, eVH = (VH / zoom) * fit;
   const trunkYBot = model.baseY + TRUNK_REVEAL + eVH / 2 + 45; // la base del fusto sempre oltre il bordo inferiore
-  // Finestratura: la fascia di s il cui punto d'arco cade nella vista (approssimata sull'altezza).
-  const sMid = model.sTot * Math.max(0, Math.min(1, (model.baseY - camY) / Math.max(1, dY)));
-  const winLo = sMid - eVH * 1.2, winHi = sMid + eVH * 1.2;
-  const sv = sMid;
+  // Sopra l'innesto la camera segue l'ARCO; sotto (camS<0) scende lungo il fusto verticale a CX (il capolinea).
+  const cam = camS >= 0 ? axisPoint(camS, model.baseY, model.sTot) : { x: CX, y: model.baseY - camS };
+  const winLo = camS - eVH * 1.6, winHi = camS + eVH * 1.6;
+  const sv = camS;
   const vb = (cam.x - eVW / 2).toFixed(1) + ' ' + (cam.y - eVH / 2).toFixed(1) + ' ' + eVW.toFixed(1) + ' ' + eVH.toFixed(1);
   // Etichetta del tempo: periodo del grappolo piu' vicino alla vista.
   const near = model.clusters.reduce<any>((best, c) => (!best || Math.abs(c.s - sv) < Math.abs(best.s - sv) ? c : best), null);
@@ -358,7 +359,7 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
           <div className="relative">
             {/* Contenitore scorrevole: lo scroll e' un'ascissa sul tracciato; l'SVG appiccicato segue la curva. */}
             <div ref={scrollRef} onScroll={onScroll} className="rounded-3xl" style={{ height: '62vh', overflowY: 'auto', overflowX: 'hidden' }}>
-              <div style={{ height: Math.max(dY + TRUNK_REVEAL + eVH, 340) + 200 + 'px', position: 'relative' }}>
+              <div style={{ height: Math.max(openS + TRUNK_REVEAL, 340) + 200 + 'px', position: 'relative' }}>
                 <svg viewBox={vb} preserveAspectRatio="xMidYMid slice" style={{ position: 'sticky', top: 0, width: '100%', height: '62vh', display: 'block', touchAction: 'manipulation' }}>
                   {/* LA SOMMITA' DEL FUSTO, vista da DENTRO la chioma: solo la cima verso cui il ramo
                       converge. NIENTE svasatura (la base e' lontanissima), NIENTE suolo (da quassu' la
@@ -526,7 +527,9 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
               </div>
             </div>
             {/* Indicazione discreta del tempo, in dissolvenza. */}
-            {periodo && <div className="absolute top-3 right-4 pointer-events-none text-[10px] uppercase tracking-[0.25em] font-black text-emerald-200 transition-opacity duration-700" style={{ opacity: active ? 0.8 : 0.28 }}>{periodo}</div>}
+            {/* La bussola: se non si vede piu' tutto l'arco, l'etichetta del periodo e' l'unico orientamento.
+                Sempre chiaramente visibile durante lo scorrimento (0.9), presente anche da fermi (0.45). */}
+            {periodo && <div className="absolute top-3 right-4 pointer-events-none text-[10px] uppercase tracking-[0.25em] font-black text-emerald-200 transition-opacity duration-500" style={{ opacity: active ? 0.9 : 0.45 }}>{periodo}</div>}
           </div>
         )}
 
