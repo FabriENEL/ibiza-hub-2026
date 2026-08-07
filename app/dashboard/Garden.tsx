@@ -361,32 +361,51 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
             <div ref={scrollRef} onScroll={onScroll} className="rounded-3xl" style={{ height: '62vh', overflowY: 'auto', overflowX: 'hidden' }}>
               <div style={{ height: Math.max(openS + TRUNK_REVEAL, 340) + 200 + 'px', position: 'relative' }}>
                 <svg viewBox={vb} preserveAspectRatio="xMidYMid slice" style={{ position: 'sticky', top: 0, width: '100%', height: '62vh', display: 'block', touchAction: 'manipulation' }}>
-                  {/* LA SOMMITA' DEL FUSTO, vista da DENTRO la chioma: solo la cima verso cui il ramo
-                      converge. NIENTE svasatura (la base e' lontanissima), NIENTE suolo (da quassu' la
-                      terra non si vede - e' la ragione per cui non lo vedevo pur avendolo misurato). La
-                      colonna si stringe scendendo (prospettiva) e si perde nell'ombra; sempre fuori campo in basso. */}
+                  {/* LA SOMMITA' DEL FUSTO, vista da DENTRO la chioma: la cima verso cui il ramo converge.
+                      NON si taglia mai al bordo del contenitore: la sua opacita' va a ZERO qualche decina di
+                      unita' PRIMA del ritaglio - si perde nel buio, come un tronco visto verso il fondo della
+                      chioma. E' una PRESENZA, non un'asticella: largo ~un quinto della colonna, si stringe
+                      appena scendendo. Il collare copre la giunzione ("e' cresciuto da li'"). */}
                   {(() => {
-                    const R = LAW_SCALE * model.trunkRad;
-                    const yTopS = model.baseY - 15, yBotS = trunkYBot;      // dalla sommita' (dietro l'innesto) giu' oltre il bordo
-                    const persp = (y: number) => 1 - 0.4 * Math.min(1, Math.max(0, (y - yTopS) / 260)); // si stringe scendendo
+                    const half = eVW * 0.10;                                 // ~20% della larghezza della colonna: una presenza
+                    const yTopS = model.baseY - 15, yBotS = trunkYBot;
+                    const persp = (y: number) => 1 - 0.24 * Math.min(1, Math.max(0, (y - yTopS) / 320)); // si stringe appena scendendo
                     const cxT = (y: number) => CX + 5 * Math.sin((y - model.baseY) / 150);
                     const L: number[][] = [], Rr: number[][] = [], N = 40;
-                    for (let i = 0; i <= N; i++) { const y = yTopS + (yBotS - yTopS) * i / N, c = cxT(y), r = R * persp(y); L.push([c - r, y]); Rr.push([c + r, y]); }
+                    for (let i = 0; i <= N; i++) { const y = yTopS + (yBotS - yTopS) * i / N, c = cxT(y), r = half * persp(y); L.push([c - r, y]); Rr.push([c + r, y]); }
                     const path = 'M' + [...L, ...Rr.reverse()].map((p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L') + ' Z';
-                    const bark = [-0.5, 0, 0.45].map((f, i) => { const P: number[][] = []; for (let j = 0; j <= 18; j++) { const y = yTopS + (yBotS - yTopS) * j / 18, c = cxT(y), r = R * persp(y); P.push([c + f * r + 3 * Math.sin(y / 80 + i * 1.7), y]); } return 'M' + P.map((p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L'); });
+                    const bark = [-0.5, 0, 0.45].map((f, i) => { const P: number[][] = []; for (let j = 0; j <= 18; j++) { const y = yTopS + (yBotS - yTopS) * j / 18, c = cxT(y), r = half * persp(y); P.push([c + f * r + 3 * Math.sin(y / 80 + i * 1.7), y]); } return 'M' + P.map((p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L'); });
+                    // La dissolvenza insegue il bordo inferiore dell'inquadratura (varia con lo scroll):
+                    // opacita' 0 a yFadeEnd, 18 unita' SOPRA il ritaglio -> nessuna linea dura, mai.
+                    const frameBottom = cam.y + eVH / 2, yFadeEnd = frameBottom - 18, yFadeStart = frameBottom - 42;
+                    const bw = LAW_SCALE * model.branchRad;                  // semilarghezza del ramo alla base
+                    const collarR = bw * 1.75;                              // collare 1.75x il ramo: copre l'intera giunzione
                     return (
                       <g>
-                        {/* Colonna dall'alto e di lato: gradiente diagonale, chiaro in alto-sinistra (la luce),
-                            che si perde nell'ombra scendendo. Non una parete: un corpo tondo che recede. */}
-                        <defs><linearGradient id="fusto" gradientUnits="userSpaceOnUse" x1={(CX - R).toFixed(1)} y1={yTopS.toFixed(0)} x2={(CX + R).toFixed(1)} y2={(yTopS + 200).toFixed(0)}>
-                          <stop offset="0%" stopColor="#6b5743" /><stop offset="50%" stopColor="#3a2e22" /><stop offset="100%" stopColor="#17110b" />
-                        </linearGradient></defs>
-                        <path d={path} fill="url(#fusto)" opacity="0.7" />
-                        {bark.map((d, i) => <path key={i} d={d} stroke="#1c150e" strokeWidth={(0.8 + i * 0.15).toFixed(1)} fill="none" opacity="0.18" />)}
-                        {/* Accenno degli ALTRI INNESTI: 2 collari appena visibili attorno alla sommita', senza
-                            rami. Sono gli attacchi, non utenti inventati: dicono "qui ne arrivano altri". */}
-                        {[-1, 1].map((s, i) => { const y = model.baseY - 4 - i * 10, r = R * persp(y); return (
-                          <path key={'coll' + i} d={'M ' + (cxT(y) + s * r * 0.5).toFixed(1) + ' ' + (y - 5).toFixed(1) + ' q ' + (s * r * 0.9).toFixed(1) + ' 5 0 10'} stroke="#4a3a2b" strokeWidth="2" fill="none" opacity="0.28" strokeLinecap="round" />
+                        <defs>
+                          <linearGradient id="fusto" gradientUnits="userSpaceOnUse" x1={(CX - half).toFixed(1)} y1="0" x2={(CX + half).toFixed(1)} y2="0">
+                            <stop offset="0%" stopColor="#6b5743" /><stop offset="46%" stopColor="#453728" /><stop offset="100%" stopColor="#271e16" />
+                          </linearGradient>
+                          <linearGradient id="fustoFade" gradientUnits="userSpaceOnUse" x1="0" y1={yFadeStart.toFixed(1)} x2="0" y2={yFadeEnd.toFixed(1)}>
+                            <stop offset="0%" stopColor="#fff" /><stop offset="100%" stopColor="#000" />
+                          </linearGradient>
+                          <mask id="fustoMask">
+                            <rect x={(CX - half - 20).toFixed(1)} y={(yTopS - 40).toFixed(1)} width={(half * 2 + 40).toFixed(1)} height={(yFadeStart - (yTopS - 40)).toFixed(1)} fill="#fff" />
+                            <rect x={(CX - half - 20).toFixed(1)} y={yFadeStart.toFixed(1)} width={(half * 2 + 40).toFixed(1)} height={Math.max(1, yFadeEnd - yFadeStart).toFixed(1)} fill="url(#fustoFade)" />
+                          </mask>
+                          <radialGradient id="collare"><stop offset="0%" stopColor="#5a4634" /><stop offset="55%" stopColor="#4a3a2b" /><stop offset="100%" stopColor="#4a3a2b" stopOpacity="0" /></radialGradient>
+                        </defs>
+                        {/* Colonna tonda che recede, dissolta in basso dalla maschera: fondo, non muro. */}
+                        <g mask="url(#fustoMask)">
+                          <path d={path} fill="url(#fusto)" opacity="0.72" />
+                          {bark.map((d, i) => <path key={i} d={d} stroke="#1c150e" strokeWidth={(0.9 + i * 0.2).toFixed(1)} fill="none" opacity="0.18" />)}
+                        </g>
+                        {/* IL COLLARE: copre l'intera giunzione ramo-fusto e sfuma in ogni direzione. */}
+                        <ellipse cx={CX} cy={model.baseY.toFixed(1)} rx={collarR.toFixed(1)} ry={(collarR * 0.7).toFixed(1)} fill="url(#collare)" opacity="0.85" />
+                        {/* Gli ALTRI INNESTI: 2 collari visibili attorno alla sommita', SENZA rami. Attacchi,
+                            non utenti: nessun dato di nessuno, dicono solo "qui ne arrivano altri". */}
+                        {[-1, 1].map((s, i) => { const y = model.baseY - 5 - i * 15, r = half * persp(y); return (
+                          <ellipse key={'coll' + i} cx={(cxT(y) + s * r * 0.62).toFixed(1)} cy={y.toFixed(1)} rx={(collarR * 0.62).toFixed(1)} ry={(collarR * 0.44).toFixed(1)} fill="url(#collare)" opacity="0.5" />
                         ); })}
                       </g>
                     );
