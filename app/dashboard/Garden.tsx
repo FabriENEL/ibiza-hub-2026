@@ -181,22 +181,40 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
     const vis = leaves.filter((l) => !hidden.has(l.key));
     const ordered = [...vis].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)); // base=passato, punta=presente
     // Grappolo (brachiblasto): foglie consecutive a <=4 giorni, ma al massimo quattro per rametto.
-    type Cl = { date: string; year: string; leaves: LeafData[]; s: number };
+    type Cl = { date: string; year: string; leaves: LeafData[]; s: number; rel: number };
     const clusters: Cl[] = [];
     let prev = '';
     for (const lf of ordered) {
       const last = clusters[clusters.length - 1];
       if (last && daysBetween(prev, lf.date) <= 4 && last.leaves.length < 4) last.leaves.push(lf);
-      else clusters.push({ date: lf.date, year: (lf.date || '').slice(0, 4), leaves: [lf], s: 0 });
+      else clusters.push({ date: lf.date, year: (lf.date || '').slice(0, 4), leaves: [lf], s: 0, rel: 0 });
       prev = lf.date;
     }
-    let acc = 70;
-    clusters.forEach((c, i) => { if (i > 0) acc += distanza(daysBetween(clusters[i - 1].date, c.date)); c.s = acc; });
-    const sTot = (clusters.length ? clusters[clusters.length - 1].s : 0) + 90;
+    // Posizioni relative (primo grappolo a 0), poi i due tratti vuoti PROPORZIONATI al
+    // contenuto, non costanti: la cornice deve combaciare col fogliame, non con un asse
+    // spoglio fisso. leadOut resta il maggiore, perche' la punta ospita le dormienti.
+    let rel = 0;
+    clusters.forEach((c, i) => { if (i > 0) rel += distanza(daysBetween(clusters[i - 1].date, c.date)); c.rel = rel; });
+    const span = clusters.length ? clusters[clusters.length - 1].rel : 0;
+    const leadIn = Math.min(60, Math.max(18, span * 0.12));
+    let leadOut = Math.min(110, Math.max(46, span * 0.22));
+    clusters.forEach((c) => { c.s = leadIn + c.rel; });
+    let sTot = leadIn + span + leadOut;
+    // Pavimento: sotto VH*0.92/2.8 la cornice non riempie al tetto di zoom e un germoglio
+    // solo tornerebbe un puntino in campo nero (la regressione del banco a una foglia).
+    // Si estende SOLO la punta - dove crescono le dormienti, il vuoto e' gia' invito -,
+    // mai i grappoli. Fabri (sTot alto) non e' toccato.
+    const FLOOR = (VH * 0.92) / 2.8;
+    if (sTot < FLOOR) { leadOut += FLOOR - sTot; sTot = FLOOR; }
     const baseY = sTot + 90;
+    // Raggio massimo del fogliame dall'asse (brachiblasto + ramoscello + lamina): serve a
+    // non stringere lo zoom oltre quanto la foglia piu' estesa puo' stare in LARGHEZZA.
+    let maxReach = 40;
+    clusters.forEach((c) => { const Lb = c.leaves.length > 1 ? 10 + c.leaves.length * 4 : 0;
+      c.leaves.forEach((lf) => { maxReach = Math.max(maxReach, Lb + twigLen(lf.duration) + leafLen(lf.count)); }); });
     const forks: number[] = [];
     for (let i = 1; i < clusters.length; i++) if (clusters[i].year !== clusters[i - 1].year) forks.push((clusters[i - 1].s + clusters[i].s) / 2);
-    return { clusters, sTot, baseY, forks };
+    return { clusters, sTot, baseY, forks, maxReach };
   }, [leaves, hidden]);
 
   // Apertura sulla punta a ogni cambio di modello.
@@ -220,10 +238,12 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
   // La cornice si adatta al ramo: se il tracciato e' piu' corto della vista, si stringe
   // l'inquadratura (tetto 2.8) finche' lo riempie. Nessuna formula cambia: cambia solo
   // quanto vicino si guarda. Oltre la soglia lo zoom torna a 1 e lo scorrimento entra.
-  const zoom = Math.min(2.8, Math.max(1, (VH * 0.92) / Math.max(model.sTot, 1)));
+  const zoomFill = Math.max(1, (VH * 0.92) / Math.max(model.sTot, 1)); // riempi in altezza
+  const zoomFit = (VW * 0.5) / (model.maxReach + 10);                  // ma la foglia piu' larga deve starci
+  const zoom = Math.min(2.8, zoomFill, zoomFit);
   // Margine di sicurezza solo a inquadratura stretta: il fogliame non tocca mai il bordo.
   // A giardino cresciuto (zoom 1) la vista resta quella di prima.
-  const fit = zoom > 1 ? 1.06 : 1;
+  const fit = zoom > 1 ? 1.08 : 1;
   const eVW = (VW / zoom) * fit, eVH = (VH / zoom) * fit;
   // Se ci sta tutto, la camera inquadra il mezzo del ramo (base e punta insieme);
   // altrimenti segue lo scorrimento, aperta sulla punta.
