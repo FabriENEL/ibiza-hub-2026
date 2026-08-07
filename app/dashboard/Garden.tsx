@@ -348,10 +348,36 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                       tronco ci passa esatto. Semilarghezza = LAW_SCALE * trunkRad, DERIVATA dalla legge
                       (~2.2x il ramo), non scelta. Esce da entrambi i bordi: un innesto, non un moncone. */}
                   {(() => {
-                    const tw = LAW_SCALE * model.trunkRad;
-                    const yTop = (model.baseY - (model.sTot + 260)).toFixed(0), yBot = (model.baseY + 420).toFixed(0);
-                    const cono = (k: number) => 'M ' + (CX - tw*0.72*k).toFixed(1) + ' ' + yTop + ' L ' + (CX - tw*1.18*k).toFixed(1) + ' ' + yBot + ' L ' + (CX + tw*1.18*k).toFixed(1) + ' ' + yBot + ' L ' + (CX + tw*0.72*k).toFixed(1) + ' ' + yTop + ' Z';
-                    return <><path d={cono(1)} fill={STEM_DK} opacity="0.5" /><path d={cono(0.55)} fill={STEM} opacity="0.22" /></>;
+                    const R_full = LAW_SCALE * model.trunkRad;              // raggio sotto l'innesto (legge)
+                    const R_branch = LAW_SCALE * model.branchRad;
+                    const R_above = Math.pow(Math.max(0.01, Math.pow(R_full, ALFA) - Math.pow(R_branch, ALFA)), 1 / ALFA); // gradino di legge in salita
+                    const yH = model.baseY + 175;                          // orizzonte del suolo
+                    // Estremita' calcolate DALLA VISTA (non da una costante): entrambe fuori campo con
+                    // margine 45, a qualunque zoom e a qualunque posizione di scorrimento.
+                    const yTop = model.baseY - openS - eVH / 2 - 45, yBot = model.baseY + TRUNK_REVEAL + eVH / 2 + 45;
+                    const FLARE_H = 45;
+                    const radiusAt = (y: number) => {
+                      let r = R_full;
+                      if (y < model.baseY) { const up = (model.baseY - y) / Math.max(1, model.baseY - yTop); r = R_above * (1 - 0.45 * Math.min(1, up)); } // rastrema salendo
+                      return r * (1 + 0.7 * Math.exp(-Math.max(0, yH - y) / FLARE_H)); // svasatura alla base (fino a 1.7x)
+                    };
+                    const cxAt = (y: number) => CX + 6 * Math.sin((y - model.baseY) / 150); // leggermente sinuoso, non diritto
+                    const L: number[][] = [], Rr: number[][] = [], N = 64;
+                    for (let i = 0; i <= N; i++) { const y = yTop + (yBot - yTop) * i / N, c = cxAt(y), r = radiusAt(y); L.push([c - r, y]); Rr.push([c + r, y]); }
+                    const path = 'M' + [...L, ...Rr.reverse()].map((p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L') + ' Z';
+                    // Corteccia: 4 striature non parallele, seguono la rastremazione e si allargano nella svasatura.
+                    const bark = [-0.55, -0.2, 0.2, 0.5].map((f, i) => { const P: number[][] = []; for (let j = 0; j <= 24; j++) { const y = yTop + (yBot - yTop) * j / 24, c = cxAt(y), r = radiusAt(y); P.push([c + f * r + 3 * Math.sin(y / 80 + i * 1.7), y]); } return 'M' + P.map((p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L'); });
+                    return (
+                      <g>
+                        {/* Cilindro, non nastro piatto: gradiente ORIZZONTALE lungo la larghezza, chiaro a
+                            sinistra (stessa luce delle foglie, alto-sinistra), scuro a destra, passaggio spostato in ombra. */}
+                        <defs><linearGradient id="tronco" gradientUnits="userSpaceOnUse" x1={(CX - R_full * 1.4).toFixed(1)} y1="0" x2={(CX + R_full * 1.4).toFixed(1)} y2="0">
+                          <stop offset="0%" stopColor="#6b5743" /><stop offset="46%" stopColor="#453728" /><stop offset="100%" stopColor="#271e16" />
+                        </linearGradient></defs>
+                        <path d={path} fill="url(#tronco)" opacity="0.62" />
+                        {bark.map((d, i) => <path key={i} d={d} stroke="#241b13" strokeWidth={(0.8 + i * 0.2).toFixed(1)} fill="none" opacity="0.15" />)}
+                      </g>
+                    );
                   })()}
                   {/* IL SUOLO: fascia di terreno con un orizzonte appena percepibile, sotto l'innesto.
                       Disegnato DOPO il tronco cosi' che il tronco vi entri: poggia su qualcosa. Il
@@ -360,11 +386,14 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                     const yH = (model.baseY + 175).toFixed(0);
                     return (
                       <g>
+                        {/* Alzato finche' l'orizzonte si vede: il contrasto verificato al centro contro la
+                            foglia dice che un elemento non disturba, non che si veda. Bordo contro il fondo. */}
                         <defs><linearGradient id="suolo" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="rgba(20,26,18,0)" /><stop offset="40%" stopColor="rgba(20,26,18,0.30)" /><stop offset="100%" stopColor="rgba(13,17,11,0.46)" />
+                          <stop offset="0%" stopColor="rgba(22,28,20,0)" /><stop offset="38%" stopColor="rgba(22,28,20,0.42)" /><stop offset="100%" stopColor="rgba(12,16,10,0.58)" />
                         </linearGradient></defs>
                         <rect x={CX - 700} y={yH} width="1400" height="760" fill="url(#suolo)" />
-                        <rect x={CX - 700} y={yH} width="1400" height="1.4" fill="rgba(150,170,140,0.14)" />
+                        <rect x={CX - 700} y={(model.baseY + 172).toFixed(0)} width="1400" height="4" fill="rgba(120,145,115,0.12)" />
+                        <rect x={CX - 700} y={yH} width="1400" height="2.2" fill="rgba(165,185,155,0.28)" />
                       </g>
                     );
                   })()}
