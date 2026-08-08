@@ -38,8 +38,12 @@ const CORTECCIA = [
   { file: 'corteccia-3.webp', w: 190, h: 133 }, { file: 'corteccia-4.webp', w: 123, h: 62 }, { file: 'corteccia-5.webp', w: 160, h: 80 },
 ];
 const FONDALE = ASSET + 'fondale-chioma.webp', BOKEH = ASSET + 'primopiano-bokeh.webp';
-const LEAF_K = 1.7;    // larghezza figurina = leafLen(persone) x pScale x LEAF_K. 1.7: la foglia e' il ricordo,
-                       // deve dominare il ramo (misura a schermo, lunghezza VERA dell'asse: mediana ~38 px)
+const LEAF_K = 1.87;   // larghezza figurina = leafLen(persone) x pScale x LEAF_K. Moltiplica ogni lw allo
+                       // stesso modo: mediana(lw*k*scorcio) = k*mediana(lw*scorcio), nessuna lotteria. 1.87
+                       // porta la foglia mediana da 36.3 a ~39.9 px (misura a schermo, asse lungo vero).
+// Mediana VERA (media dei due centrali per n pari): la mediana di un PRODOTTO non e' il prodotto
+// delle mediane, e per n pari il centrale superiore gonfia. Un solo numero, per la foglia e la gemma.
+const medianOf = (a: number[]) => { const s = [...a].sort((x, y) => x - y); const n = s.length; return n ? (n % 2 ? s[(n - 1) >> 1] : (s[n / 2 - 1] + s[n / 2]) / 2) : 0; };
 // Lo SCORCIO comprime solo l'asse lungo della foglia (una lamina piatta girata fuori piano si
 // accorcia in lunghezza, non in larghezza). Intervallo [0.64, 1.0] giusto; la DISTRIBUZIONE va
 // spostata in alto: in un ramo vero la maggioranza si vede quasi di piatto, poche voltate via.
@@ -455,8 +459,7 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                       const sd = seedOf(lf.key), pl = jit(sd, 50) < 0.28 ? 0.8 : jit(sd, 50) < 0.72 ? 0.92 : 1;
                       adultLens.push(leafLen(lf.count) * pl * LEAF_K * sxByKey[lf.key]);
                     }));
-                    adultLens.sort((a, b) => a - b);
-                    const medLeafLen = adultLens.length ? adultLens[adultLens.length >> 1] : leafLen(3) * LEAF_K * 0.86;
+                    const medLeafLen = adultLens.length ? medianOf(adultLens) : leafLen(3) * LEAF_K * 0.86;
                     model.clusters.forEach((c, ci) => {
                       if (c.s <= winLo || c.s >= winHi) return;
                       const P = axisPoint(c.s, model.baseY, model.sTot), T = axisTangent(c.s, model.sTot), m = c.leaves.length, side = sides[ci];
@@ -492,10 +495,10 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                           // Gemma chiusa che si gonfia: piena a <=30 giorni, minima a >=90.
                           const du = daysBetween(today, lf.start ?? today);
                           const swell = Math.max(0, Math.min(1, (90 - du) / 60));
-                          // Il coefficiente 0.76-0.85 si applica alla LARGHEZZA (l'asse che il metodo CTM misura,
-                          // come per la foglia), non all'altezza: la gemma vive nel piano della foglia. L'altezza
-                          // segue l'aspetto (bocciolo verticale). Un bocciolo e' un volume: scala si', schiaccio no.
-                          const gw = medLeafLen * (0.76 + 0.09 * swell), gh = gw * (GEMMA_SPR.h / GEMMA_SPR.w);
+                          // ASSE LUNGO contro asse lungo: l'ALTEZZA della gemma (il suo asse lungo, e' piu' alta
+                          // che larga) contro la lunghezza della foglia. gh = 0.76-0.85 x medLeafLen. La larghezza
+                          // segue dall'aspetto della figurina e non si collauda. Un bocciolo e' un volume: scala si'.
+                          const gh = medLeafLen * (0.76 + 0.09 * swell), gw = gh * (GEMMA_SPR.w / GEMMA_SPR.h);
                           fg.push({ plane: 3, el: (
                             <g key={key} onClick={onClick} className="cursor-pointer" style={{ opacity: 0, animation: 'pop .5s ease-out ' + delay.toFixed(2) + 's forwards, sway ' + swayDur.toFixed(2) + 's ease-in-out ' + phase.toFixed(2) + 's infinite', transformOrigin: base.x.toFixed(1) + 'px ' + base.y.toFixed(1) + 'px' }}>
                               <path d={'M' + base.x.toFixed(1) + ' ' + base.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1)} stroke="transparent" strokeWidth={(44 / zoom).toFixed(1)} strokeLinecap="round" fill="none" />
