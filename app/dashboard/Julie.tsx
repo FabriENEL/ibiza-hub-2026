@@ -6,9 +6,8 @@ import { ruleSignature } from './lib/eventVisuals';
 import DateTimePicker from './lib/DateTimePicker';
 import LuoghiCard, { type Luogo } from './LuoghiCard';
 import ProgrammaCard, { type Giorno, type Voce } from './ProgrammaCard';
-import CategorieCard from './CategorieCard';
 
-type Msg = { role: 'user' | 'assistant'; content: string; luoghi?: Luogo[]; zona?: string | null; programma?: { zona: string; giorni: Giorno[] }; chiediCat?: string };
+type Msg = { role: 'user' | 'assistant'; content: string; luoghi?: Luogo[]; zona?: string | null; programma?: { zona: string; giorni: Giorno[] } };
 type PendingEvent = { kind: 'evento'; title: string; scheduled_at: string; location: string | null; description: string | null; fromConsiglio?: boolean };
 type PendingExpense = { kind: 'spesa'; description: string; amount: number };
 type Pending = PendingEvent | PendingExpense;
@@ -225,27 +224,19 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   const sendVoice = (text: string) => { const t = text.trim(); if (t && !busy) send(t); };
   useEffect(() => { sendVoiceRef.current = sendVoice; });
 
-  // Parole che annunciano una programmazione. Julie chiede le preferenze prima di comporre:
-  // e' il momento in cui l'assistente smette di indovinare e ascolta.
-  const vuoleProgramma = (t: string) =>
-    /(organizzam|organizz|programmam|programm|pianific|itinerari|gita|weekend|giornat|viaggi)/i.test(t);
-
-  const send = async (voiceText?: string, cats?: string[], ritmo?: string) => {
+  // La card delle categorie non c'e' piu': le preferenze le legge la rotta dall'Hub, e la
+  // composizione la riconosce il testo (parole d'organizzazione). Julie non chiede piu' cosa
+  // cercare - una domanda la cui risposta veniva buttata via e' peggio di una domanda in piu'.
+  const send = async (voiceText?: string) => {
     const text = (voiceText ?? input).trim();
     if (!text || busy) return;
-    // Prima volta che chiede un programma, senza aver ancora scelto: mostro le categorie.
-    if (!cats && vuoleProgramma(text)) {
-      setMessages((m) => [...m, { role: 'user', content: text }, { role: 'assistant', content: 'Volentieri. Su cosa devo costruire la giornata?', chiediCat: text }]);
-      setInput('');
-      return;
-    }
     const next = [...messages, { role: 'user' as const, content: text }];
     setMessages(next);
     setInput('');
     setBusy(true);
     try {
       const data = await chiediAJulie(
-        { messages: next.map((m: any) => ({ role: m.role, content: m.content })), hubId, cats, ritmo },
+        { messages: next.map((m: any) => ({ role: m.role, content: m.content })), hubId },
         (avviso) => { setMessages((m) => [...m, { role: 'assistant', content: avviso }]); if (speakOn) speak(avviso); },
       );
       const reply = data.reply ?? 'Mi scusi, non ho compreso.';
@@ -253,12 +244,6 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
       if (Array.isArray(data.luoghi) && data.luoghi.length > 0) {
         setMessages((m) => [...m, { role: 'assistant', content: reply, luoghi: data.luoghi, zona: data.zona ?? null }]);
         if (speakOn) speak(reply);
-        setBusy(false);
-        return;
-      }
-      // Nessun programma possibile (categorie esaurite): la card si sblocca e Julie parla.
-      if (cats && !data.programma) {
-        setMessages((m) => [...m.filter((x: any) => !x.chiediCat), { role: 'assistant', content: reply }]);
         setBusy(false);
         return;
       }
@@ -418,16 +403,12 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
               <div className={'max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm ' +
                 (m.role === 'user' ? 'bg-white text-slate-950 rounded-br-sm' : 'text-emerald-50 rounded-bl-sm animate-[eg-fade-in_0.22s_ease-out]')}
                 style={m.role === 'assistant' ? { background: 'rgba(163,181,133,0.12)', border: '1px solid rgba(163,181,133,0.2)' } : {}}>
-                {(m.role === 'assistant' && i === messages.length - 1 && !m.luoghi && !m.programma && !m.chiediCat && typeof m.content === 'string')
+                {(m.role === 'assistant' && i === messages.length - 1 && !m.luoghi && !m.programma && typeof m.content === 'string')
                   ? <Scrive testo={pulisci(m.content)} onBocca={setParla} onFine={() => setParla(false)} />
                   : pulisci(m.content)}
               </div>
             </div>
           ))}
-{messages.map((m, i) => m.chiediCat ? (
-            <CategorieCard key={'C' + i} saving={busy}
-              onConferma={(cats, ritmo) => send(m.chiediCat, cats, ritmo)} />
-          ) : null)}
 
 {messages.map((m, i) => m.programma ? (
             <ProgrammaCard key={'P' + i} zona={m.programma.zona} giorni={m.programma.giorni}

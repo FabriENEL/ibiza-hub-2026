@@ -105,7 +105,9 @@ function programmaPrompt(oggi: string): string {
 // sbaglio e' qualche centinaio di token, il costo di non caricarlo e' una funzione che non risponde.
 function blocchiAzione(oggi: string, testo: string): string {
   const t = (testo || '').toLowerCase();
-  const spesa = /pagat|spes[oae]|ho speso|euro|scontrin|\bcont[oi]\b|ho messo|cost[oai]|\d/.test(t);
+  // La cifra nuda (\d) NON e' un segnale di spesa: un'ora, una data, un numero di persone compaiono
+  // in quasi ogni frase - e' rumore, e caricherebbe lo schema spesa SEMPRE. Solo i segnali veri.
+  const spesa = /pagat|spes|euro|€|scontrin|\bcont[oi]\b|ho messo|cost/.test(t);
   const evento = /aggiung|\bmett|crea|fiss|event|appuntament|cena|pranz|colazion|brunch|domani|dopodomani|stasera|stamattina|luned|marted|mercoled|gioved|venerd|sabat|domenic|\balle\b|\d{1,2}[:.]/.test(t);
   const luoghi = /dove|consigl|ristorant|trattori|pizzeri|aperitiv|spiagg|\bmare\b|parcheggi|posteggi|\blocal|\bbar\b|discotec|mangiar|\bbere\b|\bposto\b|\bposti\b|museo|cultur|natura|\bparco\b|\bidea\b/.test(t);
   // Vago orientato al "fare": non lasci Julie senza le capacita' di proposta (evento + luoghi).
@@ -349,7 +351,10 @@ export async function POST(req: NextRequest) {
       const ctxCats = catsPreferite.length > 0
         ? '\n\n=== CATEGORIE PREFERITE DELL HUB ===\nQuando componi TU il programma, scegli fra queste categorie: ' + catsPreferite.join(', ') + '. Ognuna compaia almeno una volta; puoi ripeterla in giorni diversi con un luogo diverso.\nMA se l utente CHIEDE ESPLICITAMENTE altro (un museo, una spiaggia, un locale fuori da queste categorie), proponiglielo lo stesso: queste categorie le scegli TU quando componi, non sono un recinto attorno a cio che l utente puo chiedere.\n=== FINE ==='
         : '';
-      const ctxNoChiedi = '\n\nL utente ha gia le sue preferenze (le categorie sono qui sopra): NON chieda cosa cercare. Produca IMMEDIATAMENTE il JSON del programma con action proponi_programma, usando le date dell Hub. Qualsiasi risposta che non sia quel JSON e un errore.';
+      // Se l'Hub NON ha preferenze (consigli_cats vuoto), ctxCats sopra e' vuoto: Julie non chiede,
+      // sceglie DA SOLA fra le sette categorie, con la regola di varieta' che c'e' gia'. Era il punto
+      // del cantiere: la domanda non rientra dalla finestra per una riga mancante.
+      const ctxNoChiedi = '\n\nNON chieda cosa cercare ne quali categorie: produca IMMEDIATAMENTE il JSON del programma con action proponi_programma, usando le date dell Hub' + (catsPreferite.length > 0 ? ', sulle categorie preferite qui sopra' : ' e scegliendo Lei le categorie fra le sette, variandole') + '. Qualsiasi risposta che non sia quel JSON e un errore.';
       promptAzione = programmaPrompt(oggi) + INVENTARIO + ctxCats + ctxNoChiedi;
     } else {
       // In conversazione, gli schemi d'azione si caricano SU RICHIESTA (selettore generoso).
