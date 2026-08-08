@@ -21,14 +21,15 @@ const PER_TIPO: Record<string, string[]> = {
   social:    ['food', 'aperitivo', 'colazione'],
   corporate: ['food', 'cultura'],
 };
-const RITMI: [string, string][] = [['mattiniera', 'Mattiniera'], ['equilibrata', 'Equilibrata'], ['notturna', 'Notturna']];
 
 export default function CreateHub({ onClose }: { onClose: () => void }) {
   const { refresh, setActiveHubId } = useHub();
   const [name, setName] = useState('');
   const [category, setCategory] = useState('travel');
   const [consigliCats, setConsigliCats] = useState<Set<string>>(new Set(PER_TIPO['travel']));
-  const [ritmo, setRitmo] = useState('equilibrata');
+  // Il ritmo non si sceglie piu' alla creazione: unico predefinito, e Julie si adatta in
+  // conversazione. La colonna sul DB resta (un impegno preso), popolata con l'equilibrata.
+  const ritmo = 'equilibrata';
   const [location, setLocation] = useState('');
   const today = new Date().toISOString().split('T')[0];
   const [startDate, setStartDate] = useState(today);
@@ -102,17 +103,6 @@ export default function CreateHub({ onClose }: { onClose: () => void }) {
                 </button>
               );
             })}
-          </div>
-        </div>
-        <div className="space-y-2">
-          <label className="text-[10px] uppercase text-slate-400 font-black block">Il ritmo delle giornate</label>
-          <div className="grid grid-cols-3 gap-2">
-            {RITMI.map(([id, label]) => (
-              <button key={id} type="button" onClick={() => setRitmo(id)}
-                className={'text-[12px] font-bold py-2 rounded-xl border transition-colors ' + (ritmo === id ? 'bg-white/10 border-white text-white' : 'bg-slate-900 border-white/5 text-slate-400')}>
-                {label}
-              </button>
-            ))}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
