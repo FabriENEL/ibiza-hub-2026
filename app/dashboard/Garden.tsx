@@ -38,8 +38,10 @@ const CORTECCIA = [
   { file: 'corteccia-3.webp', w: 190, h: 133 }, { file: 'corteccia-4.webp', w: 123, h: 62 }, { file: 'corteccia-5.webp', w: 160, h: 80 },
 ];
 const FONDALE = ASSET + 'fondale-chioma.webp', BOKEH = ASSET + 'primopiano-bokeh.webp';
-const LEAF_K = 1.0;    // larghezza figurina = leafLen(persone) x pScale x LEAF_K (= la vecchia lunghezza lamina)
-const FLOWER_K = 0.6;  // diametro fiore ~60% della foglia: l'accento, non il soggetto (banco 7.4)
+const LEAF_K = 1.7;    // larghezza figurina = leafLen(persone) x pScale x LEAF_K. 1.7: la foglia e' il ricordo,
+                       // deve dominare il ramo (misura a schermo: mediana ~39 px, non piu' 23)
+const FLOWER_K = 0.66; // diametro fiore ~48% della foglia RENDERIZZATA: la foglia e' allungata, il fiore un
+                       // grappolo compatto (a parita' di lato pesa il doppio) -> accento, non soggetto
 // tono della foglia dallo stato: ricordo (matura), viva (evento suo), ospite (era ospite)
 const tonoDi = (mature: boolean, isOwner: boolean) => mature ? 'ricordo' : isOwner ? 'viva' : 'ospite';
 
@@ -283,7 +285,6 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
   const zoom = Math.min(2.8, zoomFill, (VW * 0.5) / (localReach + 10));
   const fit = zoom > 1 ? 1.08 : 1;
   const eVW = (VW / zoom) * fit, eVH = (VH / zoom) * fit;
-  const trunkYBot = model.baseY + TRUNK_REVEAL + eVH / 2 + 45; // la base del fusto sempre oltre il bordo inferiore
   // Sopra l'innesto la camera segue l'ARCO; sotto (camS<0) scende lungo il fusto verticale a CX (il capolinea).
   const cam = camS >= 0 ? axisPoint(camS, model.baseY, model.sTot) : { x: CX, y: model.baseY - camS };
   const winLo = camS - eVH * 1.6, winHi = camS + eVH * 1.6;
@@ -355,63 +356,6 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                     <filter id="leafShadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="1" dy="2" stdDeviation="1.2" floodColor="#0a140d" floodOpacity="0.38" /></filter>
                     <filter id="branchShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="1.5" dy="3" stdDeviation="2" floodColor="#0a140d" floodOpacity="0.45" /></filter>
                   </defs>
-                  {/* LA SOMMITA' DEL FUSTO, vista da DENTRO la chioma: la cima verso cui il ramo converge.
-                      NON si taglia mai al bordo del contenitore: la sua opacita' va a ZERO qualche decina di
-                      unita' PRIMA del ritaglio - si perde nel buio, come un tronco visto verso il fondo della
-                      chioma. E' una PRESENZA, non un'asticella: largo ~un quinto della colonna, si stringe
-                      appena scendendo. Il collare copre la giunzione ("e' cresciuto da li'"). */}
-                  {(() => {
-                    const half = eVW * 0.10;                                 // ~20% della larghezza della colonna: una presenza
-                    const yTopS = model.baseY - 50, yBotS = trunkYBot;       // esteso in su: c'e' spazio per la dissolvenza alta
-                    const persp = (y: number) => 1 - 0.24 * Math.min(1, Math.max(0, (y - model.baseY) / 320)); // si stringe appena scendendo (sotto l'innesto)
-                    const cxT = (y: number) => CX + 5 * Math.sin((y - model.baseY) / 150);
-                    const L: number[][] = [], Rr: number[][] = [], N = 40;
-                    for (let i = 0; i <= N; i++) { const y = yTopS + (yBotS - yTopS) * i / N, c = cxT(y), r = half * persp(y); L.push([c - r, y]); Rr.push([c + r, y]); }
-                    const path = 'M' + [...L, ...Rr.reverse()].map((p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L') + ' Z';
-                    const bark = [-0.5, 0, 0.45].map((f, i) => { const P: number[][] = []; for (let j = 0; j <= 18; j++) { const y = yTopS + (yBotS - yTopS) * j / 18, c = cxT(y), r = half * persp(y); P.push([c + f * r + 3 * Math.sin(y / 80 + i * 1.7), y]); } return 'M' + P.map((p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L'); });
-                    // La dissolvenza insegue il bordo inferiore dell'inquadratura (varia con lo scroll):
-                    // opacita' 0 a yFadeEnd, 18 unita' SOPRA il ritaglio -> nessuna linea dura, mai.
-                    const frameBottom = cam.y + eVH / 2, yFadeEnd = frameBottom - 18, yFadeStart = frameBottom - 42;
-                    // Lo stesso gesto, specchiato in alto: il fusto emerge dal buio SOPRA il collare, cosi'
-                    // la giunzione col ramo resta piena e cio' che sta piu' su svanisce. Un fusto opaco che
-                    // finisce e' un tronco tagliato: qui non finisce, si dissolve.
-                    const yTopFadeStart = model.baseY - 14, yTopFadeEnd = model.baseY - 46;
-                    const bw = LAW_SCALE * model.branchRad;                  // semilarghezza del ramo alla base
-                    const collarR = bw * 1.75;                              // collare 1.75x il ramo: copre l'intera giunzione
-                    return (
-                      <g>
-                        <defs>
-                          <linearGradient id="fusto" gradientUnits="userSpaceOnUse" x1={(CX - half).toFixed(1)} y1="0" x2={(CX + half).toFixed(1)} y2="0">
-                            <stop offset="0%" stopColor="#6b5743" /><stop offset="46%" stopColor="#453728" /><stop offset="100%" stopColor="#271e16" />
-                          </linearGradient>
-                          <linearGradient id="fustoFade" gradientUnits="userSpaceOnUse" x1="0" y1={yFadeStart.toFixed(1)} x2="0" y2={yFadeEnd.toFixed(1)}>
-                            <stop offset="0%" stopColor="#fff" /><stop offset="100%" stopColor="#000" />
-                          </linearGradient>
-                          <linearGradient id="fustoFadeTop" gradientUnits="userSpaceOnUse" x1="0" y1={yTopFadeEnd.toFixed(1)} x2="0" y2={yTopFadeStart.toFixed(1)}>
-                            <stop offset="0%" stopColor="#000" /><stop offset="100%" stopColor="#fff" />
-                          </linearGradient>
-                          <mask id="fustoMask">
-                            <rect x={(CX - half - 20).toFixed(1)} y={yTopFadeEnd.toFixed(1)} width={(half * 2 + 40).toFixed(1)} height={Math.max(1, yTopFadeStart - yTopFadeEnd).toFixed(1)} fill="url(#fustoFadeTop)" />
-                            <rect x={(CX - half - 20).toFixed(1)} y={yTopFadeStart.toFixed(1)} width={(half * 2 + 40).toFixed(1)} height={Math.max(0, yFadeStart - yTopFadeStart).toFixed(1)} fill="#fff" />
-                            <rect x={(CX - half - 20).toFixed(1)} y={yFadeStart.toFixed(1)} width={(half * 2 + 40).toFixed(1)} height={Math.max(1, yFadeEnd - yFadeStart).toFixed(1)} fill="url(#fustoFade)" />
-                          </mask>
-                          <radialGradient id="collare"><stop offset="0%" stopColor="#5a4634" /><stop offset="55%" stopColor="#4a3a2b" /><stop offset="100%" stopColor="#4a3a2b" stopOpacity="0" /></radialGradient>
-                        </defs>
-                        {/* Colonna tonda che recede, dissolta in basso dalla maschera: fondo, non muro. */}
-                        <g mask="url(#fustoMask)">
-                          <path d={path} fill="url(#fusto)" opacity="0.72" />
-                          {bark.map((d, i) => <path key={i} d={d} stroke="#1c150e" strokeWidth={(0.9 + i * 0.2).toFixed(1)} fill="none" opacity="0.18" />)}
-                        </g>
-                        {/* IL COLLARE: copre l'intera giunzione ramo-fusto e sfuma in ogni direzione. */}
-                        <ellipse cx={CX} cy={model.baseY.toFixed(1)} rx={collarR.toFixed(1)} ry={(collarR * 0.7).toFixed(1)} fill="url(#collare)" opacity="0.85" />
-                        {/* Gli ALTRI INNESTI: 2 collari visibili attorno alla sommita', SENZA rami. Attacchi,
-                            non utenti: nessun dato di nessuno, dicono solo "qui ne arrivano altri". */}
-                        {[-1, 1].map((s, i) => { const y = model.baseY - 5 - i * 15, r = half * persp(y); return (
-                          <ellipse key={'coll' + i} cx={(cxT(y) + s * r * 0.62).toFixed(1)} cy={y.toFixed(1)} rx={(collarR * 0.62).toFixed(1)} ry={(collarR * 0.44).toFixed(1)} fill="url(#collare)" opacity="0.5" />
-                        ); })}
-                      </g>
-                    );
-                  })()}
                   {/* Il ramo si STACCA dal tronco a 40 gradi e poi curva su - una Y, non una H. Un collare
                       all'innesto (piu' raggio agli ultimi punti) dice "e' cresciuto da li'", non "appoggiato".
                       Il tronco passa dietro, la base vi si fonde. Sotto il primo grappolo (nessuna foglia) c'e'
@@ -520,7 +464,7 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                           const du = daysBetween(today, lf.start ?? today);
                           const swell = Math.max(0, Math.min(1, (90 - du) / 60));
                           const size = 7 + swell * 11;
-                          const gh = size * 2.2, gw = gh * (GEMMA_SPR.w / GEMMA_SPR.h);   // figurina in piedi, punta in alto
+                          const gh = size * 1.3, gw = gh * (GEMMA_SPR.w / GEMMA_SPR.h);   // ~0.8x la foglia: una gemma e' piu' piccola di una foglia adulta
                           fg.push({ plane: 3, el: (
                             <g key={key} onClick={onClick} className="cursor-pointer" style={{ opacity: 0, animation: 'pop .5s ease-out ' + delay.toFixed(2) + 's forwards, sway ' + swayDur.toFixed(2) + 's ease-in-out ' + phase.toFixed(2) + 's infinite', transformOrigin: base.x.toFixed(1) + 'px ' + base.y.toFixed(1) + 'px' }}>
                               <path d={'M' + base.x.toFixed(1) + ' ' + base.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1)} stroke="transparent" strokeWidth={(44 / zoom).toFixed(1)} strokeLinecap="round" fill="none" />
