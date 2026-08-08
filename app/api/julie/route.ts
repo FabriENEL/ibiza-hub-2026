@@ -92,7 +92,8 @@ const CODA_ALTRO = '\n\nPer ogni altra richiesta rispondi normalmente in italian
 function programmaPrompt(oggi: string): string {
   return '\\n\\nDATA E ORA ATTUALE: ' + oggi
     + '\\n\\nAZIONE PROGRAMMA\\nRispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo: '
-    + '{"action":"proponi_programma","zona":"<comune, oppure null per usare quello dell Hub>","intro":"<una riga calda>","giorni":[{"data":"<YYYY-MM-DD>","voci":[{"ora":"HH:MM","titolo":"<titolo breve>","categoria":"<una delle categorie richieste>"}]}]}'
+    + '{"action":"proponi_programma","zona":"<comune, oppure null per usare quello dell Hub>","intro":"<una riga calda>","giorni":[{"data":"<YYYY-MM-DD>","voci":[{"ora":"HH:MM","titolo":"<titolo breve>","categoria":"<una tra: colazione, food, aperitivo, night, beach, cultura, natura>"}]}]}'
+    + '\\nLe categorie sono ESATTAMENTE queste sette, mai altre: colazione, food, aperitivo, night, beach, cultura, natura. Se piu avanti ricevi un elenco di categorie preferite, scegli SOLO fra quelle; altrimenti usa liberamente tutte e sette, variando.'
     + '\\nDa 3 a 5 voci per giorno. Mai due voci della stessa categoria di seguito. Ogni giornata diversa dalle altre.'
     + '\\nRITMO EQUILIBRATO: colazione 08:30-09:30, attivita 10:00-17:00, aperitivo 18:30, cena 20:30, serata dalle 23:00.'
     + '\\nNON inventi nomi di locali: solo titolo generico e categoria. I luoghi veri li trovo io.'
