@@ -17,6 +17,32 @@ const STEM = '#5a4a3a', STEM_DK = '#3a3028';
 const DAY = 86400000;
 const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
 
+// === LE FIGURINE DIPINTE ===
+// Si sostituiscono ai tracciati vettoriali: STESSE posizioni, STESSI angoli, STESSE misure.
+// Cambia il pennello, non il modello. Dimensioni native dal manifest (le foglie sono larghe 200,
+// l'altezza varia per forma; ancora: base del picciolo sul bordo sinistro, punta a destra).
+const ASSET = '/giardino/';
+const FOGLIA_W = 200;
+const FOGLIA: Record<string, Record<number, { file: string; h: number }>> = {
+  viva:    { 1: { file: 'foglia-viva-1.webp', h: 89 },  2: { file: 'foglia-viva-2.webp', h: 131 }, 3: { file: 'foglia-viva-3.webp', h: 118 } },
+  ospite:  { 1: { file: 'foglia-ospite-1.webp', h: 131 }, 2: { file: 'foglia-ospite-2.webp', h: 87 },  3: { file: 'foglia-ospite-3.webp', h: 116 } },
+  ricordo: { 1: { file: 'foglia-ricordo-1.webp', h: 87 },  2: { file: 'foglia-ricordo-2.webp', h: 131 }, 3: { file: 'foglia-ricordo-3.webp', h: 116 } },
+};
+const FIORE: Record<string, { file: string; w: number; h: number }> = {
+  travel: { file: 'fiore-travel.webp', w: 130, h: 114 }, party: { file: 'fiore-party.webp', w: 130, h: 114 },
+  social: { file: 'fiore-social.webp', w: 130, h: 110 }, corporate: { file: 'fiore-corporate.webp', w: 130, h: 112 },
+};
+const GEMMA_SPR = { file: 'gemma-chiusa.webp', w: 63, h: 93 };
+const CORTECCIA = [
+  { file: 'corteccia-1.webp', w: 217, h: 305 }, { file: 'corteccia-2.webp', w: 192, h: 150 },
+  { file: 'corteccia-3.webp', w: 190, h: 133 }, { file: 'corteccia-4.webp', w: 123, h: 62 }, { file: 'corteccia-5.webp', w: 160, h: 80 },
+];
+const FONDALE = ASSET + 'fondale-chioma.webp', BOKEH = ASSET + 'primopiano-bokeh.webp';
+const LEAF_K = 1.0;    // larghezza figurina = leafLen(persone) x pScale x LEAF_K (= la vecchia lunghezza lamina)
+const FLOWER_K = 0.6;  // diametro fiore ~60% della foglia: l'accento, non il soggetto (banco 7.4)
+// tono della foglia dallo stato: ricordo (matura), viva (evento suo), ospite (era ospite)
+const tonoDi = (mature: boolean, isOwner: boolean) => mature ? 'ricordo' : isOwner ? 'viva' : 'ospite';
+
 // Il ramo di pino e' un ARCO: esce quasi orizzontale (PHI0 sopra l'orizzontale) e curva fino
 // alla verticale in punta (PHI1). L'ascissa curvilinea s e' identica; cambia la CURVA. Base =
 // passato (in basso, esterno), punta = presente (in alto, verso il cielo). La tangente ruota
@@ -49,11 +75,8 @@ const seedOf = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h 
 // === I TRE SEGNALI: deterministici, puliti, nessun caso, nessuna contaminazione ===
 const leafLen = (persone: number) => 16 + 22 * (1 - Math.exp(-persone / 3.5));   // foglia sulle persone
 const twigLen = (giorni: number) => 30 + 46 * (1 - Math.exp(-giorni / 7));       // ramoscello sui giorni
-// Verde di famiglia, ma mai due foglie identiche: tono e luminosita' variano per seme.
-// Il ricordo e' un sempreverde, non una foglia d'autunno: verde profondo e stabile.
-// La distinzione dal presente la porta la SATURAZIONE (il presente e' piu' acceso), non la stagione.
-const leafHSL = (mature: boolean, isOwner: boolean) =>
-  mature ? { h: 150, s: 30, l: 40 } : isOwner ? { h: 138, s: 58, l: 54 } : { h: 134, s: 34, l: 46 };
+// Il tono della foglia (viva / ospite / ricordo) ora lo porta la FIGURINA, non un HSL: la riga
+// del ricordo e' un sempreverde profondo, mai autunno. Vedi tonoDi e la tavola FOGLIA in alto.
 
 // === LA LEGGE DELLO SPESSORE (Leonardo/da Vinci) ===
 // R_genitore^ALFA = somma(R_figlio^ALFA). Negli alberi DIPINTI che l'occhio accetta come
@@ -106,33 +129,6 @@ const axisRibbon = (sLo: number, sHi: number, baseY: number, sTot: number, width
     lft.push({ x: p.x + nx*w, y: p.y + ny*w }); rgt.push({ x: p.x - nx*w, y: p.y - ny*w }); }
   return 'M' + [...lft, ...rgt.reverse()].map((p) => p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' L') + ' Z'; };
 
-// Foglia: base stretta, pancia, punta (arricciata da curl); scorcio via scale(sx) sull'asse
-// lungo; gradiente orientato dalla luce (coordinate passate da fuori).
-const LeafShape = ({ x, y, ang, sx, len, curl, grad, hi, mid, edge, gid, op }: any) => {
-  const w = len * 0.44, tip = curl * w * 0.5;
-  return (
-    <g transform={'translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ') rotate(' + (ang * 180 / Math.PI).toFixed(1) + ') scale(' + sx.toFixed(2) + ' 1)'} opacity={op}>
-      <defs>
-        <linearGradient id={gid} x1={grad.x1.toFixed(3)} y1={grad.y1.toFixed(3)} x2={grad.x2.toFixed(3)} y2={grad.y2.toFixed(3)}>
-          <stop offset="0%" stopColor={hi} /><stop offset="52%" stopColor={mid} /><stop offset="100%" stopColor={edge} />
-        </linearGradient>
-      </defs>
-      <path d={'M0 0 C ' + (len*0.22).toFixed(1) + ' ' + (-w).toFixed(1) + ' ' + (len*0.72).toFixed(1) + ' ' + (-w*0.65).toFixed(1) + ' ' + len.toFixed(1) + ' ' + tip.toFixed(1) + ' C ' + (len*0.72).toFixed(1) + ' ' + (w*0.65).toFixed(1) + ' ' + (len*0.22).toFixed(1) + ' ' + w.toFixed(1) + ' 0 0 Z'} fill={'url(#' + gid + ')'} />
-      <path d={'M ' + (len*0.08).toFixed(1) + ' 0 Q ' + (len*0.5).toFixed(1) + ' ' + (w*0.12).toFixed(1) + ' ' + (len*0.9).toFixed(1) + ' ' + (tip*0.8).toFixed(1)} stroke={edge} strokeWidth="0.7" fill="none" opacity="0.5" />
-    </g>
-  );
-};
-// Fiore: cinque petali diseguali, bordi curvi, centro morbido.
-const FlowerShape = ({ x, y, color, r, seed }: any) => (
-  <g transform={'translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ')'} opacity="0.9">
-    {[0,1,2,3,4].map((k) => {
-      const a = k*72 + (jit(seed, 20+k)-0.5)*26, rad = a*Math.PI/180;
-      const cx = Math.cos(rad)*r*0.6, cy = Math.sin(rad)*r*0.6, pr = r*(0.85 + jit(seed,30+k)*0.4);
-      return <ellipse key={k} cx={cx} cy={cy} rx={pr} ry={pr*0.52} transform={'rotate(' + a.toFixed(1) + ' ' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ')'} fill={color} />;
-    })}
-    <circle r={(r*0.42).toFixed(1)} fill="#f2e3b0" opacity="0.9" />
-  </g>
-);
 // Gemma chiusa: un fuso appuntito, verde salvia, che si gonfia (size) all'avvicinarsi della data.
 // outline: gemma DORMIENTE (potenziale, non ricordo) -> solo CONTORNO, corteccia
 // schiarita. Il pieno e' cio' che esiste; il contorno e' cio' che potrebbe esistere:
@@ -157,20 +153,6 @@ const BudShape = ({ x, y, ang, size, gid, op, outline }: any) => {
     </g>
   );
 };
-// Stipole: due foglioline alla base del picciolo, angolate all'indietro. Decorazione,
-// non ricordo: piccole (un quinto della foglia), stessa famiglia di verde ma piu' scure,
-// MAI toccabili (vivono nello strato di fondo, senza gestore). Si tocca solo cio' che e' un ricordo.
-const Stipole = ({ x, y, ang, len, color }: any) => {
-  const w = len * 0.5;
-  const blade = 'M0 0 Q ' + (len*0.5).toFixed(1) + ' ' + (-w).toFixed(1) + ' ' + len.toFixed(1) + ' 0 Q ' + (len*0.5).toFixed(1) + ' ' + w.toFixed(1) + ' 0 0 Z';
-  return (
-    <g transform={'translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ')'} opacity="0.85">
-      <path d={blade} transform={'rotate(' + ((ang + Math.PI + 0.5) * 180 / Math.PI).toFixed(1) + ')'} fill={color} />
-      <path d={blade} transform={'rotate(' + ((ang + Math.PI - 0.5) * 180 / Math.PI).toFixed(1) + ')'} fill={color} />
-    </g>
-  );
-};
-
 export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: () => void; onOpenHub: (id: string) => void; onCreateHub?: () => void }) {
   const { userId, memberships } = useHub();
   const [leaves, setLeaves] = useState<LeafData[]>([]);
@@ -360,7 +342,19 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
             {/* Contenitore scorrevole: lo scroll e' un'ascissa sul tracciato; l'SVG appiccicato segue la curva. */}
             <div ref={scrollRef} onScroll={onScroll} className="rounded-3xl" style={{ height: '62vh', overflowY: 'auto', overflowX: 'hidden' }}>
               <div style={{ height: Math.max(openS + TRUNK_REVEAL, 340) + 200 + 'px', position: 'relative' }}>
-                <svg viewBox={vb} preserveAspectRatio="xMidYMid slice" style={{ position: 'sticky', top: 0, width: '100%', height: '62vh', display: 'block', touchAction: 'manipulation' }}>
+                {/* Wrapper appiccicato: tre strati sovrapposti, l'ordine conta. Il fondale sotto tutto, l'SVG
+                    in mezzo (la camera pana), il bokeh sopra tutto. I fondali NON pananno: sono scenografia,
+                    non dati di nessuno. La camera e' l'unica cosa che si muove. */}
+                <div style={{ position: 'sticky', top: 0, height: '62vh' }}>
+                  {/* Fondale: chioma sfocata su piu' piani, luce da alto-sinistra. Sotto tutto. */}
+                  <img src={FONDALE} alt="" aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
+                <svg viewBox={vb} preserveAspectRatio="xMidYMid slice" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', touchAction: 'manipulation' }}>
+                  {/* Ombre CONDIVISE (una per le foglie, una per il ramo): mai una per elemento - i filtri
+                      costano sul telefono. */}
+                  <defs>
+                    <filter id="leafShadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="1" dy="2" stdDeviation="1.2" floodColor="#0a140d" floodOpacity="0.38" /></filter>
+                    <filter id="branchShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="1.5" dy="3" stdDeviation="2" floodColor="#0a140d" floodOpacity="0.45" /></filter>
+                  </defs>
                   {/* LA SOMMITA' DEL FUSTO, vista da DENTRO la chioma: la cima verso cui il ramo converge.
                       NON si taglia mai al bordo del contenitore: la sua opacita' va a ZERO qualche decina di
                       unita' PRIMA del ritaglio - si perde nel buio, come un tronco visto verso il fondo della
@@ -482,11 +476,12 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                           const du = daysBetween(today, lf.start ?? today);
                           const swell = Math.max(0, Math.min(1, (90 - du) / 60));
                           const size = 7 + swell * 11;
+                          const gh = size * 2.2, gw = gh * (GEMMA_SPR.w / GEMMA_SPR.h);   // figurina in piedi, punta in alto
                           fg.push({ plane: 3, el: (
                             <g key={key} onClick={onClick} className="cursor-pointer" style={{ opacity: 0, animation: 'pop .5s ease-out ' + delay.toFixed(2) + 's forwards, sway ' + swayDur.toFixed(2) + 's ease-in-out ' + phase.toFixed(2) + 's infinite', transformOrigin: base.x.toFixed(1) + 'px ' + base.y.toFixed(1) + 'px' }}>
                               <path d={'M' + base.x.toFixed(1) + ' ' + base.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1)} stroke="transparent" strokeWidth={(44 / zoom).toFixed(1)} strokeLinecap="round" fill="none" />
                               <path d={'M' + base.x.toFixed(1) + ' ' + base.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1)} stroke={STEM} strokeWidth="1.6" fill="none" strokeLinecap="round" />
-                              <BudShape x={ex} y={ey} ang={leafAng} size={size} gid={'bd' + ci + '-' + j} op={1} />
+                              <image href={ASSET + GEMMA_SPR.file} x={(ex - gw / 2).toFixed(1)} y={(ey - gh).toFixed(1)} width={gw.toFixed(1)} height={gh.toFixed(1)} preserveAspectRatio="none" />
                             </g>
                           ) });
                           return;
@@ -494,34 +489,36 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                         const tilt = (jit(seed, 5) - 0.5) * 0.87;
                         let ang = leafAng + tilt;
                         if (Math.sin(ang) > 0.06) ang = leafAng;                  // se il tilt la butta giu', la lamina resta sulla tangente (su)
-                        const sx = 0.55 + jit(seed, 6) * 0.45;
-                        const curl = (jit(seed, 8) - 0.5) * 1.4;
+                        const sx = 0.55 + jit(seed, 6) * 0.45;                     // scorcio: compressione lungo l'asse della foglia
                         const len = leafLen(lf.count) * pScale;                   // SEGNALE pulito (solo profondita' scala)
-                        const hs = leafHSL(st === 'matura', lf.isOwner);
-                        const lift = st === 'tenera' ? 12 : 0;                     // foglia tenera: verde piu' chiaro
-                        const hue = hs.h + (jit(seed,11)-0.5)*18, sat = hs.s + (jit(seed,12)-0.5)*16, lum = hs.l + lift + (jit(seed,13)-0.5)*16;
-                        const hi = 'hsl(' + hue.toFixed(0) + ' ' + Math.min(90, sat+8).toFixed(0) + '% ' + Math.min(90, lum+16).toFixed(0) + '%)';
-                        const mid = 'hsl(' + hue.toFixed(0) + ' ' + sat.toFixed(0) + '% ' + lum.toFixed(0) + '%)';
-                        const edge = 'hsl(' + hue.toFixed(0) + ' ' + sat.toFixed(0) + '% ' + Math.max(18, lum-16).toFixed(0) + '%)';
-                        bg.push(<Stipole key={'st' + ci + '-' + j} x={base.x} y={base.y} ang={leafAng} len={leafLen(lf.count) * 0.2} color={edge} />);
-                        const gA = 0.9 - ang, gx = Math.cos(gA)*0.5, gy = Math.sin(gA)*0.5;    // luce da alto-sinistra
-                        const grad = { x1: 0.5-gx, y1: 0.5-gy, x2: 0.5+gx, y2: 0.5+gy };
+                        // La FIGURINA: tono dallo stato (viva/ospite/ricordo), forma 1-3 dal seme (tre sagome).
+                        const tono = tonoDi(st === 'matura', lf.isOwner);
+                        const forma = 1 + (seed % 3);
+                        const spr = FOGLIA[tono][forma];
+                        const lw = len * LEAF_K, lh = lw * (spr.h / FOGLIA_W);    // larghezza = len (la vecchia lunghezza), altezza per aspetto
+                        // Il fiore appartiene alla foglia: all'attacco della lamina, arretrato verso la base
+                        // e verso l'interno (verso il ramoscello); la foglia gli passa SOPRA -> cresciuto li'.
+                        const fx = ex + (base.x - ex) * 0.12, fy = ey + (base.y - ey) * 0.12;
+                        const fspr = FIORE[lf.category] ?? FIORE.travel;
+                        const fw = leafLen(lf.count) * FLOWER_K, fh = fw * (fspr.h / fspr.w);
                         fg.push({ plane, el: (
                           <g key={key} onClick={onClick} className="cursor-pointer" style={{ opacity: 0, animation: 'pop .5s ease-out ' + delay.toFixed(2) + 's forwards, sway ' + swayDur.toFixed(2) + 's ease-in-out ' + phase.toFixed(2) + 's infinite', transformOrigin: base.x.toFixed(1) + 'px ' + base.y.toFixed(1) + 'px' }}>
-                            {/* Capsula invisibile del tocco: 44px reali (36 sul piano posteriore), dall'innesto
-                                alla punta della lamina. transparent (non none) riceve gli eventi; /zoom la tiene a 44px reali. */}
+                            {/* Capsula invisibile del tocco: 44px reali, dall'innesto alla punta della lamina.
+                                transparent (non none) riceve gli eventi; /zoom la tiene a 44px reali. INVARIATA. */}
                             <path d={'M' + base.x.toFixed(1) + ' ' + base.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1) + ' L ' + (ex + Math.cos(ang) * len).toFixed(1) + ' ' + (ey + Math.sin(ang) * len).toFixed(1)} stroke="transparent" strokeWidth={(44 / zoom).toFixed(1)} strokeLinecap="round" fill="none" />
                             <path d={'M' + base.x.toFixed(1) + ' ' + base.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1)} stroke={STEM} strokeWidth={(1.4 + pScale*1.2).toFixed(1)} fill="none" strokeLinecap="round" opacity={pOp} />
-                            {/* Fiore all'attacco fra ramoscello e lamina. Diametro complessivo ~60% della
-                                lunghezza foglia (l'inviluppo e' ~3.4x il raggio nominale): un accento, non un soggetto. */}
-                            <FlowerShape x={ex} y={ey} color={FLOWER[lf.category] ?? FLOWER.travel} r={leafLen(lf.count) * 0.17} seed={seed} />
-                            <LeafShape x={ex} y={ey} ang={ang} sx={sx} len={len} curl={curl} grad={grad} hi={hi} mid={mid} edge={edge} gid={'lg' + ci + '-' + j} op={pOp} />
+                            {/* Il fiore PRIMA della foglia: la lamina lo copre in parte. Uno solo per Hub. */}
+                            <image href={ASSET + fspr.file} x={(fx - fw / 2).toFixed(1)} y={(fy - fh / 2).toFixed(1)} width={fw.toFixed(1)} height={fh.toFixed(1)} preserveAspectRatio="none" opacity={pOp} />
+                            {/* La foglia: base sul bordo sinistro (x=0), scalata a lw, ruotata di ang, scorcio sx. */}
+                            <g transform={'translate(' + ex.toFixed(1) + ' ' + ey.toFixed(1) + ') rotate(' + (ang * 180 / Math.PI).toFixed(1) + ') scale(' + sx.toFixed(2) + ' 1)'} opacity={pOp}>
+                              <image href={ASSET + spr.file} x="0" y={(-lh / 2).toFixed(1)} width={lw.toFixed(1)} height={lh.toFixed(1)} preserveAspectRatio="none" />
+                            </g>
                           </g>
                         ) });
                       });
                     });
                     fg.sort((a, b) => a.plane - b.plane);   // piani posteriori disegnati per primi
-                    return <>{bg}{fg.map((f) => f.el)}</>;
+                    return <>{bg}<g filter="url(#leafShadow)">{fg.map((f) => f.el)}</g></>;
                   })()}
                   {/* Gemme dormienti: potenziale puro sul tratto terminale. Numero COSTANTE dal seme
                       dell'identita' (mai dal tempo o dal comportamento: il vuoto non si conta). Toccabili
@@ -551,6 +548,10 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                     return out;
                   })()}
                 </svg>
+                  {/* Primo piano: foglie enormi e fuori fuoco davanti all'osservatore - "ho la testa dentro
+                      il fogliame". Sopra tutto, non toccabile (gli eventi passano al fogliame vero sotto). */}
+                  <img src={BOKEH} alt="" aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
+                </div>
               </div>
             </div>
             {/* Indicazione discreta del tempo, in dissolvenza. */}

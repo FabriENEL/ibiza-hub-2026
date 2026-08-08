@@ -1,0 +1,227 @@
+{
+ "foglie": [
+  {
+   "file": "foglia-viva-1.webp",
+   "tono": "viva",
+   "forma": 1,
+   "w": 200,
+   "h": 89,
+   "byte": 6106,
+   "ancora": "base del picciolo sul bordo sinistro, punta a destra"
+  },
+  {
+   "file": "foglia-viva-2.webp",
+   "tono": "viva",
+   "forma": 2,
+   "w": 200,
+   "h": 131,
+   "byte": 7664,
+   "ancora": "base del picciolo sul bordo sinistro, punta a destra"
+  },
+  {
+   "file": "foglia-viva-3.webp",
+   "tono": "viva",
+   "forma": 3,
+   "w": 200,
+   "h": 118,
+   "byte": 7336,
+   "ancora": "base del picciolo sul bordo sinistro, punta a destra"
+  },
+  {
+   "file": "foglia-ospite-1.webp",
+   "tono": "ospite",
+   "forma": 1,
+   "w": 200,
+   "h": 131,
+   "byte": 6474,
+   "ancora": "base del picciolo sul bordo sinistro, punta a destra"
+  },
+  {
+   "file": "foglia-ospite-2.webp",
+   "tono": "ospite",
+   "forma": 2,
+   "w": 200,
+   "h": 87,
+   "byte": 5234,
+   "ancora": "base del picciolo sul bordo sinistro, punta a destra"
+  },
+  {
+   "file": "foglia-ospite-3.webp",
+   "tono": "ospite",
+   "forma": 3,
+   "w": 200,
+   "h": 116,
+   "byte": 6144,
+   "ancora": "base del picciolo sul bordo sinistro, punta a destra"
+  },
+  {
+   "file": "foglia-ricordo-1.webp",
+   "tono": "ricordo",
+   "forma": 1,
+   "w": 200,
+   "h": 87,
+   "byte": 4948,
+   "ancora": "base del picciolo sul bordo sinistro, punta a destra"
+  },
+  {
+   "file": "foglia-ricordo-2.webp",
+   "tono": "ricordo",
+   "forma": 2,
+   "w": 200,
+   "h": 131,
+   "byte": 6250,
+   "ancora": "base del picciolo sul bordo sinistro, punta a destra"
+  },
+  {
+   "file": "foglia-ricordo-3.webp",
+   "tono": "ricordo",
+   "forma": 3,
+   "w": 200,
+   "h": 116,
+   "byte": 6166,
+   "ancora": "base del picciolo sul bordo sinistro, punta a destra"
+  }
+ ],
+ "fiori": [
+  {
+   "file": "fiore-travel.webp",
+   "categoria": "travel",
+   "w": 130,
+   "h": 114,
+   "byte": 5816
+  },
+  {
+   "file": "fiore-party.webp",
+   "categoria": "party",
+   "w": 130,
+   "h": 114,
+   "byte": 5676
+  },
+  {
+   "file": "fiore-social.webp",
+   "categoria": "social",
+   "w": 130,
+   "h": 110,
+   "byte": 6766
+  },
+  {
+   "file": "fiore-corporate.webp",
+   "categoria": "corporate",
+   "w": 130,
+   "h": 112,
+   "byte": 6650
+  }
+ ],
+ "gemma": {
+  "file": "gemma-chiusa.webp",
+  "w": 63,
+  "h": 93,
+  "byte": 2024
+ },
+ "segmenti": [
+  {
+   "file": "corteccia-1.webp",
+   "ordine": 1,
+   "w": 217,
+   "h": 305,
+   "byte": 11852,
+   "nota": "orizzontale, estremita piatte: si sovrappongono dentro la sagoma del ramo"
+  },
+  {
+   "file": "corteccia-2.webp",
+   "ordine": 2,
+   "w": 192,
+   "h": 150,
+   "byte": 6696,
+   "nota": "orizzontale, estremita piatte: si sovrappongono dentro la sagoma del ramo"
+  },
+  {
+   "file": "corteccia-3.webp",
+   "ordine": 3,
+   "w": 190,
+   "h": 133,
+   "byte": 6432,
+   "nota": "orizzontale, estremita piatte: si sovrappongono dentro la sagoma del ramo"
+  },
+  {
+   "file": "corteccia-4.webp",
+   "ordine": 4,
+   "w": 123,
+   "h": 62,
+   "byte": 2588,
+   "nota": "orizzontale, estremita piatte: si sovrappongono dentro la sagoma del ramo"
+  },
+  {
+   "file": "corteccia-5.webp",
+   "ordine": 5,
+   "w": 160,
+   "h": 80,
+   "byte": 3658,
+   "nota": "orizzontale, estremita piatte: si sovrappongono dentro la sagoma del ramo"
+  }
+ ],
+ "stadi": [
+  {
+   "file": "ramo-stadio-1.webp",
+   "stadio": 1,
+   "w": 285,
+   "h": 202,
+   "byte": 13872,
+   "nota": "ramo intero: stadio di crescita per numero di Hub (vista Albero)"
+  },
+  {
+   "file": "ramo-stadio-2.webp",
+   "stadio": 2,
+   "w": 183,
+   "h": 115,
+   "byte": 4338,
+   "nota": "ramo intero: stadio di crescita per numero di Hub (vista Albero)"
+  },
+  {
+   "file": "ramo-stadio-3.webp",
+   "stadio": 3,
+   "w": 243,
+   "h": 144,
+   "byte": 7674,
+   "nota": "ramo intero: stadio di crescita per numero di Hub (vista Albero)"
+  },
+  {
+   "file": "ramo-stadio-4.webp",
+   "stadio": 4,
+   "w": 304,
+   "h": 207,
+   "byte": 20082,
+   "nota": "ramo intero: stadio di crescita per numero di Hub (vista Albero)"
+  },
+  {
+   "file": "ramo-stadio-5.webp",
+   "stadio": 5,
+   "w": 299,
+   "h": 215,
+   "byte": 24166,
+   "nota": "ramo intero: stadio di crescita per numero di Hub (vista Albero)"
+  },
+  {
+   "file": "ramo-stadio-6.webp",
+   "stadio": 6,
+   "w": 319,
+   "h": 221,
+   "byte": 25088,
+   "nota": "ramo intero: stadio di crescita per numero di Hub (vista Albero)"
+  }
+ ],
+ "fondali": {
+  "fondale-chioma": {
+   "file": "fondale-chioma.webp",
+   "w": 600,
+   "h": 1040,
+   "byte": 19130
+  },
+  "primopiano-bokeh": {
+   "file": "primopiano-bokeh.webp",
+   "w": 600,
+   "h": 1040,
+   "byte": 14256
+  }
+ }
+}
