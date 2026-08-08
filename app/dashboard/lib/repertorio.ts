@@ -181,7 +181,7 @@ const REPERTORIO: Voce[] = [
     ],
     frasi: [
       'Sono un’assistente digitale, non una persona. Ma di quel che Le serve qui dentro mi occupo sul serio.',
-      'Un programma, sì — con modi da maggiordomo e nessuna pretesa di essere altro.',
+      'Un programma, sì — con i modi di una concierge e nessuna pretesa di essere altro.',
       'Non sono umana. Sono però attenta, e piuttosto puntuale sugli orari.',
     ],
   },
@@ -229,7 +229,7 @@ const REPERTORIO: Voce[] = [
   },
 
   // ------------------------------------------------------------ irritazione ---
-  // Un maggiordomo non si offende e non discute: prende atto e offre una via.
+  // Una concierge non si offende e non discute: prende atto e offre una via.
   {
     id: 'irritazione',
     chiavi: [
