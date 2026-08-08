@@ -148,18 +148,23 @@ async function luogoHub(hubId: string): Promise<string | null> {
   } catch { return null; }
 }
 
-// Riusa /api/consigli: stessa cascata di risoluzione del luogo, stessi luoghi reali della sezione Consigli.
-async function cercaLuoghi(origin: string, location: string, categoria: string) {
+// Riusa /api/consigli: stessa cascata di risoluzione, stessi luoghi reali della sezione Consigli.
+// Chiede SOLO le categorie che servono (cats): senza quel campo /api/consigli ripiega su SEI e le
+// calcola tutte e sei per usarne una - trenta ricerche dove ne bastano cinque. Ritorna TUTTE le
+// sezioni richieste, mappate per id, cosi' una sola chiamata serve l'intero programma.
+async function cercaLuoghi(origin: string, location: string, cats: string[]) {
+  const vuoto = { sezioni: {} as Record<string, any[]>, zona: null as string | null };
   try {
     const res = await fetch(origin + '/api/consigli', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ location }),
+      body: JSON.stringify({ location, cats }),
     });
     const d = await res.json();
-    const sec = (d.sections ?? []).find((s: any) => s.id === categoria);
-    return { tips: sec?.tips ?? [], zona: d.risolto ?? null };
-  } catch { return { tips: [], zona: null }; }
+    const sezioni: Record<string, any[]> = {};
+    (d.sections ?? []).forEach((s: any) => { sezioni[s.id] = s.tips ?? []; });
+    return { sezioni, zona: d.risolto ?? null };
+  } catch { return vuoto; }
 }
 
 
@@ -194,17 +199,18 @@ async function luoghiGiaUsati(hubId: string): Promise<Set<string>> {
   } catch { return vuoto; }
 }
 
-// Una sola chiamata per CATEGORIA (non per voce): la cache di /api/consigli fa il resto.
-// Nessuna ripetizione: due cene nello stesso weekend non finiscono nello stesso ristorante.
+// Una sola chiamata a /api/consigli per l'INTERO programma (tutte le categorie insieme), non una
+// per categoria. Nessuna ripetizione: due cene nello stesso weekend non finiscono nello stesso posto.
 async function vestiProgramma(origin: string, zona: string, giorni: any[], gia: Set<string> = new Set()) {
   const categorie = Array.from(new Set(
     giorni.flatMap((g: any) => (g?.voci ?? []).map((v: any) => v?.categoria)).filter(Boolean)
   )) as string[];
+  // UNA sola chiamata a /api/consigli con TUTTE le categorie del programma, poi si distribuiscono
+  // le sezioni nel catalogo. Prima era una chiamata per categoria: cinque richieste in parallelo,
+  // trenta ricerche, cinque risoluzioni del comune - per un programma che ne usa cinque.
   const catalogo: Record<string, any[]> = {};
-  await Promise.all(categorie.map(async (c) => {
-    const { tips } = await cercaLuoghi(origin, zona, c);
-    catalogo[c] = tips ?? [];
-  }));
+  const { sezioni } = await cercaLuoghi(origin, zona, categorie);
+  categorie.forEach((c) => { catalogo[c] = sezioni[c] ?? []; });
 
   const usati = new Set<string>(gia);
   const esauriti: string[] = [];                              // categorie senza piu' luoghi liberi
@@ -416,7 +422,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ reply: 'Mi dica in quale citta cercare e Le trovo i posti giusti.' });
       }
       const origin = new URL(req.url).origin;
-      const { tips, zona } = await cercaLuoghi(origin, loc, az.categoria);
+      // Ricerca singola: chiede SOLO la categoria che serve (una su sei), non tutte.
+      const { sezioni, zona } = await cercaLuoghi(origin, loc, [az.categoria]);
+      const tips = sezioni[az.categoria] ?? [];
       if (tips.length === 0) {
         return NextResponse.json({ reply: 'Non ho trovato nulla di valido' + (zona ? ' nei dintorni di ' + zona : ' in zona') + '. Provi a indicarmi un\u2019altra categoria.' });
       }
