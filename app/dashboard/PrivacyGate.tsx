@@ -106,16 +106,27 @@ export default function PrivacyGate({ userId, onConsentito }: { userId: string; 
     onConsentito();   // solo DOPO la scrittura (o la conferma che c'era gia')
   };
 
+  // LA PORTA. Chi in questo momento non vuole prendere visione non resta intrappolato: un utente
+  // in PWA riaprirebbe l'app allo stesso muro, ancora connesso. Collegamento discreto, non un
+  // secondo bottone che compete col primo. Stesso signOut della scheda Gruppo.
+  const esci = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center px-4 py-10">
       <div className="w-full max-w-2xl">
         <div className="text-center mb-6">
           <AppIconMark withBackground={false} withRing={false} className="w-[72px] mx-auto" />
           <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500 mt-2">EventGarden</p>
-          <h1 className="text-2xl font-black text-white mt-1 [font-family:var(--font-display)]">Prima di entrare</h1>
-          <p className="text-slate-400 text-sm mt-2 leading-relaxed">
-            Le chiedo un momento per l&rsquo;informativa sul trattamento dei Suoi dati. Per usare EventGarden non
-            serve alcun consenso: le basta prenderne visione. Il resto è facoltativo, e lo decide Lei.
+          <h1 className="text-2xl font-black text-white mt-1 leading-tight [font-family:var(--font-display)]">Prima di entrare, una cosa di cui devo informarLa.</h1>
+          <p className="text-slate-300 text-sm mt-3 leading-relaxed">
+            Qui dentro custodiremo le Sue fotografie, i Suoi eventi e le nostre conversazioni. Ho preparato il
+            documento che spiega quali dati trattiamo, dove finiscono e come può farli cancellare.
+          </p>
+          <p className="text-slate-400 text-sm mt-3 leading-relaxed">
+            Per usare EventGarden non serve alcun consenso: Le basta prenderne visione. Il resto è facoltativo, e lo decide Lei.
           </p>
         </div>
 
@@ -157,6 +168,7 @@ export default function PrivacyGate({ userId, onConsentito }: { userId: string; 
             {busy ? 'Registro…' : 'Ho preso visione ed entro'}
           </button>
           {errore && <p className="text-red-400 text-sm text-center leading-snug">{errore}</p>}
+          <button onClick={esci} className="w-full text-center text-[10px] uppercase tracking-widest text-slate-600 active:text-slate-400 py-2">Esci</button>
         </div>
       </div>
     </div>
