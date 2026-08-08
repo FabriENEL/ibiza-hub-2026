@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useHub } from './lib/HubContext';
+import { rispostaDiRepertorio } from './lib/repertorio';
 import { ruleSignature } from './lib/eventVisuals';
 import DateTimePicker from './lib/DateTimePicker';
 import LuoghiCard, { type Luogo } from './LuoghiCard';
@@ -60,6 +61,20 @@ const SESSIONE_SCADUTA = 'La Sua sessione è scaduta. Rientri e sarò subito con
 // secondo d'attesa, invece di costringere l'utente a riscrivere. Mai un ciclo: si
 // riprova UNA volta sola e basta. Fuori dal componente per non rinascere a ogni render.
 async function chiediAJulie(corpo: any, annuncia: (avviso: string) => void): Promise<any> {
+  // LIVELLO REPERTORIO (zero token, sul client, PRIMA di ogni fetch): se l'INTERA frase e'
+  // riconosciuta, risponde Julie con una frase scritta da noi - nella sua voce, mai al «tu».
+  // Funziona a quota esaurita, con Groq giu' e senza rete: e' il livello che non tace mai.
+  // Conservativo: se la frase non e' nell'elenco, rispostaDiRepertorio torna null e si prosegue.
+  const ultimo = Array.isArray(corpo?.messages) && corpo.messages.length
+    ? (corpo.messages[corpo.messages.length - 1]?.content ?? '')
+    : '';
+  const pronta = rispostaDiRepertorio(ultimo);
+  if (pronta) {
+    // Una pausa breve e variabile (400-700 ms): una risposta istantanea tradirebbe il meccanismo
+    // e farebbe di Julie un distributore. Con la pausa, e' una persona che ha letto e risponde.
+    await new Promise((r) => setTimeout(r, 400 + Math.floor(Math.random() * 300)));
+    return { reply: pronta };
+  }
   const chiama = async () => {
     // La sessione si legge ADESSO, a ogni tentativo: in una conversazione lunga il token puo'
     // essere stato rinnovato, e deve viaggiare quello nuovo, non quello del montaggio.
