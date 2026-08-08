@@ -3,7 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 import { segna } from '../../lib/usage';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL = 'openai/gpt-oss-120b';
+// TRE ROTTE, TRE MODELLI, TRE SECCHI DISGIUNTI (i tetti Groq valgono per MODELLO). /api/consigli usa
+// llama-3.3-70b; Julie usa il grande per cio' che produce JSON, il piccolo per la pura conversazione.
+// Il piccolo NON e' il 70b (lo usa gia' consigli): condividere il secchio rimetterebbe il problema
+// dov'era. Se un domani una quarta funzione chiamera' Groq, prenda un QUARTO modello, non uno gia' in uso.
+const MODEL = 'openai/gpt-oss-120b';          // JSON strutturato: composizione e blocchi d'azione
+const MODEL_PICCOLO = 'llama-3.1-8b-instant'; // pura conversazione: due-tre righe di garbo, nessun JSON
 
 const RATE_MAX = 12;
 const RATE_WINDOW_MS = 60_000;
@@ -104,7 +109,7 @@ function programmaPrompt(oggi: string): string {
 // Selettore deterministico (zero token): dall'ultimo messaggio dell'utente decide quali blocchi
 // entrano. GENEROSO, non preciso: al minimo accenno il blocco entra - il costo di caricarlo per
 // sbaglio e' qualche centinaio di token, il costo di non caricarlo e' una funzione che non risponde.
-function blocchiAzione(oggi: string, testo: string): string {
+function blocchiAzione(oggi: string, testo: string): { prompt: string; haBlocchi: boolean } {
   const t = (testo || '').toLowerCase();
   // La cifra nuda (\d) NON e' un segnale di spesa: un'ora, una data, un numero di persone compaiono
   // in quasi ogni frase - e' rumore, e caricherebbe lo schema spesa SEMPRE. Solo i segnali veri.
@@ -118,7 +123,9 @@ function blocchiAzione(oggi: string, testo: string): string {
   if (e) blocchi += bloccoEvento(oggi);
   if (spesa) blocchi += bloccoSpesa;
   if (l) blocchi += bloccoLuoghi;
-  return INVENTARIO + blocchi + CODA_ALTRO;
+  // haBlocchi = e' stato caricato almeno uno schema d'azione: allora e' un turno che PUO' produrre
+  // JSON, e va sul modello grande. Nessun blocco = pura conversazione -> modello piccolo.
+  return { prompt: INVENTARIO + blocchi + CODA_ALTRO, haBlocchi: blocchi.length > 0 };
 }
 
 // Legge le categorie preferite DALL'HUB (consigli_cats), non dal corpo della richiesta: stessa
@@ -373,6 +380,9 @@ export async function POST(req: NextRequest) {
     // sceglie DA SOLA quando compone. Lette una sola volta, servono al prompt E alla post-elaborazione.
     const catsPreferite: string[] = componendo ? await catsHub(hubId) : [];
     let promptAzione: string;
+    // Il SELETTORE decide anche il MODELLO. Composizione e blocchi d'azione -> grande (JSON). Solo la
+    // pura conversazione (nessun blocco caricato) -> piccolo. Generoso: nel dubbio, il grande.
+    let modello = MODEL;
     if (componendo) {
       const ctxCats = catsPreferite.length > 0
         ? '\n\n=== CATEGORIE PREFERITE DELL HUB ===\nQuando componi TU il programma, scegli fra queste categorie: ' + catsPreferite.join(', ') + '. Ognuna compaia almeno una volta; puoi ripeterla in giorni diversi con un luogo diverso.\nMA se l utente CHIEDE ESPLICITAMENTE altro (un museo, una spiaggia, un locale fuori da queste categorie), proponiglielo lo stesso: queste categorie le scegli TU quando componi, non sono un recinto attorno a cio che l utente puo chiedere.\n=== FINE ==='
@@ -384,7 +394,9 @@ export async function POST(req: NextRequest) {
       promptAzione = programmaPrompt(oggi) + INVENTARIO + ctxCats + ctxNoChiedi;
     } else {
       // In conversazione, gli schemi d'azione si caricano SU RICHIESTA (selettore generoso).
-      promptAzione = blocchiAzione(oggi, testoUltimo);
+      const b = blocchiAzione(oggi, testoUltimo);
+      promptAzione = b.prompt;
+      if (!b.haBlocchi) modello = MODEL_PICCOLO;   // pura conversazione: nessuno schema -> modello piccolo
     }
     // Della cronologia ricevuta si accettano SOLO 'user' e 'assistant'. Un messaggio 'system'
     // iniettato dal client userebbe GROQ_API_KEY come modello generalista gratuito, bruciando
@@ -394,17 +406,29 @@ export async function POST(req: NextRequest) {
     const storia = (Array.isArray(messages) ? messages : [])
       .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant'))
       .slice(-6);
-    const res = await fetch(GROQ_URL, {
+    const eseguiGroq = (m: string) => fetch(GROQ_URL, {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: MODEL,
+        model: m,
         messages: [{ role: 'system', content: SYSTEM + promptAzione + ctxHub + ctxEventi }, ...storia],
         temperature: 0.6,
         max_tokens: componendo ? 2500 : 400,   // conversazione: 2-3 righe, ~100 token. Composizione: serve spazio.
         reasoning_effort: 'low',
       }),
     });
+    let res = await eseguiGroq(modello);
+    // Il corpo si legge UNA volta sola: lo prendo qui se ok, cosi' il ripiego puo' sbirciare la
+    // risposta. Se non e' ok, lo lascio intatto: lo leggera' il ramo del 429 piu' sotto.
+    let dataPre: any = res.ok ? await res.json() : null;
+    // RIPIEGO: il modello piccolo e' piu' debole sul JSON. Se ha tentato un'azione (una graffa nella
+    // risposta) o la chiamata e' fallita, si riprova UNA volta sola sul GRANDE, col messaggio completo.
+    // L'utente non se ne accorge. Costa una chiamata in piu' nei rari casi; non averlo costa una funzione
+    // persa, e per quindici giorni non c'e' nessuno a ripararla.
+    if (modello === MODEL_PICCOLO && (!res.ok || String(dataPre?.choices?.[0]?.message?.content ?? '').includes('{'))) {
+      res = await eseguiGroq(MODEL);
+      dataPre = res.ok ? await res.json() : null;
+    }
     if (!res.ok) {
       // Il corpo di una risposta si legge UNA volta sola: lo catturo qui e lo riuso
       // sia per il log sia per ricavare l'attesa. Leggerlo due volte torna vuoto.
@@ -424,7 +448,7 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({ reply: 'Mi perdoni, sono momentaneamente non disponibile. Riprovi tra qualche istante.' });
     }
-    const data = await res.json();
+    const data = dataPre;
     segna('groq', 'chat', { token: data?.usage?.total_tokens ?? 0, meta: { in: data?.usage?.prompt_tokens, out: data?.usage?.completion_tokens } });
     const reply = data.choices?.[0]?.message?.content ?? 'Mi scusi, non ho compreso.';
     if (data.choices?.[0]?.finish_reason === 'length') {
