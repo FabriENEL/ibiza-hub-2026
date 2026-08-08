@@ -273,6 +273,23 @@ export async function POST(req: NextRequest) {
 
   try {
     const { messages, hubId, cats, ritmo } = await req.json();
+
+    // ==== CHI BUSSA ==== La rotta e' pubblica e alimenta il prompt con la chiave di servizio,
+    // che scavalca la RLS. Prima di QUALUNQUE query si verifica il token e l'appartenenza: e'
+    // la forma di /api/hubs, l'identita' viene dal token e mai dal corpo. Ordine obbligato.
+    // 1) Chi e': senza un Bearer valido, 401 (e nessuna lettura parte prima di qui).
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const token = authHeader.replace('Bearer ', '');
+    if (!token) return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
+    const authClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    const { data: { user }, error: authErr } = await authClient.auth.getUser(token);
+    if (authErr || !user) return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
+    // 2) Ha diritto a QUESTO Hub: deve risultare in hub_members. Altrimenti 403.
+    if (!hubId || typeof hubId !== 'string') return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+    const adminClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+    const { data: membro } = await adminClient.from('hub_members').select('user_id').eq('hub_id', hubId).eq('user_id', user.id).maybeSingle();
+    if (!membro) return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+
     const oggi = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Rome' }).replace(' ', 'T');
     const dh = await dateHub(hubId);
     const ctxHub = dh
@@ -303,12 +320,19 @@ export async function POST(req: NextRequest) {
     const ctxNoChiedi = Array.isArray(cats) && cats.length > 0
       ? '\n\nL utente ha GIA scelto le categorie e il ritmo. NON faccia altre domande. NON chieda cosa cercare. Produca IMMEDIATAMENTE il JSON del programma con action proponi_programma. Qualsiasi risposta che non sia quel JSON e un errore.'
       : '';
+    // Della cronologia ricevuta si accettano SOLO 'user' e 'assistant'. Un messaggio 'system'
+    // iniettato dal client userebbe GROQ_API_KEY come modello generalista gratuito, bruciando
+    // il tetto di 8.000 token/min dell'intera organizzazione (spegne Julie per tutti). Il SYSTEM
+    // lo compone il server, e resta l'unico messaggio system della richiesta. Il taglio a 12 resta.
+    const storia = (Array.isArray(messages) ? messages : [])
+      .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant'))
+      .slice(-12);
     const res = await fetch(GROQ_URL, {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
-        messages: [{ role: 'system', content: componendo ? (SYSTEM + programmaPrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi) : (SYSTEM + azionePrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi) }, ...(messages ?? []).slice(-12)],
+        messages: [{ role: 'system', content: componendo ? (SYSTEM + programmaPrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi) : (SYSTEM + azionePrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi) }, ...storia],
         temperature: 0.6,
         max_tokens: componendo ? 2500 : 800,
         reasoning_effort: 'low',
