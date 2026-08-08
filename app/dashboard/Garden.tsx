@@ -421,15 +421,51 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                     const s0 = model.clusters.length ? model.clusters[0].s : 0;
                     const p0 = { x: CX, y: model.baseY }, p3 = axisPoint(s0, model.baseY, model.sTot);
                     const angLeave = axisTangent(0, model.sTot);          // il ramo lascia il tronco nella direzione dell'arco (~38 sopra l'orizzontale)
-                    const angMeet = axisTangent(s0, model.sTot), len = Math.hypot(p3.x - p0.x, p3.y - p0.y) || 1;
-                    const p1 = { x: p0.x + Math.cos(angLeave) * len * 0.5, y: p0.y + Math.sin(angLeave) * len * 0.5 };
-                    const p2 = { x: p3.x - Math.cos(angMeet) * len * 0.4, y: p3.y - Math.sin(angMeet) * len * 0.4 };
+                    const angMeet = axisTangent(s0, model.sTot), lenC = Math.hypot(p3.x - p0.x, p3.y - p0.y) || 1;
+                    const p1 = { x: p0.x + Math.cos(angLeave) * lenC * 0.5, y: p0.y + Math.sin(angLeave) * lenC * 0.5 };
+                    const p2 = { x: p3.x - Math.cos(angMeet) * lenC * 0.4, y: p3.y - Math.sin(angMeet) * lenC * 0.4 };
                     const wTip = branchW(s0);
-                    const conn = ribbon({ p0, p1, p2, p3, wBase: wTip * 1.5, wTip }, 0, 20); // collare (wBase piu' largo)
-                    return (<>
-                      <path d={conn} fill={STEM} />
-                      <path d={axisRibbon(Math.max(s0, winLo), Math.min(model.sTot, winHi), model.baseY, model.sTot, branchW)} fill={STEM} />
-                    </>);
+                    const connBr = { p0, p1, p2, p3, wBase: wTip * 1.5, wTip };   // collare (wBase piu' largo)
+                    const conn = ribbon(connBr, 0, 20);
+                    // La sagoma del ramo (LARGHEZZA dalla legge) e' UNA sola: connettore + asse. Serve da clipPath.
+                    const axisClip = axisRibbon(Math.max(s0, winLo), Math.min(model.sTot, winHi), model.baseY, model.sTot, branchW);
+                    // Linea centrale campionata (punto, tangente, larghezza): connettore [0..12], poi asse visibile.
+                    const samples: { x: number; y: number; a: number; w: number }[] = [];
+                    for (let i = 0; i <= 12; i++) { const t = i / 12, p = cubic(connBr, t); samples.push({ x: p.x, y: p.y, a: cubicTanBr(connBr, t), w: lerp(connBr.wBase, connBr.wTip, t) }); }
+                    const sLoB = Math.max(s0, camS - eVH * 0.7), sHiB = Math.min(model.sTot, camS + eVH * 0.7);
+                    for (let i = 1; i <= 30; i++) { const s = lerp(sLoB, sHiB, i / 30), p = axisPoint(s, model.baseY, model.sTot); samples.push({ x: p.x, y: p.y, a: axisTangent(s, model.sTot), w: branchW(s) }); }
+                    const cum = [0]; for (let i = 1; i < samples.length; i++) cum.push(cum[i - 1] + Math.hypot(samples[i].x - samples[i - 1].x, samples[i].y - samples[i - 1].y));
+                    const total = cum[cum.length - 1];
+                    const at = (dd: number) => { let k = 0; while (k < cum.length - 2 && cum[k + 1] < dd) k++; const seg = Math.max(1e-3, cum[k + 1] - cum[k]), t = Math.min(1, Math.max(0, (dd - cum[k]) / seg)); const A = samples[k], B = samples[k + 1] ?? A; return { x: lerp(A.x, B.x, t), y: lerp(A.y, B.y, t), a: A.a, w: lerp(A.w, B.w, t) }; };
+                    // Corteccia MOLTO sovrapposta (avanzamento ~1/3 della piastrella), ruotata +-7 gradi, scala
+                    // variabile: dentro la sagoma non si riconosce alcun ritmo. Un fondo scuro sotto copre i vuoti.
+                    const bark: any[] = []; let dd = 0, gi = 0;
+                    while (dd <= total && gi < 70) {
+                      const q = at(dd), sd = seedOf('cort' + gi);
+                      const c = CORTECCIA[Math.floor(jit(sd, 2) * CORTECCIA.length) % CORTECCIA.length];
+                      const across = Math.max(6, q.w * 3.0), scale = across / c.h, along = c.w * scale;
+                      const rot = q.a * 180 / Math.PI + (jit(sd, 5) - 0.5) * 14, sc = 0.92 + jit(sd, 6) * 0.28;
+                      bark.push(<image key={'ck' + gi} href={ASSET + c.file} x={(-along / 2).toFixed(1)} y={(-across / 2).toFixed(1)} width={along.toFixed(1)} height={across.toFixed(1)} preserveAspectRatio="none"
+                        transform={'translate(' + q.x.toFixed(1) + ' ' + q.y.toFixed(1) + ') rotate(' + rot.toFixed(1) + ') scale(' + sc.toFixed(2) + ')'} />);
+                      dd += Math.max(6, along * 0.35); gi++;
+                    }
+                    // Linea di luce continua sul lato in ALTO a SINISTRA (lato scelto per campione), e bordo scuro:
+                    // sono queste due linee continue a far leggere il ramo come un corpo solo, non tessere.
+                    const lightOff = (sp: { x: number; y: number; a: number; w: number }) => { const nx = Math.cos(sp.a + Math.PI / 2), ny = Math.sin(sp.a + Math.PI / 2), sign = (nx + ny) < 0 ? 1 : -1; return (sp.x + sign * nx * sp.w * 0.42).toFixed(1) + ' ' + (sp.y + sign * ny * sp.w * 0.42).toFixed(1); };
+                    const lightConn = 'M' + samples.slice(0, 13).map(lightOff).join(' L');
+                    const lightAxis = 'M' + samples.slice(13).map(lightOff).join(' L');
+                    return (
+                      <g filter="url(#branchShadow)">
+                        <defs><clipPath id="branchClip"><path d={conn} /><path d={axisClip} /></clipPath></defs>
+                        <path d={conn} fill={STEM_DK} />
+                        <path d={axisClip} fill={STEM_DK} />
+                        <g clipPath="url(#branchClip)">{bark}</g>
+                        <path d={conn} fill="none" stroke="#17110b" strokeWidth="1.5" opacity="0.6" strokeLinejoin="round" />
+                        <path d={axisClip} fill="none" stroke="#17110b" strokeWidth="1.5" opacity="0.6" strokeLinejoin="round" />
+                        <path d={lightConn} fill="none" stroke="#cdbb9a" strokeWidth="1.1" opacity="0.5" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d={lightAxis} fill="none" stroke="#cdbb9a" strokeWidth="1.1" opacity="0.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </g>
+                    );
                   })()}
                   {/* Forcelle d'anno: stub laterale che si assottiglia (non scatta finche' e' tutto un anno). */}
                   {model.forks.filter((s) => s > winLo && s < winHi).map((s, i) => {
@@ -440,9 +476,17 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                   {/* Grappoli nella finestra: brachiblasto + foglie. */}
                   {(() => {
                     const bg: any[] = [], fg: any[] = [];
+                    // Lato IRREGOLARE (non ci%2): l'alternanza perfetta faceva sembrare il ramo una scala.
+                    // Seminato dall'identita', con la sola regola di non ripetersi tre volte di fila.
+                    const sides: number[] = []; let run = 1, prev = 0;
+                    model.clusters.forEach((c, ci) => {
+                      let s = jit(seedOf((userId ?? '') + 'lato' + ci), 3) < 0.5 ? -1 : 1;
+                      if (ci > 0 && s === prev) { if (run >= 2) { s = -s; run = 1; } else run++; } else run = 1;
+                      prev = s; sides.push(s);
+                    });
                     model.clusters.forEach((c, ci) => {
                       if (c.s <= winLo || c.s >= winHi) return;
-                      const P = axisPoint(c.s, model.baseY, model.sTot), T = axisTangent(c.s, model.sTot), m = c.leaves.length, side = ci % 2 ? 1 : -1;
+                      const P = axisPoint(c.s, model.baseY, model.sTot), T = axisTangent(c.s, model.sTot), m = c.leaves.length, side = sides[ci];
                       // Foglie orientate sulla TANGENTE locale (che ora ruota molto). Dove la tangente e'
                       // quasi orizzontale (base dell'arco) si tira il ventaglio verso l'alto, cosi' nessuna
                       // foglia punta in basso. In alto (tangente verticale) resta come prima.
