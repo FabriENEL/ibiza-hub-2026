@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     } else if (table === 'events') {
       const { data } = await supabase
         .from('events')
-        .select('id, hub_id, created_by, title, created_at')
+        .select('id, hub_id, created_by, title, created_at, reveal_at, revealed_override, reveal_visible_to')
         .eq('id', id)
         .single();
       riga = data;
@@ -104,7 +104,29 @@ export async function POST(request: Request) {
       body = voceEvento(chi, riga.title ?? 'un nuovo appuntamento');
     }
 
+    // SORPRESA: se un evento non e' ancora svelato, la notifica non puo' tradire il segreto.
+    // Lo stato di svelamento lo decide il DATABASE - la stessa funzione della vista del calendario,
+    // col SUO now() - passando l'UUID zero (mai owner/autore/pubblico): cosi' can_see_event
+    // restituisce il solo svelamento GLOBALE, senza inventare qui un confronto sul fuso orario.
+    let soloPubblico: Set<string> | null = null;
+    if (table === 'events') {
+      const { data: svelato } = await supabase.rpc('can_see_event', {
+        p_hub_id: riga.hub_id,
+        p_reveal_at: riga.reveal_at ?? null,
+        p_created_by: riga.created_by ?? null,
+        p_reveal_visible_to: riga.reveal_visible_to ?? [],
+        p_revealed_override: riga.revealed_override ?? null,
+        p_user: '00000000-0000-0000-0000-000000000000',
+      });
+      // Non svelato (o esito incerto): i destinatari sono SOLO quelli nel pubblico. Per gli altri,
+      // silenzio - niente notifica, nemmeno generica: un avviso vago annuncerebbe la sorpresa.
+      if (svelato !== true) {
+        soloPubblico = new Set<string>((riga.reveal_visible_to ?? []) as string[]);
+      }
+    }
+
     // Destinatari: SOLO i membri di quell'Hub, escluso l'autore. Evita fughe tra Hub diversi.
+    // E per una sorpresa non svelata, solo chi e' gia' dentro il segreto (reveal_visible_to).
     const { data: membri } = await supabase
       .from('hub_members')
       .select('user_id')
@@ -112,7 +134,8 @@ export async function POST(request: Request) {
 
     const destinatari = (membri ?? [])
       .map((m: any) => m.user_id)
-      .filter((uid: string) => uid !== autore);
+      .filter((uid: string) => uid !== autore)
+      .filter((uid: string) => soloPubblico === null || soloPubblico.has(uid));
 
     if (destinatari.length === 0) {
       return NextResponse.json({ success: true, sent: 0, message: 'Nessun destinatario.' });
