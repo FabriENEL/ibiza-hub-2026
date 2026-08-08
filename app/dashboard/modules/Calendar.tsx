@@ -244,7 +244,7 @@ export default function Calendar({ hubId, theme, isOwner, archived, words, round
       revealed_override: null,
     });
     setBusy(false);
-    if (!error) { logEvent('event_created', { surprise }, hubId); resetAdd(); load(); }
+    if (!error) { logEvent('event_created', { surprise, via: 'manual' }, hubId); resetAdd(); load(); }
   };
 
   const startEdit = async (ev: EventRow) => {

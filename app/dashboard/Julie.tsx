@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useHub } from './lib/HubContext';
 import { rispostaDiRepertorio } from './lib/repertorio';
+import { logEvent } from './lib/logEvent';
 import { ruleSignature } from './lib/eventVisuals';
 import DateTimePicker from './lib/DateTimePicker';
 import LuoghiCard, { type Luogo } from './LuoghiCard';
@@ -73,7 +74,7 @@ async function chiediAJulie(corpo: any, annuncia: (avviso: string) => void): Pro
     // Una pausa breve e variabile (400-700 ms): una risposta istantanea tradirebbe il meccanismo
     // e farebbe di Julie un distributore. Con la pausa, e' una persona che ha letto e risponde.
     await new Promise((r) => setTimeout(r, 400 + Math.floor(Math.random() * 300)));
-    return { reply: pronta };
+    return { reply: pronta, level: 'repertoire' };
   }
   const chiama = async () => {
     // La sessione si legge ADESSO, a ogni tentativo: in una conversazione lunga il token puo'
@@ -255,9 +256,14 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
         (avviso) => { setMessages((m) => [...m, { role: 'assistant', content: avviso }]); if (speakOn) speak(avviso); },
       );
       const reply = data.reply ?? 'Mi scusi, non ho compreso.';
+      // SENSORI (zero contenuto: solo numeri e categorie). Un turno per riga, col livello che ha
+      // risposto - repertorio/piccolo/grande. Sul sovraccarico, invece, julie_overloaded: ha taciuto.
+      if (data.sovraccarico) logEvent('julie_overloaded', {}, hubId);
+      else logEvent('julie_replied', { level: data.level ?? 'large' }, hubId);
       // Julie ha cercato: il testo viaggia con le schede dei luoghi veri.
       if (Array.isArray(data.luoghi) && data.luoghi.length > 0) {
         setMessages((m) => [...m, { role: 'assistant', content: reply, luoghi: data.luoghi, zona: data.zona ?? null }]);
+        logEvent('places_searched', { category: data.category ?? null }, hubId);
         if (speakOn) speak(reply);
         setBusy(false);
         return;
@@ -265,6 +271,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
       // Julie ha composto un programma: il testo viaggia con le voci da spuntare.
       if (data.programma && Array.isArray(data.programma.giorni) && data.programma.giorni.length > 0) {
         setMessages((m) => [...m, { role: 'assistant', content: reply, programma: data.programma }]);
+        logEvent('program_proposed', { items: data.programma.giorni.reduce((s: number, g: any) => s + (g.voci?.length ?? 0), 0) }, hubId);
         if (speakOn) speak(reply);
         setBusy(false);
         return;
@@ -289,7 +296,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
 
   // Scrive in calendario SOLO le voci spuntate. Le copertine si chiedono in parallelo:
   // in sequenza, sei eventi significherebbero sei attese sommate.
-  const fissaProgramma = async (scelte: Voce[]) => {
+  const fissaProgramma = async (scelte: Voce[], proposed?: number) => {
     if (!hubId || !userId || scelte.length === 0) return;
     setSaving(true);
     const righe = await Promise.all(scelte.map(async (v) => {
@@ -331,6 +338,11 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
     // Il gesto piu' bello del prodotto deve avere un finale: la chat si congeda
     // e porta l'utente al calendario, dove il suo programma lo aspetta.
     if (!error) {
+      // SENSORI: quante ne tengono su quante proposte (chosen/proposed insieme, cosi' il rapporto si
+      // legge da una riga sola), e gli eventi creati da Julie - oggi invisibili: si registrava solo
+      // l'aggiunta a mano. Nome unico 'event_created', l'origine nel dettaglio. Numeri, nessun contenuto.
+      logEvent('program_accepted', { chosen: scelte.length, proposed: proposed ?? scelte.length }, hubId);
+      logEvent('event_created', { via: 'program', n: buone.length }, hubId);
       setTimeout(() => setClosing(true), 900);
       setTimeout(() => { signalPostAction('calendar'); onClose(); }, 1300);
     }
@@ -427,7 +439,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
 
 {messages.map((m, i) => m.programma ? (
             <ProgrammaCard key={'P' + i} zona={m.programma.zona} giorni={m.programma.giorni}
-              saving={saving} onConferma={(scelte) => fissaProgramma(scelte)} />
+              saving={saving} onConferma={(scelte) => fissaProgramma(scelte, (m.programma?.giorni ?? []).reduce((s: number, g: any) => s + (g.voci?.length ?? 0), 0))} />
           ) : null)}
 
 {messages.map((m, i) => m.luoghi ? (

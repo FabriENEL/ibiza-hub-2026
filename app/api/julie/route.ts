@@ -451,6 +451,9 @@ export async function POST(req: NextRequest) {
     const data = dataPre;
     segna('groq', 'chat', { token: data?.usage?.total_tokens ?? 0, meta: { in: data?.usage?.prompt_tokens, out: data?.usage?.completion_tokens } });
     const reply = data.choices?.[0]?.message?.content ?? 'Mi scusi, non ho compreso.';
+    // Quale modello ha risposto, per il sensore julie_replied lato client. Riflette la SCELTA
+    // dell'instradamento; il ripiego sul grande resta raro e qui non lo distingue. Solo un'etichetta.
+    const level = modello === MODEL_PICCOLO ? 'small' : 'large';
     if (data.choices?.[0]?.finish_reason === 'length') {
       console.error('julie: risposta troncata', { out: data.usage?.completion_tokens, coda: reply.slice(-80) });
     }
@@ -473,7 +476,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ reply: 'Non ho trovato nulla di valido' + (zona ? ' nei dintorni di ' + zona : ' in zona') + '. Provi a indicarmi un\u2019altra categoria.' });
       }
       const intro = typeof az.intro === 'string' && az.intro.trim() ? az.intro.trim() : 'Ecco cosa ho trovato qui intorno.';
-      return NextResponse.json({ reply: intro, luoghi: tips, zona });
+      return NextResponse.json({ reply: intro, luoghi: tips, zona, level, category: az.categoria });
     }
 
     // proponi_programma: Julie compone lo scheletro, il server gli cuce addosso i luoghi veri.
@@ -542,9 +545,9 @@ export async function POST(req: NextRequest) {
       }
 
       const introP = (typeof az.intro === 'string' && az.intro.trim() ? az.intro.trim() : 'Ecco cosa ho pensato per Lei.') + coda;
-      return NextResponse.json({ reply: introP, programma: { zona: locP, giorni } });
+      return NextResponse.json({ reply: introP, programma: { zona: locP, giorni }, level });
     }
-    return NextResponse.json({ reply });
+    return NextResponse.json({ reply, level });
   } catch (e: any) {
     console.error('Julie exception', String(e));
     return NextResponse.json({ reply: 'Mi perdoni, ho avuto un contrattempo. Riprovi tra qualche istante.' });
