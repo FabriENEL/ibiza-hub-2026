@@ -39,9 +39,16 @@ const CORTECCIA = [
 ];
 const FONDALE = ASSET + 'fondale-chioma.webp', BOKEH = ASSET + 'primopiano-bokeh.webp';
 const LEAF_K = 1.7;    // larghezza figurina = leafLen(persone) x pScale x LEAF_K. 1.7: la foglia e' il ricordo,
-                       // deve dominare il ramo (misura a schermo: mediana ~39 px, non piu' 23)
-const FLOWER_K = 0.66; // diametro fiore ~48% della foglia RENDERIZZATA: la foglia e' allungata, il fiore un
-                       // grappolo compatto (a parita' di lato pesa il doppio) -> accento, non soggetto
+                       // deve dominare il ramo (misura a schermo, lunghezza VERA dell'asse: mediana ~38 px)
+// Lo SCORCIO comprime solo l'asse lungo della foglia (una lamina piatta girata fuori piano si
+// accorcia in lunghezza, non in larghezza). Intervallo [0.64, 1.0] giusto; la DISTRIBUZIONE va
+// spostata in alto: in un ramo vero la maggioranza si vede quasi di piatto, poche voltate via.
+// u^0.65 porta la mediana a ~0.87 (non 0.67 di un sorteggio uniforme). Seminato dalla chiave.
+const sxOf = (u: number) => 0.64 + 0.36 * Math.pow(u, 0.77);
+// Il fiore prende il 50% della lunghezza VERA (gia' scorciata) della sua foglia, ed e' fissato per
+// costruzione: nessun sorteggio potra' piu' spostarlo. Un grappolo e' un volume ~sferico: scala si',
+// schiacciamento no (non entra nella trasformazione anisotropa della lamina).
+const FIORE_SU_FOGLIA = 0.50;
 // tono della foglia dallo stato: ricordo (matura), viva (evento suo), ospite (era ospite)
 const tonoDi = (mature: boolean, isOwner: boolean) => mature ? 'ricordo' : isOwner ? 'viva' : 'ospite';
 
@@ -428,6 +435,17 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                       if (ci > 0 && s === prev) { if (run >= 2) { s = -s; run = 1; } else run++; } else run = 1;
                       prev = s; sides.push(s);
                     });
+                    // La gemma segue la LEGGE della foglia: 0.80 x la lunghezza mediana di una foglia adulta
+                    // RENDERIZZATA (leafLen x pScale x LEAF_K x scorcio), non una costante propria. Cosi' quando
+                    // la foglia cresce la gemma la segue da sola, per sempre, senza tornarci sopra.
+                    const adultLens: number[] = [];
+                    model.clusters.forEach((c) => c.leaves.forEach((lf) => {
+                      if (stateOf(lf) === 'gemma') return;
+                      const sd = seedOf(lf.key), pl = jit(sd, 50) < 0.28 ? 0.8 : jit(sd, 50) < 0.72 ? 0.92 : 1;
+                      adultLens.push(leafLen(lf.count) * pl * LEAF_K * sxOf(jit(sd, 6)));
+                    }));
+                    adultLens.sort((a, b) => a - b);
+                    const medLeafLen = adultLens.length ? adultLens[adultLens.length >> 1] : leafLen(3) * LEAF_K * 0.87;
                     model.clusters.forEach((c, ci) => {
                       if (c.s <= winLo || c.s >= winHi) return;
                       const P = axisPoint(c.s, model.baseY, model.sTot), T = axisTangent(c.s, model.sTot), m = c.leaves.length, side = sides[ci];
@@ -463,8 +481,9 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                           // Gemma chiusa che si gonfia: piena a <=30 giorni, minima a >=90.
                           const du = daysBetween(today, lf.start ?? today);
                           const swell = Math.max(0, Math.min(1, (90 - du) / 60));
-                          const size = 7 + swell * 11;
-                          const gh = size * 1.3, gw = gh * (GEMMA_SPR.w / GEMMA_SPR.h);   // ~0.8x la foglia: una gemma e' piu' piccola di una foglia adulta
+                          // 0.76-0.85 x la foglia mediana (gonfia salendo verso la data): segue la foglia, non
+                          // una costante propria. Una gemma e' piu' piccola di una foglia adulta.
+                          const gh = medLeafLen * (0.76 + 0.09 * swell), gw = gh * (GEMMA_SPR.w / GEMMA_SPR.h);
                           fg.push({ plane: 3, el: (
                             <g key={key} onClick={onClick} className="cursor-pointer" style={{ opacity: 0, animation: 'pop .5s ease-out ' + delay.toFixed(2) + 's forwards, sway ' + swayDur.toFixed(2) + 's ease-in-out ' + phase.toFixed(2) + 's infinite', transformOrigin: base.x.toFixed(1) + 'px ' + base.y.toFixed(1) + 'px' }}>
                               <path d={'M' + base.x.toFixed(1) + ' ' + base.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1)} stroke="transparent" strokeWidth={(44 / zoom).toFixed(1)} strokeLinecap="round" fill="none" />
@@ -477,7 +496,7 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                         const tilt = (jit(seed, 5) - 0.5) * 0.87;
                         let ang = leafAng + tilt;
                         if (Math.sin(ang) > 0.06) ang = leafAng;                  // se il tilt la butta giu', la lamina resta sulla tangente (su)
-                        const sx = 0.55 + jit(seed, 6) * 0.45;                     // scorcio: compressione lungo l'asse della foglia
+                        const sx = sxOf(jit(seed, 6));                            // scorcio: comprime SOLO l'asse lungo, sorteggio spostato in alto
                         const len = leafLen(lf.count) * pScale;                   // SEGNALE pulito (solo profondita' scala)
                         // La FIGURINA: tono dallo stato (viva/ospite/ricordo), forma 1-3 dal seme (tre sagome).
                         const tono = tonoDi(st === 'matura', lf.isOwner);
@@ -488,7 +507,9 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                         // e verso l'interno (verso il ramoscello); la foglia gli passa SOPRA -> cresciuto li'.
                         const fx = ex + (base.x - ex) * 0.12, fy = ey + (base.y - ey) * 0.12;
                         const fspr = FIORE[lf.category] ?? FIORE.travel;
-                        const fw = leafLen(lf.count) * FLOWER_K, fh = fw * (fspr.h / fspr.w);
+                        // Il diametro sulla lunghezza VERA (gia' scorciata) della SUA foglia = lw * sx. Il fiore
+                        // NON si comprime (resta rotondo): scala uniforme, fuori dalla trasformazione della lamina.
+                        const fw = FIORE_SU_FOGLIA * lw * sx, fh = fw * (fspr.h / fspr.w);
                         fg.push({ plane, el: (
                           <g key={key} onClick={onClick} className="cursor-pointer" style={{ opacity: 0, animation: 'pop .5s ease-out ' + delay.toFixed(2) + 's forwards, sway ' + swayDur.toFixed(2) + 's ease-in-out ' + phase.toFixed(2) + 's infinite', transformOrigin: base.x.toFixed(1) + 'px ' + base.y.toFixed(1) + 'px' }}>
                             {/* Capsula invisibile del tocco: 44px reali, dall'innesto alla punta della lamina.
