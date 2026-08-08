@@ -50,6 +50,11 @@ const pulisci = (t: string): string =>
 // del server: darebbe due volte di fila lo stesso testo. Questa congeda con garbo.
 const CHIUSURA_SOVRACCARICO = 'Il gruppo mi sta tenendo molto occupata. Mi riprovi fra un minuto e sarò tutta Sua.';
 
+// Il server ora chiede chi bussa: senza un token valido (o per un Hub non suo) risponde 401/403.
+// All'utente non arriva un errore tecnico ma la voce di Julie. Sul 403 la stessa frase: all'utente
+// onesto non capita mai, e a chi ci prova non si spiega nulla.
+const SESSIONE_SCADUTA = 'La Sua sessione è scaduta. Rientri e sarò subito con Lei.';
+
 // Il tetto di Groq (8.000 token al minuto, dell'intera organizzazione) si tocca
 // quando piu' membri scrivono insieme: il server risponde con sovraccarico e dichiara
 // fra quanti secondi riprovare. Un solo ritentativo trasforma il rifiuto in qualche
@@ -57,11 +62,19 @@ const CHIUSURA_SOVRACCARICO = 'Il gruppo mi sta tenendo molto occupata. Mi ripro
 // riprova UNA volta sola e basta. Fuori dal componente per non rinascere a ogni render.
 async function chiediAJulie(corpo: any, annuncia: (avviso: string) => void): Promise<any> {
   const chiama = async () => {
+    // La sessione si legge ADESSO, a ogni tentativo: in una conversazione lunga il token puo'
+    // essere stato rinnovato, e deve viaggiare quello nuovo, non quello del montaggio.
+    const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch('/api/julie', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(session?.access_token ? { Authorization: 'Bearer ' + session.access_token } : {}),
+      },
       body: JSON.stringify(corpo),
     });
+    // 401 (token assente/scaduto) o 403 (Hub non suo): all'utente la voce di Julie, non un errore.
+    if (res.status === 401 || res.status === 403) return { reply: SESSIONE_SCADUTA };
     return res.json();
   };
   const prima = await chiama();
