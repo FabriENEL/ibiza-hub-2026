@@ -51,56 +51,86 @@ Se non sa, lo dica. Un'assistente che millanta e' peggio di una che ammette un l
 Non inventi MAI numeri, nomi di locali, o dati che non ha ricevuto.
 `;
 
-function azionePrompt(oggi: string): string {
-  const schemaEvento = '{"action":"aggiungi_evento","title":"<titolo>","scheduled_at":"<YYYY-MM-DDTHH:MM:SS>","location":"<luogo o null>","description":"<descrizione o null>"}';
-  const schemaSpesa = '{"action":"aggiungi_spesa","description":"<cosa>","amount":<numero>}';
-  const esempio = '2026-07-11T21:30:00';
+// L'inventario delle capacita' resta SEMPRE, in una riga, anche quando gli schemi d'azione si
+// caricano su richiesta. E' il presidio contro il difetto peggiore: Julie che nega di saper fare
+// una cosa che sa fare. Costa una manciata di token; toglierlo costerebbe una funzione negata.
+const INVENTARIO = '\n\nSO aggiungere eventi, registrare le Sue spese, consigliare luoghi reali e comporre il programma: non nego MAI di saper fare una di queste, anche se lo schema dettagliato non compare in questo messaggio.';
 
-  return '\n\nAZIONE EVENTI\nQuando l\'utente vuole aggiungere o creare un evento, rispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo: '
-    + schemaEvento
-    + '\n\nDEDUZIONE DEL TITOLO: deduci sempre il titolo da quello che l\'utente dice, senza chiederlo. Se dice "una cena", il titolo e "Cena". Se dice "aperitivo con i ragazzi", il titolo e "Aperitivo con i ragazzi". Chiedi il titolo SOLO se davvero non e deducibile.'
-    + '\n\nDATA: data e ora attuale di riferimento: ' + oggi
-    + '. Usa esattamente l\'ora che l\'utente indica, senza fusi orari e senza offset. Formato scheduled_at: YYYY-MM-DDTHH:MM:SS, esempio ' + esempio
-    + '\nSe manca la DATA o l\'ORA, chiedile in modo naturale e breve, senza produrre il JSON.'
+// I QUATTRO SCHEMI D'AZIONE, spezzati in blocchi: un selettore deterministico (nel POST) decide
+// QUALI entrano nel prompt di ogni turno. Il TESTO e' identico al monolite precedente - cambia solo
+// QUANDO si spende il token, non cosa sa fare Julie. schemaEvento/schemaSpesa a modulo per riuso.
+const schemaEvento = '{"action":"aggiungi_evento","title":"<titolo>","scheduled_at":"<YYYY-MM-DDTHH:MM:SS>","location":"<luogo o null>","description":"<descrizione o null>"}';
+const schemaSpesa = '{"action":"aggiungi_spesa","description":"<cosa>","amount":<numero>}';
+const ESEMPIO_DATA = '2026-07-11T21:30:00';
 
-    + '\n\nAZIONE SPESE\nQuando l\'utente dice di aver pagato o speso qualcosa, rispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo: '
-    + schemaSpesa
-    + '\namount deve essere un numero puro, senza simboli di valuta (esempio: 40 oppure 12.50). description e cosa e stato pagato (esempio: Cena, Benzina, Spesa al supermercato).'
-    + '\nREGOLA INDEROGABILE: registri SOLO le spese di chi Le sta parlando. Se l\'utente Le chiede di registrare una spesa pagata da un\'altra persona, NON produca il JSON: spieghi con garbo che puo registrare soltanto le proprie spese, e che per quelle altrui c\'e il modulo Cassa.'
-    + '\nSe manca l\'importo o la descrizione, li chieda in modo naturale e breve, senza produrre il JSON.'
+const bloccoEvento = (oggi: string) => '\n\nAZIONE EVENTI\nQuando l\'utente vuole aggiungere o creare un evento, rispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo: '
+  + schemaEvento
+  + '\n\nDEDUZIONE DEL TITOLO: deduci sempre il titolo da quello che l\'utente dice, senza chiederlo. Se dice "una cena", il titolo e "Cena". Se dice "aperitivo con i ragazzi", il titolo e "Aperitivo con i ragazzi". Chiedi il titolo SOLO se davvero non e deducibile.'
+  + '\n\nDATA: data e ora attuale di riferimento: ' + oggi
+  + '. Usa esattamente l\'ora che l\'utente indica, senza fusi orari e senza offset. Formato scheduled_at: YYYY-MM-DDTHH:MM:SS, esempio ' + ESEMPIO_DATA
+  + '\nSe manca la DATA o l\'ORA, chiedile in modo naturale e breve, senza produrre il JSON.';
 
-    + '\n\nAZIONE RICERCA LUOGHI\nQuando l\'utente cerca un posto dove mangiare, bere, uscire, rilassarsi o parcheggiare, rispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo: '
-    + '{"action":"cerca_luoghi","categoria":"<una tra: food, aperitivo, night, beach, parking>","zona":"<comune o citta indicata dall\'utente, oppure null>","intro":"<una sola riga di presentazione, calda e breve>"}'
-    + '\nMappa: cena/pranzo/ristorante/mangiare -> food. aperitivo/drink/cocktail/bere -> aperitivo. discoteca/locale notturno/ballare/dopocena -> night. spiaggia/mare/relax -> beach. parcheggio/posteggio -> parking.'
-    + '\nCAMPO ZONA: se in QUALSIASI punto della conversazione l\'utente ha indicato un comune, una citta o una localita (anche solo scrivendone il nome, esempio: "Merone" oppure "Merone (CO)"), riportalo nel campo zona. Se non l\'ha mai indicata, metti null: la zona verra presa dall\'Hub.'
-    + '\nSe hai appena chiesto la zona e l\'utente risponde con un nome di luogo, quella E la zona: produci subito il JSON con quel valore. NON richiederla una seconda volta.'
-    + '\nIl campo intro e cio che dirai prima di mostrare i luoghi: UNA riga sola, mai un elenco. Esempi: "Ecco tre indirizzi a due passi. Mi dica quale e glielo fisso." oppure "Questi sono i posti migliori qui intorno."'
-    + '\nSe la richiesta e vaga E NON contiene un verbo di organizzazione (esempio: "cosa facciamo stasera?"), NON produrre il JSON: proponi le categorie in una riga ("Cerco una cena, un aperitivo o un locale per dopo?") e attendi.'
+const bloccoSpesa = '\n\nAZIONE SPESE\nQuando l\'utente dice di aver pagato o speso qualcosa, rispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo: '
+  + schemaSpesa
+  + '\namount deve essere un numero puro, senza simboli di valuta (esempio: 40 oppure 12.50). description e cosa e stato pagato (esempio: Cena, Benzina, Spesa al supermercato).'
+  + '\nREGOLA INDEROGABILE: registri SOLO le spese di chi Le sta parlando. Se l\'utente Le chiede di registrare una spesa pagata da un\'altra persona, NON produca il JSON: spieghi con garbo che puo registrare soltanto le proprie spese, e che per quelle altrui c\'e il modulo Cassa.'
+  + '\nSe manca l\'importo o la descrizione, li chieda in modo naturale e breve, senza produrre il JSON.';
 
-    + '\n\nAZIONE PROGRAMMA\nQuando l\'utente chiede di ORGANIZZARE o PROGRAMMARE piu giorni, un weekend, un viaggio o una gita, rispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo: '
-    + '{"action":"proponi_programma","zona":"<comune, oppure null per usare quello dell Hub>","intro":"<una riga calda di presentazione>","giorni":[{"data":"<YYYY-MM-DD>","voci":[{"ora":"HH:MM","titolo":"<titolo breve>","categoria":"<una tra: colazione, food, aperitivo, night, beach, cultura, natura>"}]}]}'
-    + '\nRITMO: da 3 a 5 voci per giorno. Mai due voci della stessa categoria di seguito. La categoria night solo dopo una cena. Ogni giornata deve essere DIVERSA dalle altre.'
-    + '\nORARI plausibili: colazione 08:30-09:30, cultura/natura/beach 10:00-17:00, aperitivo 18:30-19:30, food 20:00-21:00, night 23:00-23:30.'
-    + '\nDATE: se l\'utente non le indica, usi le date dell Hub riportate piu sotto.'
-    + '\nNON inventi nomi di locali: si limiti al titolo generico e alla categoria. I luoghi VERI li trovo io e li inserisco al Suo posto.'
-    + '\nSOLO ATTIVITA CON UN LUOGO REALE: ogni voce deve corrispondere a un posto che esiste su una mappa (un bar, un museo, un ristorante, un parco, una spiaggia, un locale). NON proponga attivita generiche e senza indirizzo come escursioni in barca, gite alle isole, passeggiate lungo la costa: se non c e una porta a cui bussare, la voce e inutile. Ogni titolo deve poter essere associato a una delle sette categorie.'
-    + '\nNIENTE RIPETIZIONI: non proponga due volte lo stesso tipo di attivita nella stessa giornata (non due pranzi, non due aperitivi), e vari le categorie tra un giorno e l altro.'
-    + '\nIl campo intro e UNA riga sola, mai un elenco.'
-    + '\nPAROLE CHE ATTIVANO IL PROGRAMMA, senza chiedere altro: organizza, organizzami, programma, programmami, pianifica, itinerario, giornata, weekend, viaggio, gita, cosa facciamo domani. Con queste, produca SUBITO il JSON del programma usando le date dell Hub. Non chieda categorie: le sceglie Lei.'
+const bloccoLuoghi = '\n\nAZIONE RICERCA LUOGHI\nQuando l\'utente cerca un posto dove mangiare, bere, uscire, rilassarsi o parcheggiare, rispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo: '
+  + '{"action":"cerca_luoghi","categoria":"<una tra: food, aperitivo, night, beach, parking>","zona":"<comune o citta indicata dall\'utente, oppure null>","intro":"<una sola riga di presentazione, calda e breve>"}'
+  + '\nMappa: cena/pranzo/ristorante/mangiare -> food. aperitivo/drink/cocktail/bere -> aperitivo. discoteca/locale notturno/ballare/dopocena -> night. spiaggia/mare/relax -> beach. parcheggio/posteggio -> parking.'
+  + '\nCAMPO ZONA: se in QUALSIASI punto della conversazione l\'utente ha indicato un comune, una citta o una localita (anche solo scrivendone il nome, esempio: "Merone" oppure "Merone (CO)"), riportalo nel campo zona. Se non l\'ha mai indicata, metti null: la zona verra presa dall\'Hub.'
+  + '\nSe hai appena chiesto la zona e l\'utente risponde con un nome di luogo, quella E la zona: produci subito il JSON con quel valore. NON richiederla una seconda volta.'
+  + '\nIl campo intro e cio che dirai prima di mostrare i luoghi: UNA riga sola, mai un elenco. Esempi: "Ecco tre indirizzi a due passi. Mi dica quale e glielo fisso." oppure "Questi sono i posti migliori qui intorno."'
+  + '\nSe la richiesta e vaga E NON contiene un verbo di organizzazione (esempio: "cosa facciamo stasera?"), NON produrre il JSON: proponi le categorie in una riga ("Cerco una cena, un aperitivo o un locale per dopo?") e attendi.';
 
-    + '\n\nPer ogni altra richiesta rispondi normalmente in italiano, senza JSON, con la postura del concierge: breve, concreta, mai prolissa.';
-}
+const CODA_ALTRO = '\n\nPer ogni altra richiesta rispondi normalmente in italiano, senza JSON, con la postura del concierge: breve, concreta, mai prolissa.';
 
-
-// Prompt ridotto per il turno di composizione: solo cio' che serve a produrre il JSON del programma.
+// Prompt di COMPOSIZIONE: solo cio' che serve a produrre il JSON del programma. Le fasce della
+// variante EQUILIBRATA (unico ritmo predefinito) sono scritte qui, al posto della vecchia mappa
+// RITMI a tre voci: se un gruppo fa le ore piccole, Julie si adatta in conversazione.
 function programmaPrompt(oggi: string): string {
   return '\\n\\nDATA E ORA ATTUALE: ' + oggi
     + '\\n\\nAZIONE PROGRAMMA\\nRispondi ESCLUSIVAMENTE con un JSON su una riga, senza altro testo: '
     + '{"action":"proponi_programma","zona":"<comune, oppure null per usare quello dell Hub>","intro":"<una riga calda>","giorni":[{"data":"<YYYY-MM-DD>","voci":[{"ora":"HH:MM","titolo":"<titolo breve>","categoria":"<una delle categorie richieste>"}]}]}'
     + '\\nDa 3 a 5 voci per giorno. Mai due voci della stessa categoria di seguito. Ogni giornata diversa dalle altre.'
+    + '\\nRITMO EQUILIBRATO: colazione 08:30-09:30, attivita 10:00-17:00, aperitivo 18:30, cena 20:30, serata dalle 23:00.'
     + '\\nNON inventi nomi di locali: solo titolo generico e categoria. I luoghi veri li trovo io.'
     + '\\nSOLO attivita con un luogo reale su una mappa. Niente escursioni o gite generiche senza indirizzo.'
     + '\\nIl campo intro e UNA riga sola.';
+}
+
+// Selettore deterministico (zero token): dall'ultimo messaggio dell'utente decide quali blocchi
+// entrano. GENEROSO, non preciso: al minimo accenno il blocco entra - il costo di caricarlo per
+// sbaglio e' qualche centinaio di token, il costo di non caricarlo e' una funzione che non risponde.
+function blocchiAzione(oggi: string, testo: string): string {
+  const t = (testo || '').toLowerCase();
+  const spesa = /pagat|spes[oae]|ho speso|euro|scontrin|\bcont[oi]\b|ho messo|cost[oai]|\d/.test(t);
+  const evento = /aggiung|\bmett|crea|fiss|event|appuntament|cena|pranz|colazion|brunch|domani|dopodomani|stasera|stamattina|luned|marted|mercoled|gioved|venerd|sabat|domenic|\balle\b|\d{1,2}[:.]/.test(t);
+  const luoghi = /dove|consigl|ristorant|trattori|pizzeri|aperitiv|spiagg|\bmare\b|parcheggi|posteggi|\blocal|\bbar\b|discotec|mangiar|\bbere\b|\bposto\b|\bposti\b|museo|cultur|natura|\bparco\b|\bidea\b/.test(t);
+  // Vago orientato al "fare": non lasci Julie senza le capacita' di proposta (evento + luoghi).
+  const vago = /\bfare\b|facciamo|qualcosa|\bidea\b|\bbello\b|propon|suggeri|consigl|\bcosa\b|\?/.test(t);
+  const e = evento || vago, l = luoghi || vago;
+  let blocchi = '';
+  if (e) blocchi += bloccoEvento(oggi);
+  if (spesa) blocchi += bloccoSpesa;
+  if (l) blocchi += bloccoLuoghi;
+  return INVENTARIO + blocchi + CODA_ALTRO;
+}
+
+// Legge le categorie preferite DALL'HUB (consigli_cats), non dal corpo della richiesta: stessa
+// forma di dateHub/luogoHub. Cosi' la rotta non crede al proprio corpo, e Julie non richiede cio'
+// che l'utente ha gia' scritto alla creazione.
+async function catsHub(hubId: string): Promise<string[]> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key || !hubId) return [];
+  try {
+    const sb = createClient(url, key);
+    const { data } = await sb.from('hubs').select('consigli_cats').eq('id', hubId).single();
+    const c = (data as any)?.consigli_cats;
+    return Array.isArray(c) ? c.filter((x: any) => typeof x === 'string') : [];
+  } catch { return []; }
 }
 
 // Julie cerca sulla zona dell'Hub: e' il luogo d'arrivo, valido anche prima che esistano eventi.
@@ -272,7 +302,7 @@ export async function POST(req: NextRequest) {
   if (!key) return NextResponse.json({ reply: 'Mi perdoni, non sono al momento raggiungibile. Riprovi tra poco.' });
 
   try {
-    const { messages, hubId, cats, ritmo } = await req.json();
+    const { messages, hubId } = await req.json();   // cats/ritmo NON dal corpo: la rotta non crede al proprio corpo
 
     // ==== CHI BUSSA ==== La rotta e' pubblica e alimenta il prompt con la chiave di servizio,
     // che scavalca la RLS. Prima di QUALUNQUE query si verifica il token e l'appartenenza: e'
@@ -304,37 +334,43 @@ export async function POST(req: NextRequest) {
             + ' proponendo le date dell Hub.')
       : '';
     const ctxEventi = await eventiHub(hubId);
-    // Le categorie scelte dall'utente sono un VINCOLO: Julie compone solo su quelle.
-    // Il ritmo decide QUANDO, le categorie decidono COSA. Due assi indipendenti.
-    const RITMI: Record<string, string> = {
-      mattiniera: 'RITMO MATTINIERO: colazione 07:15-08:00, attivita del mattino dalle 09:00, pranzo 12:30, mare/cultura/natura nel pomeriggio presto, aperitivo 18:00, cena 19:30, niente serate oltre le 22:30.',
-      equilibrata: 'RITMO EQUILIBRATO: colazione 08:30-09:30, attivita 10:00-17:00, aperitivo 18:30, cena 20:30, serata dalle 23:00.',
-      notturna: 'RITMO NOTTURNO: il gruppo rientra tardi e dorme la mattina. NESSUNA voce prima delle 11:00. Colazione tardiva o brunch 11:00-12:00, attivita dal primo pomeriggio, aperitivo 19:30, cena 22:00, serata dall una di notte.',
-    };
-    const ctxRitmo = typeof ritmo === 'string' && RITMI[ritmo] ? '\n\n' + RITMI[ritmo] : '';
 
-    const ctxCats = Array.isArray(cats) && cats.length > 0
-      ? '\n\n=== VINCOLO ASSOLUTO SULLE CATEGORIE ===\nL utente ha scelto ESATTAMENTE queste categorie: ' + cats.join(', ') + '.\nOgni singola voce del programma DEVE avere il campo categoria uguale a uno di questi valori: ' + cats.join(', ') + '.\nE VIETATO usare qualsiasi altra categoria. Se una categoria non e in questo elenco, NON esiste per Lei.\nSe l utente ha scelto beach, il programma DEVE contenere almeno una voce beach. Se ha scelto natura, almeno una natura. Ogni categoria scelta deve comparire almeno una volta.\nRiuso delle categorie: puo ripetere la stessa categoria in giorni diversi, purche il luogo sia diverso.\n=== FINE VINCOLO ==='
-      : '';
-    const componendo = Array.isArray(cats) && cats.length > 0;
-    const ctxNoChiedi = Array.isArray(cats) && cats.length > 0
-      ? '\n\nL utente ha GIA scelto le categorie e il ritmo. NON faccia altre domande. NON chieda cosa cercare. Produca IMMEDIATAMENTE il JSON del programma con action proponi_programma. Qualsiasi risposta che non sia quel JSON e un errore.'
-      : '';
+    // L'ultimo messaggio dell'utente decide. La COMPOSIZIONE la riconosce il testo, non piu' un
+    // segnale nel corpo: parole d'organizzazione -> Julie compone da sola, sulle categorie dell'Hub.
+    const ultimo = [...(Array.isArray(messages) ? messages : [])].reverse().find((m: any) => m && m.role === 'user');
+    const testoUltimo = (ultimo?.content ?? '').toString();
+    const componendo = /organizz|programm|pianific|itinerari|giornata|week[\s-]?end|viaggi|gita|cosa facciamo|che si fa|riempi la/i.test(testoUltimo);
+
+    // Le CATEGORIE preferite si leggono dall'HUB (consigli_cats), non dal corpo: sono cio' che Julie
+    // sceglie DA SOLA quando compone. Lette una sola volta, servono al prompt E alla post-elaborazione.
+    const catsPreferite: string[] = componendo ? await catsHub(hubId) : [];
+    let promptAzione: string;
+    if (componendo) {
+      const ctxCats = catsPreferite.length > 0
+        ? '\n\n=== CATEGORIE PREFERITE DELL HUB ===\nQuando componi TU il programma, scegli fra queste categorie: ' + catsPreferite.join(', ') + '. Ognuna compaia almeno una volta; puoi ripeterla in giorni diversi con un luogo diverso.\nMA se l utente CHIEDE ESPLICITAMENTE altro (un museo, una spiaggia, un locale fuori da queste categorie), proponiglielo lo stesso: queste categorie le scegli TU quando componi, non sono un recinto attorno a cio che l utente puo chiedere.\n=== FINE ==='
+        : '';
+      const ctxNoChiedi = '\n\nL utente ha gia le sue preferenze (le categorie sono qui sopra): NON chieda cosa cercare. Produca IMMEDIATAMENTE il JSON del programma con action proponi_programma, usando le date dell Hub. Qualsiasi risposta che non sia quel JSON e un errore.';
+      promptAzione = programmaPrompt(oggi) + INVENTARIO + ctxCats + ctxNoChiedi;
+    } else {
+      // In conversazione, gli schemi d'azione si caricano SU RICHIESTA (selettore generoso).
+      promptAzione = blocchiAzione(oggi, testoUltimo);
+    }
     // Della cronologia ricevuta si accettano SOLO 'user' e 'assistant'. Un messaggio 'system'
     // iniettato dal client userebbe GROQ_API_KEY come modello generalista gratuito, bruciando
     // il tetto di 8.000 token/min dell'intera organizzazione (spegne Julie per tutti). Il SYSTEM
-    // lo compone il server, e resta l'unico messaggio system della richiesta. Il taglio a 12 resta.
+    // lo compone il server, e resta l'unico messaggio system della richiesta. Taglio a 6: per
+    // un'assistente d'azione sei turni sono memoria abbondante, e valgono ~435 token a richiesta.
     const storia = (Array.isArray(messages) ? messages : [])
       .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant'))
-      .slice(-12);
+      .slice(-6);
     const res = await fetch(GROQ_URL, {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
-        messages: [{ role: 'system', content: componendo ? (SYSTEM + programmaPrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi) : (SYSTEM + azionePrompt(oggi) + ctxHub + ctxEventi + ctxCats + ctxRitmo + ctxNoChiedi) }, ...storia],
+        messages: [{ role: 'system', content: SYSTEM + promptAzione + ctxHub + ctxEventi }, ...storia],
         temperature: 0.6,
-        max_tokens: componendo ? 2500 : 800,
+        max_tokens: componendo ? 2500 : 400,   // conversazione: 2-3 righe, ~100 token. Composizione: serve spazio.
         reasoning_effort: 'low',
       }),
     });
@@ -392,7 +428,7 @@ export async function POST(req: NextRequest) {
       // Il modello disobbedisce al vincolo: qui il server lo impone.
       // 1) scarta le voci con categoria non richiesta
       // 2) se una categoria scelta non compare, la aggiunge al giorno piu' scarico
-      const richieste: string[] = Array.isArray(cats) && cats.length > 0 ? cats : [];
+      const richieste: string[] = catsPreferite;
       if (richieste.length > 0) {
         az.giorni.forEach((g: any) => {
           g.voci = (g.voci ?? []).filter((v: any) => richieste.includes(v?.categoria));
