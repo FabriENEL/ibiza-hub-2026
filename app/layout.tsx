@@ -11,11 +11,11 @@ const displaySerif = Cormorant_Garamond({ variable: "--font-display-serif", weig
 export const metadata: Metadata = {
   title: "EventGarden",
   description: "EventGarden - Il tuo evento di gruppo, un solo posto.",
-  icons: { icon: "/icon.png" },
+  icons: { icon: "/icon-192.png" },
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "EventGarden" },
 };
 
-export const viewport: Viewport = { themeColor: "#020617", width: "device-width", initialScale: 1, maximumScale: 1, userScalable: false };
+export const viewport: Viewport = { themeColor: "#191B1D", width: "device-width", initialScale: 1, maximumScale: 1, userScalable: false };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
