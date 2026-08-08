@@ -135,6 +135,25 @@ async function catsHub(hubId: string): Promise<string[]> {
   } catch { return []; }
 }
 
+// Le sette categorie del programma: quando l'Hub non ha preferenze, sono il VOCABOLARIO del filtro.
+const TUTTE_CATEGORIE = ['colazione', 'cultura', 'natura', 'beach', 'food', 'aperitivo', 'night'];
+// Categorie che l'utente ha NOMINATO esplicitamente in questo turno: stessa filosofia del selettore,
+// deterministica e a costo zero. Entrano nel FILTRO (una richiesta a voce non va cancellata), ma non
+// nel completamento: un permesso, non un obbligo.
+const CAT_PAROLE: [string, RegExp][] = [
+  ['cultura', /muse|mostra|monument|chiesa|duomo|castell|galleri|cultura|storic|archeolog/],
+  ['natura', /parco|natura|passeggiat|sentier|giardin|\blago\b|montagn|escursion/],
+  ['beach', /spiagg|\bmare\b|bagno|relax al sole|\bsole\b|lido/],
+  ['colazione', /colazion|brioche|cappuccin|brunch/],
+  ['aperitivo', /aperitiv|spritz|tramont|\bdrink|cocktail/],
+  ['night', /discotec|serat|ballar|dopocena|locale nottur|\bnight|movida/],
+  ['food', /\bpranz|\bcena|cenare|ristorant|mangiar|trattori|pizzeri|\bfood|tavola/],
+];
+function categorieEsplicite(testo: string): string[] {
+  const t = (testo || '').toLowerCase();
+  return CAT_PAROLE.filter(([, re]) => re.test(t)).map(([c]) => c);
+}
+
 // Julie cerca sulla zona dell'Hub: e' il luogo d'arrivo, valido anche prima che esistano eventi.
 async function luogoHub(hubId: string): Promise<string | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -438,16 +457,23 @@ export async function POST(req: NextRequest) {
       const locP = dettaP ?? (await luogoHub(hubId));
       if (!locP) return NextResponse.json({ reply: 'Mi dica in quale citta e Le compongo il programma.' });
       const originP = new URL(req.url).origin;
-      // Il modello disobbedisce al vincolo: qui il server lo impone.
-      // 1) scarta le voci con categoria non richiesta
-      // 2) se una categoria scelta non compare, la aggiunge al giorno piu' scarico
-      const richieste: string[] = catsPreferite;
-      if (richieste.length > 0) {
-        az.giorni.forEach((g: any) => {
-          g.voci = (g.voci ?? []).filter((v: any) => richieste.includes(v?.categoria));
-        });
+      // Il recinto e' QUI, non nel prompt: il filtro cancella tutto cio' che sta fuori dall'elenco.
+      // Percio' l'elenco deve rispettare anche cio' che l'utente ha chiesto A VOCE in questo turno.
+      // FILTRO: preferenze dell'Hub (o TUTTE le sette, se l'Hub non ne ha) PIU' le categorie esplicite.
+      //         Cosi' una visita culturale chiesta a voce sopravvive; e senza preferenze una categoria
+      //         INVENTATA dal modello (fuori dalle sette) non passa piu', e non diventa un ripiego.
+      const esplicite = categorieEsplicite(testoUltimo);
+      const perFiltro = Array.from(new Set([...(catsPreferite.length > 0 ? catsPreferite : TUTTE_CATEGORIE), ...esplicite]));
+      // COMPLETAMENTO: solo le categorie che l'utente ha scelto DAVVERO alla creazione. Una richiesta
+      // a voce e' un permesso, non un obbligo (se il modello non la mette, non la imponiamo). Senza
+      // preferenze non si completa nulla: forzare le sette darebbe sette voci e una spiaggia a Monza.
+      const perCompletamento = catsPreferite;
+      az.giorni.forEach((g: any) => {
+        g.voci = (g.voci ?? []).filter((v: any) => perFiltro.includes(v?.categoria));
+      });
+      if (perCompletamento.length > 0) {
         const usate = new Set(az.giorni.flatMap((g: any) => (g.voci ?? []).map((v: any) => v.categoria)));
-        const mancanti = richieste.filter((c) => !usate.has(c));
+        const mancanti = perCompletamento.filter((c) => !usate.has(c));
         const ORARIO: Record<string, string> = {
           colazione: '08:45', cultura: '10:30', natura: '11:00', beach: '15:00',
           food: '20:30', aperitivo: '18:45', night: '23:15',
@@ -460,10 +486,10 @@ export async function POST(req: NextRequest) {
           const g = az.giorni.slice().sort((a: any, b: any) => (a.voci?.length ?? 0) - (b.voci?.length ?? 0))[0];
           if (g) (g.voci = g.voci ?? []).push({ ora: ORARIO[c] ?? '12:00', titolo: TITOLO[c] ?? c, categoria: c });
         }
-        az.giorni.forEach((g: any) => {
-          g.voci.sort((a: any, b: any) => String(a.ora ?? '').localeCompare(String(b.ora ?? '')));
-        });
       }
+      az.giorni.forEach((g: any) => {
+        g.voci.sort((a: any, b: any) => String(a.ora ?? '').localeCompare(String(b.ora ?? '')));
+      });
       const gia = await luoghiGiaUsati(hubId);
       const { out: giorni, esauriti, alternative } = await vestiProgramma(originP, locP, az.giorni, gia);
 
