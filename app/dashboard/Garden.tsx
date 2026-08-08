@@ -44,7 +44,7 @@ const LEAF_K = 1.7;    // larghezza figurina = leafLen(persone) x pScale x LEAF_
 // accorcia in lunghezza, non in larghezza). Intervallo [0.64, 1.0] giusto; la DISTRIBUZIONE va
 // spostata in alto: in un ramo vero la maggioranza si vede quasi di piatto, poche voltate via.
 // u^0.65 porta la mediana a ~0.87 (non 0.67 di un sorteggio uniforme). Seminato dalla chiave.
-const sxOf = (u: number) => 0.64 + 0.36 * Math.pow(u, 0.77);
+const sxOf = (u: number) => 0.64 + 0.36 * Math.pow(u, 0.80);
 // Il fiore prende il 50% della lunghezza VERA (gia' scorciata) della sua foglia, ed e' fissato per
 // costruzione: nessun sorteggio potra' piu' spostarlo. Un grappolo e' un volume ~sferico: scala si',
 // schiacciamento no (non entra nella trasformazione anisotropa della lamina).
@@ -435,17 +435,28 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                       if (ci > 0 && s === prev) { if (run >= 2) { s = -s; run = 1; } else run++; } else run = 1;
                       prev = s; sides.push(s);
                     });
-                    // La gemma segue la LEGGE della foglia: 0.80 x la lunghezza mediana di una foglia adulta
-                    // RENDERIZZATA (leafLen x pScale x LEAF_K x scorcio), non una costante propria. Cosi' quando
-                    // la foglia cresce la gemma la segue da sola, per sempre, senza tornarci sopra.
+                    // SCORCIO STRATIFICATO: NON n valori indipendenti (con poche foglie la mediana del campione
+                    // e' una lotteria che si rimette in gioco a ogni Hub), ma i quantili (i+0.5)/n assegnati per
+                    // POSIZIONE. Il multiinsieme dei valori e' FISSATO -> mediana del campione = mediana della
+                    // popolazione, PER OGNI n (6, 12, 40). Il rimescolamento e' seminato dalla chiave: la varieta'
+                    // a vedersi e' identica, cambia solo che il multiinsieme e' fisso invece che pescato. Stesso
+                    // principio del fiore: fissato per costruzione, non sorteggiato.
+                    const leafKeys: string[] = [];
+                    model.clusters.forEach((c) => c.leaves.forEach((lf) => { if (stateOf(lf) !== 'gemma') leafKeys.push(lf.key); }));
+                    const nSx = Math.max(1, leafKeys.length);
+                    const sxByKey: Record<string, number> = {};
+                    leafKeys.map((k) => ({ k, r: jit(seedOf(k + 'sxord'), 8) })).sort((a, b) => a.r - b.r)
+                      .forEach((o, i) => { sxByKey[o.k] = sxOf((i + 0.5) / nSx); });
+                    // La gemma segue la LEGGE della foglia: 0.76-0.85 x la LARGHEZZA mediana di una foglia adulta
+                    // RENDERIZZATA (lw*sx, la stessa quantita' che il fiore usa). medLeafLen e' quella mediana.
                     const adultLens: number[] = [];
                     model.clusters.forEach((c) => c.leaves.forEach((lf) => {
                       if (stateOf(lf) === 'gemma') return;
                       const sd = seedOf(lf.key), pl = jit(sd, 50) < 0.28 ? 0.8 : jit(sd, 50) < 0.72 ? 0.92 : 1;
-                      adultLens.push(leafLen(lf.count) * pl * LEAF_K * sxOf(jit(sd, 6)));
+                      adultLens.push(leafLen(lf.count) * pl * LEAF_K * sxByKey[lf.key]);
                     }));
                     adultLens.sort((a, b) => a - b);
-                    const medLeafLen = adultLens.length ? adultLens[adultLens.length >> 1] : leafLen(3) * LEAF_K * 0.87;
+                    const medLeafLen = adultLens.length ? adultLens[adultLens.length >> 1] : leafLen(3) * LEAF_K * 0.86;
                     model.clusters.forEach((c, ci) => {
                       if (c.s <= winLo || c.s >= winHi) return;
                       const P = axisPoint(c.s, model.baseY, model.sTot), T = axisTangent(c.s, model.sTot), m = c.leaves.length, side = sides[ci];
@@ -481,9 +492,10 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                           // Gemma chiusa che si gonfia: piena a <=30 giorni, minima a >=90.
                           const du = daysBetween(today, lf.start ?? today);
                           const swell = Math.max(0, Math.min(1, (90 - du) / 60));
-                          // 0.76-0.85 x la foglia mediana (gonfia salendo verso la data): segue la foglia, non
-                          // una costante propria. Una gemma e' piu' piccola di una foglia adulta.
-                          const gh = medLeafLen * (0.76 + 0.09 * swell), gw = gh * (GEMMA_SPR.w / GEMMA_SPR.h);
+                          // Il coefficiente 0.76-0.85 si applica alla LARGHEZZA (l'asse che il metodo CTM misura,
+                          // come per la foglia), non all'altezza: la gemma vive nel piano della foglia. L'altezza
+                          // segue l'aspetto (bocciolo verticale). Un bocciolo e' un volume: scala si', schiaccio no.
+                          const gw = medLeafLen * (0.76 + 0.09 * swell), gh = gw * (GEMMA_SPR.h / GEMMA_SPR.w);
                           fg.push({ plane: 3, el: (
                             <g key={key} onClick={onClick} className="cursor-pointer" style={{ opacity: 0, animation: 'pop .5s ease-out ' + delay.toFixed(2) + 's forwards, sway ' + swayDur.toFixed(2) + 's ease-in-out ' + phase.toFixed(2) + 's infinite', transformOrigin: base.x.toFixed(1) + 'px ' + base.y.toFixed(1) + 'px' }}>
                               <path d={'M' + base.x.toFixed(1) + ' ' + base.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1)} stroke="transparent" strokeWidth={(44 / zoom).toFixed(1)} strokeLinecap="round" fill="none" />
@@ -496,7 +508,7 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                         const tilt = (jit(seed, 5) - 0.5) * 0.87;
                         let ang = leafAng + tilt;
                         if (Math.sin(ang) > 0.06) ang = leafAng;                  // se il tilt la butta giu', la lamina resta sulla tangente (su)
-                        const sx = sxOf(jit(seed, 6));                            // scorcio: comprime SOLO l'asse lungo, sorteggio spostato in alto
+                        const sx = sxByKey[lf.key] ?? sxOf(jit(seed, 6));         // scorcio STRATIFICATO (per posizione, non pescato)
                         const len = leafLen(lf.count) * pScale;                   // SEGNALE pulito (solo profondita' scala)
                         // La FIGURINA: tono dallo stato (viva/ospite/ricordo), forma 1-3 dal seme (tre sagome).
                         const tono = tonoDi(st === 'matura', lf.isOwner);
