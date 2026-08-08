@@ -368,8 +368,8 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                       appena scendendo. Il collare copre la giunzione ("e' cresciuto da li'"). */}
                   {(() => {
                     const half = eVW * 0.10;                                 // ~20% della larghezza della colonna: una presenza
-                    const yTopS = model.baseY - 15, yBotS = trunkYBot;
-                    const persp = (y: number) => 1 - 0.24 * Math.min(1, Math.max(0, (y - yTopS) / 320)); // si stringe appena scendendo
+                    const yTopS = model.baseY - 50, yBotS = trunkYBot;       // esteso in su: c'e' spazio per la dissolvenza alta
+                    const persp = (y: number) => 1 - 0.24 * Math.min(1, Math.max(0, (y - model.baseY) / 320)); // si stringe appena scendendo (sotto l'innesto)
                     const cxT = (y: number) => CX + 5 * Math.sin((y - model.baseY) / 150);
                     const L: number[][] = [], Rr: number[][] = [], N = 40;
                     for (let i = 0; i <= N; i++) { const y = yTopS + (yBotS - yTopS) * i / N, c = cxT(y), r = half * persp(y); L.push([c - r, y]); Rr.push([c + r, y]); }
@@ -378,6 +378,10 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                     // La dissolvenza insegue il bordo inferiore dell'inquadratura (varia con lo scroll):
                     // opacita' 0 a yFadeEnd, 18 unita' SOPRA il ritaglio -> nessuna linea dura, mai.
                     const frameBottom = cam.y + eVH / 2, yFadeEnd = frameBottom - 18, yFadeStart = frameBottom - 42;
+                    // Lo stesso gesto, specchiato in alto: il fusto emerge dal buio SOPRA il collare, cosi'
+                    // la giunzione col ramo resta piena e cio' che sta piu' su svanisce. Un fusto opaco che
+                    // finisce e' un tronco tagliato: qui non finisce, si dissolve.
+                    const yTopFadeStart = model.baseY - 14, yTopFadeEnd = model.baseY - 46;
                     const bw = LAW_SCALE * model.branchRad;                  // semilarghezza del ramo alla base
                     const collarR = bw * 1.75;                              // collare 1.75x il ramo: copre l'intera giunzione
                     return (
@@ -389,8 +393,12 @@ export default function Garden({ onClose, onOpenHub, onCreateHub }: { onClose: (
                           <linearGradient id="fustoFade" gradientUnits="userSpaceOnUse" x1="0" y1={yFadeStart.toFixed(1)} x2="0" y2={yFadeEnd.toFixed(1)}>
                             <stop offset="0%" stopColor="#fff" /><stop offset="100%" stopColor="#000" />
                           </linearGradient>
+                          <linearGradient id="fustoFadeTop" gradientUnits="userSpaceOnUse" x1="0" y1={yTopFadeEnd.toFixed(1)} x2="0" y2={yTopFadeStart.toFixed(1)}>
+                            <stop offset="0%" stopColor="#000" /><stop offset="100%" stopColor="#fff" />
+                          </linearGradient>
                           <mask id="fustoMask">
-                            <rect x={(CX - half - 20).toFixed(1)} y={(yTopS - 40).toFixed(1)} width={(half * 2 + 40).toFixed(1)} height={(yFadeStart - (yTopS - 40)).toFixed(1)} fill="#fff" />
+                            <rect x={(CX - half - 20).toFixed(1)} y={yTopFadeEnd.toFixed(1)} width={(half * 2 + 40).toFixed(1)} height={Math.max(1, yTopFadeStart - yTopFadeEnd).toFixed(1)} fill="url(#fustoFadeTop)" />
+                            <rect x={(CX - half - 20).toFixed(1)} y={yTopFadeStart.toFixed(1)} width={(half * 2 + 40).toFixed(1)} height={Math.max(0, yFadeStart - yTopFadeStart).toFixed(1)} fill="#fff" />
                             <rect x={(CX - half - 20).toFixed(1)} y={yFadeStart.toFixed(1)} width={(half * 2 + 40).toFixed(1)} height={Math.max(1, yFadeEnd - yFadeStart).toFixed(1)} fill="url(#fustoFade)" />
                           </mask>
                           <radialGradient id="collare"><stop offset="0%" stopColor="#5a4634" /><stop offset="55%" stopColor="#4a3a2b" /><stop offset="100%" stopColor="#4a3a2b" stopOpacity="0" /></radialGradient>
