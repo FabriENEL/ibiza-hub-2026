@@ -1,7 +1,5 @@
 import { supabase } from '@/lib/supabase';
-const ENABLED = process.env.NEXT_PUBLIC_LOGGING_ENABLED === 'true';
 export async function logEvent(eventType: string, detail?: Record<string, unknown>, hubId?: string) {
-  if (!ENABLED) return;
   try {
     // getSession legge la sessione GIA' in memoria: nessun giro di rete a ogni evento (era getUser,
     // che invece bussava al server ogni volta - troppo per un registro che dev'essere invisibile).
