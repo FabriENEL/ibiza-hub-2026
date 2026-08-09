@@ -2,7 +2,6 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { logEvent } from '@/app/dashboard/lib/logEvent';
 import { AppIconMark } from '@/components/brand/AppIconMark';
 
 // PIN 4 cifre -> password Supabase (>=6 char): suffisso fisso non segreto, solo per soglia lunghezza.
@@ -47,7 +46,6 @@ export default function LoginPage() {
       await new Promise((r) => setTimeout(r, 400));
     }
     localStorage.removeItem('eg_pending_username');
-    logEvent('signup');
     router.push('/dashboard');
   };
 
@@ -69,7 +67,6 @@ export default function LoginPage() {
       const { data: u } = await supabase.auth.getUser();
       if (u.user) { await supabase.from('profiles').update({ username: pending }).eq('id', u.user.id); localStorage.removeItem('eg_pending_username'); }
     }
-    logEvent('login');
     router.push('/dashboard');
   };
 
