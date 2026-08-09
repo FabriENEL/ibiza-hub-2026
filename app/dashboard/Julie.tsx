@@ -119,8 +119,13 @@ function potaApertura(reply: string, testoUtente: string): string {
     t = t.replace(/^\s*(buon\s?giorno|buon\s?pomeriggio|buona\s?sera|buonasera|salve|ciao)?[,.!…\s]*sono\s+j\.?\s*u\.?\s*l\.?\s*i\.?\s*e\.?[,.!…\s]*/i, '');
   }
   if (utenteHaSalutato) {
-    // 2a. l'utente ha salutato: Julie ricambia, ma con la parola dell'ORA, non con quella del modello
-    t = t.replace(SAL, saluto());
+    // 2a. l'utente ha salutato: Julie ricambia con la parola dell'ORA. Se il saluto c'e' (il modello
+    // l'ha messo) si corregge la parola; se NON c'e' (la riga del SYSTEM l'ha zittito) si AGGIUNGE.
+    if (SAL.test(t)) {
+      t = t.replace(SAL, saluto());
+    } else {
+      t = saluto() + '. ' + t.charAt(0).toUpperCase() + t.slice(1);
+    }
   } else {
     // 2b. nessun saluto ricevuto: quello di Julie e' di troppo e va via
     t = t.replace(new RegExp(SAL.source + '[,.!…\\s]+', 'i'), '');
