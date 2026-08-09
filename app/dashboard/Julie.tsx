@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useHub } from './lib/HubContext';
-import { rispostaDiRepertorio } from './lib/repertorio';
+import { rispostaDiRepertorio, saluto } from './lib/repertorio';
 import { logEvent } from './lib/logEvent';
 import { ruleSignature } from './lib/eventVisuals';
 import DateTimePicker from './lib/DateTimePicker';
@@ -101,10 +101,41 @@ async function chiediAJulie(corpo: any, annuncia: (avviso: string) => void): Pro
   return seconda?.sovraccarico ? { ...seconda, reply: CHIUSURA_SOVRACCARICO } : seconda;
 }
 
+// La memoria dell'ultima interazione (per il saluto oltre le due ore), per dispositivo.
+const DUE_ORE = 2 * 60 * 60 * 1000;
+const chiaveUltimo = (uid: string) => 'eg_julie_ultimo_' + uid;
+
+// Il saluto lo decide l'orologio del dispositivo, la presentazione la da' l'interfaccia (nome, acronimo
+// e volto sono gia' nell'intestazione). Qui si toglie cio' che il modello rimette di sua iniziativa, e
+// si corregge la parola quando l'utente ha salutato. SOLO sulla risposta del modello: il repertorio e'
+// scritto a mano e la sua ora la mette gia' il segnaposto {S}.
+function potaApertura(reply: string, testoUtente: string): string {
+  const chiedeIdentita   = /chi\s+(sei|e'|è)|come\s+ti\s+chiami|il\s+tuo\s+nome|acronimo|cosa\s+(significa|vuol\s+dire)/i.test(testoUtente);
+  const utenteHaSalutato = /\b(buon\s?giorno|buon\s?pomeriggio|buona\s?sera|buonasera|salve|ciao|ehi)\b/i.test(testoUtente);
+  const SAL = /^\s*(buon\s?giorno|buon\s?pomeriggio|buona\s?sera|buonasera)/i;   // 'salve' e' senz'ora: si lascia
+  let t = reply;
+  // 1. la presentazione: via SEMPRE, tranne se gliel'hanno chiesta (o si decapita "chi sei?")
+  if (!chiedeIdentita) {
+    t = t.replace(/^\s*(buon\s?giorno|buon\s?pomeriggio|buona\s?sera|buonasera|salve|ciao)?[,.!…\s]*sono\s+j\.?\s*u\.?\s*l\.?\s*i\.?\s*e\.?[,.!…\s]*/i, '');
+  }
+  if (utenteHaSalutato) {
+    // 2a. l'utente ha salutato: Julie ricambia, ma con la parola dell'ORA, non con quella del modello
+    t = t.replace(SAL, saluto());
+  } else {
+    // 2b. nessun saluto ricevuto: quello di Julie e' di troppo e va via
+    t = t.replace(new RegExp(SAL.source + '[,.!…\\s]+', 'i'), '');
+  }
+  t = t.trim();
+  if (!t) return reply;                      // se restasse vuoto, vince l'originale
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: string }) {
   const { userId, signalPostAction, julieSeed, clearJulieSeed } = useHub();
+  // Bolla d'apertura: valore STATICO qui (uguale su server e client -> niente disallineamento di
+  // idratazione), sostituito subito dall'effetto al montaggio con la versione che conosce ora e memoria.
   const [messages, setMessages] = useState<Msg[]>([
-    { role: 'assistant', content: 'Buongiorno. Sono J.U.L.I.E., come posso esserLe utile?' },
+    { role: 'assistant', content: 'Eccomi. Mi dica pure.' },
   ]);
   const [input, setInput] = useState('');
   const [listening, setListening] = useState(false);
@@ -123,6 +154,20 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, busy, pending]);
   useEffect(() => { const id = requestAnimationFrame(() => setShown(true)); return () => cancelAnimationFrame(id); }, []);
+
+  // La bolla d'apertura si calcola QUI, al montaggio (mai nel render: localStorage non c'e' sul server,
+  // e l'ora nel render darebbe Washington nell'HTML e Bangkok subito dopo). Sostituisce SOLO la prima
+  // bolla, lasciando intatto cio' che il seed dei consigli aggiunge in coda.
+  useEffect(() => {
+    if (!userId) return;
+    const ultimo = Number(localStorage.getItem(chiaveUltimo(userId)) || 0);
+    const apertura = !ultimo
+      ? saluto() + '. Sono J.U.L.I.E., come posso esserLe utile?'
+      : (Date.now() - ultimo > DUE_ORE)
+        ? saluto() + '. Come posso esserLe utile?'
+        : 'Eccomi. Mi dica pure.';
+    setMessages((m) => [{ role: 'assistant', content: apertura }, ...m.slice(1)]);
+  }, [userId]);
 
   // Arrivo da un consiglio ('Mi interessa'): precompilo la card con nome e luogo, chiedo solo data/ora.
   useEffect(() => {
@@ -246,6 +291,7 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
   const send = async (voiceText?: string) => {
     const text = (voiceText ?? input).trim();
     if (!text || busy) return;
+    if (userId) localStorage.setItem(chiaveUltimo(userId), String(Date.now()));   // memoria: abbiamo parlato ORA
     const next = [...messages, { role: 'user' as const, content: text }];
     setMessages(next);
     setInput('');
@@ -255,7 +301,10 @@ export default function Julie({ onClose, hubId }: { onClose: () => void; hubId: 
         { messages: next.map((m: any) => ({ role: m.role, content: m.content })), hubId },
         (avviso) => { setMessages((m) => [...m, { role: 'assistant', content: avviso }]); if (speakOn) speak(avviso); },
       );
-      const reply = data.reply ?? 'Mi scusi, non ho compreso.';
+      // Potatura del saluto/presentazione: SOLO sulla risposta del modello (il repertorio e' gia' pulito,
+      // e la sua ora la mette il segnaposto). Qui, prima di schermo e voce, che cosi' non divergono.
+      const grezza = data.reply ?? 'Mi scusi, non ho compreso.';
+      const reply = data.level === 'repertoire' ? grezza : potaApertura(grezza, text);
       // SENSORI (zero contenuto: solo numeri e categorie). Un turno per riga, col livello che ha
       // risposto - repertorio/piccolo/grande. Sul sovraccarico, invece, julie_overloaded: ha taciuto.
       if (data.sovraccarico) logEvent('julie_overloaded', {}, hubId);

@@ -28,6 +28,26 @@ export function normalizza(t: string): string {
     .trim();
 }
 
+// --- l'orologio: la fascia oraria del DISPOSITIVO ----------------------------
+// getHours() e' l'ora locale del telefono di chi legge: per il socio a Bangkok e' l'ora di Bangkok.
+// NON si calcola mai sul server (Vercel gira a Washington, direbbe il pomeriggio sbagliato).
+// Fasce: le 4 -> Buongiorno, le 16 -> Buon pomeriggio, le 20 -> Buonasera (00-03 -> Buonasera, non
+// Buonanotte, che e' un congedo). saluto()/congedo() servono anche a Julie.tsx.
+export function fasciaOraria(d: Date = new Date()): 'mattino' | 'pomeriggio' | 'sera' {
+  const h = d.getHours();
+  if (h >= 4 && h < 14) return 'mattino';
+  if (h < 18) return 'pomeriggio';
+  return 'sera';
+}
+export function saluto(): string {
+  const f = fasciaOraria();
+  return f === 'mattino' ? 'Buongiorno' : f === 'pomeriggio' ? 'Buon pomeriggio' : 'Buonasera';
+}
+export function congedo(): string {
+  const f = fasciaOraria();
+  return f === 'mattino' ? 'Buona giornata' : f === 'pomeriggio' ? 'Buon proseguimento' : 'Buona serata';
+}
+
 type Voce = {
   id: string;
   chiavi: string[];      // frasi INTERE, gia' normalizzate
@@ -46,12 +66,12 @@ const REPERTORIO: Voce[] = [
       'buondi', 'ehila', 'julie',
     ],
     frasi: [
-      'Buongiorno a Lei. Da dove cominciamo?',
+      '{S} a Lei. Da dove cominciamo?',
       'Eccomi. Mi dica pure.',
-      'Buongiorno. Sono qui: come posso esserLe utile?',
+      '{S}. Sono qui: come posso esserLe utile?',
       'Salve. Ho tutto sotto controllo — a Lei la parola.',
       'Eccomi, con piacere. Che cosa organizziamo?',
-      'Buongiorno. Il Suo giardino La aspetta: mi dica.',
+      '{S}. Il Suo giardino La aspetta: mi dica.',
     ],
   },
 
@@ -69,7 +89,7 @@ const REPERTORIO: Voce[] = [
       'Le auguro una buona giornata. Sarò qui.',
       'A dopo. Se cambia qualcosa, mi trova.',
       'Vada pure. Il programma è al sicuro.',
-      'Buona serata. Torni quando vuole.',
+      '{C}. Torni quando vuole.',
     ],
   },
 
@@ -351,6 +371,6 @@ export function rispostaDiRepertorio(testo: string): string | null {
 
   const scelte = voce.frasi.filter((f) => f !== ultima.get(voce.id));
   const f = scelte[Math.floor(Math.random() * scelte.length)] ?? voce.frasi[0];
-  ultima.set(voce.id, f);
-  return f;
+  ultima.set(voce.id, f);   // l'anti-ripetizione ricorda il TEMPLATE (con {S}/{C}), non il risolto
+  return f.replace('{S}', saluto()).replace('{C}', congedo());
 }
