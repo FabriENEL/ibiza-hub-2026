@@ -117,7 +117,7 @@ function blocchiAzione(oggi: string, testo: string): { prompt: string; haBlocchi
   const evento = /aggiung|\bmett|crea|fiss|event|appuntament|cena|pranz|colazion|brunch|domani|dopodomani|stasera|stamattina|luned|marted|mercoled|gioved|venerd|sabat|domenic|\balle\b|\d{1,2}[:.]/.test(t);
   const luoghi = /dove|consigl|ristorant|trattori|pizzeri|aperitiv|spiagg|\bmare\b|parcheggi|posteggi|\blocal|\bbar\b|discotec|mangiar|\bbere\b|\bposto\b|\bposti\b|museo|cultur|natura|\bparco\b|\bidea\b/.test(t);
   // Vago orientato al "fare": non lasci Julie senza le capacita' di proposta (evento + luoghi).
-  const vago = /\bfare\b|facciamo|qualcosa|\bidea\b|\bbello\b|propon|suggeri|consigl|\bcosa\b|\?/.test(t);
+  const vago = /\bfare\b|facciamo|qualcosa|\bidea\b|\bbello\b|propon|suggeri|consigl|\bcosa\b/.test(t);
   const e = evento || vago, l = luoghi || vago;
   let blocchi = '';
   if (e) blocchi += bloccoEvento(oggi);
