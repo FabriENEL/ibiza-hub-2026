@@ -7,11 +7,44 @@ import { useHub } from '../lib/HubContext';
 type Theme = { text: string; gradient: string; border: string };
 type Media = { id: string; url: string; type: string | null; user_id: string | null };
 
+// Rimpicciolimento lato client, PRIMA del caricamento: taglia il traffico (una foto da 2 MB scende a
+// 400-600 KB) senza che l'occhio se ne accorga - 2048 px sul lato lungo sono piu' punti di quanti un
+// telefono ne mostri anche a pieno formato. Non taglia MAI: un solo fattore sui due lati -> proporzioni intatte.
+const MAX_LATO = 2048;   // px sul lato LUNGO
+const QUALITA = 0.88;    // JPEG
+const MAX_LOTTO = 30;    // foto per giro: ~15 MB, su un secchio con centinaia di MB liberi
+async function rimpicciolisci(file: File): Promise<File> {
+  if (file.type.startsWith('video/')) return file;   // i video mai toccati
+  let bmp: ImageBitmap;
+  try {
+    // 'from-image' applica l'EXIF: senza, il ridisegno su tela lo butta e le foto dei telefoni escono ruotate.
+    bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch { return file; }   // formato che il browser non apre: meglio l'originale che un fallimento
+  try {
+    const lato = Math.max(bmp.width, bmp.height);
+    // Gia' piccola (lato <= 2048 E file <= 1 MB): l'originale byte per byte. Ricomprimerla la peggiora.
+    if (lato <= MAX_LATO && file.size <= 1024 * 1024) return file;
+    const scala = Math.min(1, MAX_LATO / lato);   // mai INGRANDIRE
+    const w = Math.round(bmp.width * scala), h = Math.round(bmp.height * scala);
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(bmp, 0, 0, w, h);   // niente riquadro di ritaglio: lo stesso fotogramma, solo piu' piccolo
+    const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', QUALITA));
+    if (!blob || blob.size >= file.size) return file;   // se pesa di piu' (o fallisce), vince l'originale
+    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } finally {
+    bmp.close?.();
+  }
+}
+
 export default function Gallery({ hubId, theme, archived, isOwner }: { hubId: string; theme: Theme; archived: boolean; isOwner: boolean }) {
   const { userId } = useHub();
   const [items, setItems] = useState<Media[]>([]);
   const [filter, setFilter] = useState<'all' | 'mine'>('all');
   const [uploading, setUploading] = useState(false);
+  const [prog, setProg] = useState('');
   const [loading, setLoading] = useState(true);
   const [viewer, setViewer] = useState<Media | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -26,17 +59,36 @@ export default function Gallery({ hubId, theme, archived, isOwner }: { hubId: st
   useEffect(() => { load(); }, [hubId]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !userId || uploading) return;
+    const scelti = Array.from(e.target.files ?? []);
+    e.target.value = '';   // subito: cosi' riselezionare gli STESSI file fa scattare di nuovo l'onChange
+    if (scelti.length === 0 || !userId || uploading) return;
+    const files = scelti.slice(0, MAX_LOTTO);
+    const troppi = scelti.length - files.length;   // > 0 se ne ha scelti piu' di MAX_LOTTO
     setUploading(true);
-    const path = userId + '/' + Date.now() + '-' + file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-    const { error: upErr } = await supabase.storage.from('gallery').upload(path, file);
-    if (upErr) { setUploading(false); alert('Caricamento non riuscito: ' + upErr.message); return; }
-    const url = supabase.storage.from('gallery').getPublicUrl(path).data.publicUrl;
-    const isVideo = file.type.startsWith('video/');
-    const { error: dbErr } = await supabase.from('media').insert({ hub_id: hubId, url, type: isVideo ? 'video' : 'image', user_id: userId, event_date: new Date().toISOString().split('T')[0] });
-    setUploading(false);
-    if (!dbErr) { logEvent('photo_uploaded', { type: isVideo ? 'video' : 'image' }, hubId); load(); } else alert('Errore: ' + dbErr.message);
+    let ok = 0, ko = 0;
+    for (let i = 0; i < files.length; i++) {
+      setProg((i + 1) + ' di ' + files.length);
+      const f = files[i];
+      const isVideo = f.type.startsWith('video/');
+      const daCaricare = isVideo ? f : await rimpicciolisci(f);   // i video intatti, le foto alleggerite
+      const path = userId + '/' + Date.now() + '-' + i + '-' + daCaricare.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      const { error: upErr } = await supabase.storage.from('gallery').upload(path, daCaricare);
+      if (upErr) { ko++; continue; }   // un errore non ferma gli altri
+      const url = supabase.storage.from('gallery').getPublicUrl(path).data.publicUrl;
+      const { error: dbErr } = await supabase.from('media').insert({ hub_id: hubId, url, type: isVideo ? 'video' : 'image', user_id: userId, event_date: new Date().toISOString().split('T')[0] });
+      if (dbErr) {
+        // NIENTE ORFANI: se la riga fallisce, si toglie il file appena caricato dal secchio.
+        await supabase.storage.from('gallery').remove([path]).catch(() => {});
+        ko++; continue;
+      }
+      logEvent('photo_uploaded', { type: isVideo ? 'video' : 'image' }, hubId);   // una riga per foto, come oggi
+      ok++;
+    }
+    setUploading(false); setProg('');
+    if (ok > 0) load();   // una volta sola, alla fine del ciclo
+    // Un solo messaggio, onesto sul numero.
+    if (troppi > 0) alert('Ne carico ' + MAX_LOTTO + ' per volta — le altre ' + troppi + ' con un secondo giro.' + (ko > 0 ? ' (' + ko + ' di questo giro non riuscite.)' : ''));
+    else if (ko > 0) alert(ok + ' caricate, ' + ko + ' non riuscite.');
   };
 
   const handleDownload = async (m: Media) => {
@@ -86,8 +138,8 @@ export default function Gallery({ hubId, theme, archived, isOwner }: { hubId: st
         {!archived && (
           <div className="flex gap-2">
             <label className={'bg-gradient-to-r ' + theme.gradient + ' text-slate-950 text-[10px] px-3 py-1.5 rounded-lg font-black uppercase cursor-pointer'}>
-              {uploading ? 'Carico...' : '+ Foto'}
-              <input type="file" accept="image/*,video/*" className="hidden" disabled={uploading} onChange={handleUpload} />
+              {uploading ? ('Carico' + (prog ? ' ' + prog : '') + '...') : '+ Foto'}
+              <input type="file" accept="image/*,video/*" multiple className="hidden" disabled={uploading} onChange={handleUpload} />
             </label>
             <label className={'bg-slate-900 border border-white/15 text-white text-[10px] px-3 py-1.5 rounded-lg font-black uppercase cursor-pointer'}>
               {String.fromCodePoint(0x1F4F7)} Scatta
